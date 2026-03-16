@@ -414,7 +414,7 @@ function renderAll() {
   renderWeekNav();
 
   // KPIs
-  renderKPIs(w, prev, weeksToZero, cpd);
+  renderKPIs(w, prev, weeksToZero, cpd, cpdNote);
 
   // Burn stats
   const baselineBacklog = allData.baselineBacklog || allData.weeks[0].backlog;
@@ -468,7 +468,7 @@ function renderWeekNav() {
 
 function selectWeek(i) { selWeek = i; renderAll(); }
 
-function renderKPIs(w, prev, weeksToZero, cpd) {
+function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
   function delta(cur, p, invertGood = false) {
     if (p == null) return { txt: 'First week on record', cls: 'neutral' };
     const diff = cur - p;
