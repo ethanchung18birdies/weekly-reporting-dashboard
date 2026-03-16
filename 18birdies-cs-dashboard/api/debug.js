@@ -12,46 +12,49 @@ export default async function handler(req, res) {
       client_id: appId,
       client_secret: appSecret,
     });
-
     const tokenRes = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
     });
-
-    const tokenText = await tokenRes.text();
-
     if (!tokenRes.ok) {
-      return res.status(200).json({
-        step: 'auth_failed',
-        status: tokenRes.status,
-        error: tokenText,
-      });
+      return res.status(200).json({ step: 'auth_failed', error: await tokenRes.text() });
     }
+    const { access_token } = await tokenRes.json();
 
-    const { access_token } = JSON.parse(tokenText);
+    // Test the reports/email endpoint for this week
+    const now = new Date();
+    const start = '2026-03-09T00:00:00Z';
+    const end = '2026-03-15T23:59:59Z';
 
-    const mailboxRes = await fetch(`${HELPSCOUT_API}/mailboxes`, {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
-    const mailboxData = await mailboxRes.json();
-    const mailboxes = mailboxData?._embedded?.mailboxes || [];
-
-    const testRes = await fetch(
-      `${HELPSCOUT_API}/conversations?mailbox=${mailboxId}&status=active&pageSize=1`,
-      { headers: { Authorization: `Bearer ${access_token}` } }
-    );
-    const testData = await testRes.json();
+    const [emailReport, companyReport, backlogActive, backlogPending] = await Promise.all([
+      fetch(`${HELPSCOUT_API}/reports/email?start=${start}&end=${end}&mailbox=${mailboxId}`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+      }).then(r => r.json()),
+      fetch(`${HELPSCOUT_API}/reports/company?start=${start}&end=${end}&mailbox=${mailboxId}`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+      }).then(r => r.json()),
+      fetch(`${HELPSCOUT_API}/conversations?mailbox=${mailboxId}&status=active&pageSize=1`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+      }).then(r => r.json()),
+      fetch(`${HELPSCOUT_API}/conversations?mailbox=${mailboxId}&status=pending&pageSize=1`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+      }).then(r => r.json()),
+    ]);
 
     return res.status(200).json({
       auth: 'success',
-      active_tickets: testData?.page?.totalElements ?? 'error',
-      mailboxes: mailboxes.map(m => ({ id: m.id, name: m.name, email: m.email })),
+      period: { start, end },
+      backlog: {
+        active: backlogActive?.page?.totalElements,
+        pending: backlogPending?.page?.totalElements,
+      },
+      emailReport_current: emailReport?.current,
+      companyReport_current: companyReport?.current,
+      raw_email_error: emailReport?.error || null,
+      raw_company_error: companyReport?.error || null,
     });
   } catch (err) {
-    return res.status(200).json({
-      step: 'exception',
-      error: err.message,
-    });
+    return res.status(200).json({ step: 'exception', error: err.message });
   }
 }
