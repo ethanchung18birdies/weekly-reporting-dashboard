@@ -366,6 +366,20 @@ function setStatus(s) {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────
+// Returns elapsed business days in a week given startStr
+// If the week is in the past, returns 5. If current week, returns days elapsed so far (min 1).
+function elapsedDays(startStr, endStr) {
+  const now = new Date();
+  const weekStart = new Date(startStr + 'T00:00:00Z');
+  const weekEnd = new Date(endStr + 'T23:59:59Z');
+  if (now > weekEnd) return 5; // past week — full 5 days
+  if (now < weekStart) return 5; // future (shouldn't happen) — use 5
+  // Current week: days elapsed from Monday to today (Mon=1 ... Fri=5, cap at 5)
+  const msElapsed = now - weekStart;
+  const daysElapsed = Math.floor(msElapsed / (1000 * 60 * 60 * 24)) + 1;
+  return Math.min(5, Math.max(1, daysElapsed));
+}
+
 function renderAll() {
   document.getElementById('loadingState').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
@@ -379,9 +393,11 @@ function renderAll() {
     `Last updated ${fetchedAt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} at ${fetchedAt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
 
   // Goal banner
-  const cpd = (w.closed / 5).toFixed(0);
+  const elapsed = elapsedDays(w.startStr, w.endStr);
+  const cpd = (w.closed / elapsed).toFixed(0);
+  const cpdNote = elapsed < 5 ? ` (${elapsed} day${elapsed > 1 ? 's' : ''} elapsed)` : '';
   const pctTarget = Math.round(w.closed / TARGET_WEEKLY * 100);
-  document.getElementById('paceVal').textContent = `${cpd} tickets/day`;
+  document.getElementById('paceVal').textContent = `${cpd} tickets/day${cpdNote}`;
   const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
   const avgBurn = recentWeeks.reduce((a, x) => a + (x.closed - x.opened), 0) / recentWeeks.length;
   const weeksToZero = avgBurn > 0 ? Math.ceil(w.backlog / avgBurn) : null;
@@ -402,11 +418,13 @@ function renderAll() {
 
   // Burn stats
   const baselineBacklog = allData.baselineBacklog || allData.weeks[0].backlog;
+  const baselineDate = allData.baselineDate || 'start';
   const reduced = Math.max(0, baselineBacklog - w.backlog);
   const reducedPct = baselineBacklog > 0 ? Math.round(reduced / baselineBacklog * 100) : 0;
   document.getElementById('burnStats').innerHTML = `
     <div class="bstat"><div class="bstat-val">${w.backlog.toLocaleString()}</div><div class="bstat-lbl">Current backlog</div></div>
-    <div class="bstat"><div class="bstat-val" style="color:var(--green)">−${reduced.toLocaleString()}</div><div class="bstat-lbl">Reduced since baseline</div></div>
+    <div class="bstat"><div class="bstat-val">${baselineBacklog.toLocaleString()}</div><div class="bstat-lbl">Baseline as of ${baselineDate}</div></div>
+    <div class="bstat"><div class="bstat-val" style="color:var(--green)">−${reduced.toLocaleString()}</div><div class="bstat-lbl">Tickets reduced</div></div>
     <div class="bstat"><div class="bstat-val" style="color:var(--green)">${reducedPct}%</div><div class="bstat-lbl">Of baseline cleared</div></div>
     <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
   `;
@@ -481,7 +499,7 @@ function renderKPIs(w, prev, weeksToZero, cpd) {
     </div>`;
 
   const otherCards = [
-    { label: 'Closed this week', value: w.closed.toLocaleString(), color: '#1a3a1a', ...delta(w.closed, prev?.closed), note: `${cpd}/day · target 360/day` },
+    { label: 'Closed this week', value: w.closed.toLocaleString(), color: '#1a3a1a', ...delta(w.closed, prev?.closed), note: `${cpd}/day${cpdNote} · target 360/day` },
     { label: 'Opened this week', value: w.opened.toLocaleString(), color: '#1e40af', ...delta(w.opened, prev?.opened, true), note: 'New inbound volume' },
     { label: 'Net burn rate', value: (burnRate >= 0 ? '+' : '') + burnRate, color: burnRate >= 0 ? '#1a6b3a' : '#991b1b',
       txt: burnRate > 0 ? '↓ Backlog shrinking' : burnRate < 0 ? '↑ Backlog growing' : '→ Flat this week',
@@ -623,7 +641,7 @@ function renderBurnRateChart() {
 
 function renderThroughputChart() {
   destroyChart('tp');
-  const cpds = allData.weeks.map(w => Math.round(w.closed / 5));
+  const cpds = allData.weeks.map(w => Math.round(w.closed / elapsedDays(w.startStr, w.endStr)));
   charts['tp'] = new Chart(document.getElementById('throughputChart'), {
     type: 'line',
     data: { labels: allData.weeks.map(w => w.label), datasets: [
