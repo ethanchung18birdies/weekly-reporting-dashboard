@@ -1,0 +1,12 @@
+{
+  "name": "18birdies-cs-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
