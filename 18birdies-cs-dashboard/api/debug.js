@@ -6,36 +6,31 @@ export default async function handler(req, res) {
   const appSecret = process.env.HELPSCOUT_APP_SECRET;
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
 
-  const envCheck = {
-    HELPSCOUT_APP_ID: appId ? `set (${appId.length} chars, starts: ${appId.slice(0,4)}...)` : 'MISSING',
-    HELPSCOUT_APP_SECRET: appSecret ? `set (${appSecret.length} chars, starts: ${appSecret.slice(0,4)}...)` : 'MISSING',
-    HELPSCOUT_MAILBOX_ID: mailboxId ? `set — value: ${mailboxId}` : 'MISSING',
-  };
-
   try {
-    const params = new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: appId,
-      client_secret: appSecret,
-    });
-
+    // HelpScout requires Basic Auth header + form body
+    const credentials = Buffer.from(`${appId}:${appSecret}`).toString('base64');
+    
     const tokenRes = await fetch(TOKEN_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString(),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${credentials}`,
+      },
+      body: 'grant_type=client_credentials',
     });
 
+    const tokenText = await tokenRes.text();
+
     if (!tokenRes.ok) {
-      const err = await tokenRes.text();
       return res.status(200).json({
-        env: envCheck,
         step: 'auth_failed',
         status: tokenRes.status,
-        error: err,
+        error: tokenText,
+        hint: 'Auth format issue',
       });
     }
 
-    const { access_token } = await tokenRes.json();
+    const { access_token } = JSON.parse(tokenText);
 
     const mailboxRes = await fetch(`${HELPSCOUT_API}/mailboxes`, {
       headers: { Authorization: `Bearer ${access_token}` },
@@ -50,14 +45,12 @@ export default async function handler(req, res) {
     const testData = await testRes.json();
 
     return res.status(200).json({
-      env: envCheck,
       auth: 'success',
-      active_tickets_with_current_id: testData?.page?.totalElements ?? 'error',
-      your_mailboxes: mailboxes.map(m => ({ id: m.id, name: m.name, email: m.email })),
+      active_tickets: testData?.page?.totalElements ?? 'error',
+      mailboxes: mailboxes.map(m => ({ id: m.id, name: m.name, email: m.email })),
     });
   } catch (err) {
     return res.status(200).json({
-      env: envCheck,
       step: 'exception',
       error: err.message,
     });
