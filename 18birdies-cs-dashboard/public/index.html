@@ -401,11 +401,13 @@ function renderAll() {
   renderKPIs(w, prev, weeksToZero, cpd);
 
   // Burn stats
-  const startBacklog = allData.weeks[0].backlog;
-  const reduced = Math.max(0, startBacklog - w.backlog);
+  const baselineBacklog = allData.baselineBacklog || allData.weeks[0].backlog;
+  const reduced = Math.max(0, baselineBacklog - w.backlog);
+  const reducedPct = baselineBacklog > 0 ? Math.round(reduced / baselineBacklog * 100) : 0;
   document.getElementById('burnStats').innerHTML = `
     <div class="bstat"><div class="bstat-val">${w.backlog.toLocaleString()}</div><div class="bstat-lbl">Current backlog</div></div>
-    <div class="bstat"><div class="bstat-val" style="color:var(--green)">−${reduced.toLocaleString()}</div><div class="bstat-lbl">Reduced since W1</div></div>
+    <div class="bstat"><div class="bstat-val" style="color:var(--green)">−${reduced.toLocaleString()}</div><div class="bstat-lbl">Reduced since baseline</div></div>
+    <div class="bstat"><div class="bstat-val" style="color:var(--green)">${reducedPct}%</div><div class="bstat-lbl">Of baseline cleared</div></div>
     <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
   `;
 
@@ -449,31 +451,51 @@ function renderWeekNav() {
 function selectWeek(i) { selWeek = i; renderAll(); }
 
 function renderKPIs(w, prev, weeksToZero, cpd) {
-  function delta(cur, prev, invertGood = false) {
-    if (prev == null) return { txt: 'First week on record', cls: 'neutral' };
-    const diff = cur - prev;
-    const pct = Math.round(Math.abs(diff) / Math.max(prev, 1) * 100);
+  function delta(cur, p, invertGood = false) {
+    if (p == null) return { txt: 'First week on record', cls: 'neutral' };
+    const diff = cur - p;
+    const pct = Math.round(Math.abs(diff) / Math.max(p, 1) * 100);
     const up = diff > 0;
     const good = invertGood ? !up : up;
     return { txt: `${up ? '↑' : '↓'} ${pct}% vs prior week`, cls: good ? 'up' : 'down' };
   }
   const burnRate = w.closed - w.opened;
-  const cards = [
-    { label: 'Backlog', value: w.backlog.toLocaleString(), color: '#92400e', ...delta(w.backlog, prev?.backlog, true), note: weeksToZero ? `~${weeksToZero} weeks to zero` : 'No burn trend yet' },
+
+  // Backlog card with two deltas side by side
+  const vsBaseline = w.pctVsBaseline ?? 0;
+  const vsBaseCls = vsBaseline <= 0 ? 'up' : 'down';
+  const vsBaseLabel = vsBaseline === 0 ? '→ 0% vs baseline' : `${vsBaseline <= 0 ? '↓' : '↑'} ${Math.abs(vsBaseline)}% vs baseline`;
+  const vsPrior = w.pctVsPriorWeek;
+  const vsPriorCls = vsPrior == null ? 'neutral' : vsPrior <= 0 ? 'up' : 'down';
+  const vsPriorLabel = vsPrior == null ? '— vs last week' : `${vsPrior <= 0 ? '↓' : '↑'} ${Math.abs(vsPrior)}% vs last week`;
+
+  const backlogCard = `
+    <div class="kpi" style="--kc:#92400e">
+      <div class="kpi-label">Backlog</div>
+      <div class="kpi-value">${w.backlog.toLocaleString()}</div>
+      <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
+        <span class="kpi-delta ${vsBaseCls}" style="font-size:10px;background:${vsBaseline<=0?'var(--green-bg)':'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsBaseLabel}</span>
+        <span class="kpi-delta ${vsPriorCls}" style="font-size:10px;background:${vsPrior==null?'var(--surface2)':vsPrior<=0?'var(--green-bg)':'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsPriorLabel}</span>
+      </div>
+      <div class="kpi-note" style="margin-top:4px">${weeksToZero ? `~${weeksToZero} weeks to zero at current pace` : 'No burn trend yet'}</div>
+    </div>`;
+
+  const otherCards = [
     { label: 'Closed this week', value: w.closed.toLocaleString(), color: '#1a3a1a', ...delta(w.closed, prev?.closed), note: `${cpd}/day · target 360/day` },
     { label: 'Opened this week', value: w.opened.toLocaleString(), color: '#1e40af', ...delta(w.opened, prev?.opened, true), note: 'New inbound volume' },
     { label: 'Net burn rate', value: (burnRate >= 0 ? '+' : '') + burnRate, color: burnRate >= 0 ? '#1a6b3a' : '#991b1b',
       txt: burnRate > 0 ? '↓ Backlog shrinking' : burnRate < 0 ? '↑ Backlog growing' : '→ Flat this week',
       cls: burnRate > 0 ? 'up' : burnRate < 0 ? 'down' : 'neutral',
       note: 'Closed minus opened' },
-  ];
-  document.getElementById('kpiGrid').innerHTML = cards.map(c => `
+  ].map(c => `
     <div class="kpi" style="--kc:${c.color}">
       <div class="kpi-label">${c.label}</div>
       <div class="kpi-value">${c.value}</div>
       <div class="kpi-delta ${c.cls}">${c.txt}</div>
       <div class="kpi-note">${c.note}</div>
     </div>`).join('');
+
+  document.getElementById('kpiGrid').innerHTML = backlogCard + otherCards;
 }
 
 function getBuckets(w) {
