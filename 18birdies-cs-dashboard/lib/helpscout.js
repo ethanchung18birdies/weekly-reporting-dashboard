@@ -7,7 +7,6 @@ const TOKEN_URL = 'https://api.helpscout.net/v2/authentication/token';
 let _tokenCache = null;
 
 async function getAccessToken() {
-  // Return cached token if still valid (with 60s buffer)
   if (_tokenCache && _tokenCache.expiresAt > Date.now() + 60_000) {
     return _tokenCache.token;
   }
@@ -53,7 +52,6 @@ async function hsGet(path, params = {}) {
   return res.json();
 }
 
-// Fetch all pages of a paginated endpoint
 async function hsPaginated(path, params = {}, embeddedKey) {
   let page = 1;
   let allItems = [];
@@ -74,8 +72,8 @@ async function hsPaginated(path, params = {}, embeddedKey) {
 
 function startOfWeek(date) {
   const d = new Date(date);
-  const day = d.getUTCDay(); // 0=Sun
-  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Mon
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
   d.setUTCDate(diff);
   d.setUTCHours(0, 0, 0, 0);
   return d;
@@ -108,20 +106,17 @@ function getWeekRanges(numWeeks = 12) {
 
 // ── METRICS FETCHERS ──────────────────────────────────────────────────────
 
-async function getConversationsForRange(startStr, endStr, status) {
+async function getConversationsForRange(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   const params = {
     mailbox: mailboxId,
     createdSince: `${startStr}T00:00:00Z`,
     createdBefore: `${endStr}T23:59:59Z`,
   };
-  if (status) params.status = status;
-
   try {
-    const items = await hsPaginated('/conversations', params, 'conversations');
-    return items;
+    return await hsPaginated('/conversations', params, 'conversations');
   } catch (e) {
-    console.error(`Error fetching conversations ${startStr}–${endStr}:`, e.message);
+    console.error(`Error fetching conversations ${startStr}-${endStr}:`, e.message);
     return [];
   }
 }
@@ -136,14 +131,13 @@ async function getClosedInRange(startStr, endStr) {
   };
   try {
     const items = await hsPaginated('/conversations', params, 'conversations');
-    // Filter to those actually closed in this range
     return items.filter(c => {
       if (!c.closedAt) return false;
       const closed = new Date(c.closedAt);
       return closed >= new Date(`${startStr}T00:00:00Z`) && closed <= new Date(`${endStr}T23:59:59Z`);
     });
   } catch (e) {
-    console.error(`Error fetching closed conversations:`, e.message);
+    console.error('Error fetching closed conversations:', e.message);
     return [];
   }
 }
@@ -151,12 +145,14 @@ async function getClosedInRange(startStr, endStr) {
 async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   try {
-    const data = await hsGet('/conversations', {
-      mailbox: mailboxId,
-      status: 'active',
-      pageSize: 1,
-    });
-    return data?.page?.totalElements || 0;
+    // Fetch active + pending to get full open ticket count
+    const [activeData, pendingData] = await Promise.all([
+      hsGet('/conversations', { mailbox: mailboxId, status: 'active', pageSize: 1 }),
+      hsGet('/conversations', { mailbox: mailboxId, status: 'pending', pageSize: 1 }),
+    ]);
+    const active = activeData?.page?.totalElements || 0;
+    const pending = pendingData?.page?.totalElements || 0;
+    return active + pending;
   } catch (e) {
     console.error('Error fetching backlog:', e.message);
     return 0;
@@ -164,11 +160,9 @@ async function getCurrentBacklog() {
 }
 
 async function getAvgResolutionTime(closedConversations) {
-  // Calculate from closedAt - createdAt
   const times = closedConversations
     .filter(c => c.closedAt && c.createdAt)
-    .map(c => (new Date(c.closedAt) - new Date(c.createdAt)) / (1000 * 60 * 60)); // hours
-
+    .map(c => (new Date(c.closedAt) - new Date(c.createdAt)) / (1000 * 60 * 60));
   if (!times.length) return null;
   return times.reduce((a, b) => a + b, 0) / times.length;
 }
@@ -176,7 +170,7 @@ async function getAvgResolutionTime(closedConversations) {
 function groupByTag(conversations) {
   const counts = {};
   conversations.forEach(c => {
-    const tags = c.tags?.length ? c.tags : [{ color: '#888', tag: 'untagged' }];
+    const tags = c.tags?.length ? c.tags : [{ tag: 'untagged' }];
     tags.forEach(t => {
       const name = t.tag || t.name || 'untagged';
       counts[name] = (counts[name] || 0) + 1;
@@ -189,7 +183,7 @@ function groupByTag(conversations) {
 
 export async function fetchAllMetrics() {
   const weeks = getWeekRanges(12);
-  const backlog = await getCurrentBacklog();
+  const currentBacklog = await getCurrentBacklog();
 
   const weeklyMetrics = await Promise.all(
     weeks.map(async (week) => {
@@ -197,11 +191,8 @@ export async function fetchAllMetrics() {
         getConversationsForRange(week.startStr, week.endStr),
         getClosedInRange(week.startStr, week.endStr),
       ]);
-
       const resolutionTime = await getAvgResolutionTime(closed);
-      const closedPerAgent = closed.length > 0 ? closed.length : 0;
       const buckets = groupByTag([...opened, ...closed]);
-
       return {
         label: week.label,
         startStr: week.startStr,
@@ -209,24 +200,43 @@ export async function fetchAllMetrics() {
         opened: opened.length,
         closed: closed.length,
         resolutionTime: resolutionTime ? Math.round(resolutionTime * 10) / 10 : null,
-        closedPerAgent,
+        closedPerAgent: closed.length,
         buckets,
       };
     })
   );
 
-  // Reconstruct approximate backlog per week
-  // Start from current backlog and work backwards
-  let runningBacklog = backlog;
+  // Reconstruct backlog per week working backwards from current live count
+  let runningBacklog = currentBacklog;
   for (let i = weeklyMetrics.length - 1; i >= 0; i--) {
-    weeklyMetrics[i].backlog = runningBacklog;
+    weeklyMetrics[i].backlog = Math.max(0, runningBacklog);
     runningBacklog = runningBacklog + weeklyMetrics[i].opened - weeklyMetrics[i].closed;
     if (runningBacklog < 0) runningBacklog = 0;
   }
 
+  // Baseline = backlog at the earliest week (starting point)
+  const baselineBacklog = weeklyMetrics[0].backlog;
+
+  // Add percentage deltas to each week
+  for (let i = 0; i < weeklyMetrics.length; i++) {
+    const w = weeklyMetrics[i];
+    const prev = i > 0 ? weeklyMetrics[i - 1] : null;
+
+    // % change vs baseline (first week)
+    w.pctVsBaseline = baselineBacklog > 0
+      ? Math.round((w.backlog - baselineBacklog) / baselineBacklog * 100)
+      : 0;
+
+    // % change vs prior week
+    w.pctVsPriorWeek = (prev && prev.backlog > 0)
+      ? Math.round((w.backlog - prev.backlog) / prev.backlog * 100)
+      : null;
+  }
+
   return {
     fetchedAt: new Date().toISOString(),
-    currentBacklog: backlog,
+    currentBacklog,
+    baselineBacklog,
     weeks: weeklyMetrics,
   };
 }
