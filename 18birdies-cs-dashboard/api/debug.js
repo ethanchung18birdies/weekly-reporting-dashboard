@@ -1,4 +1,4 @@
-const TOKEN_URL = 'https://api.helpscout.net/v2/authentication/token';
+const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
 const HELPSCOUT_API = 'https://api.helpscout.net/v2';
 
 export default async function handler(req, res) {
@@ -7,16 +7,16 @@ export default async function handler(req, res) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
 
   try {
-    // HelpScout requires Basic Auth header + form body
-    const credentials = Buffer.from(`${appId}:${appSecret}`).toString('base64');
-    
+    const params = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: appId,
+      client_secret: appSecret,
+    });
+
     const tokenRes = await fetch(TOKEN_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${credentials}`,
-      },
-      body: 'grant_type=client_credentials',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
     });
 
     const tokenText = await tokenRes.text();
@@ -26,7 +26,6 @@ export default async function handler(req, res) {
         step: 'auth_failed',
         status: tokenRes.status,
         error: tokenText,
-        hint: 'Auth format issue',
       });
     }
 
