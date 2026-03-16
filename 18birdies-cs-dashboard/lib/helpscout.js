@@ -80,8 +80,6 @@ function getWeekRanges(numWeeks = 12) {
 }
 
 // ── REPORTS API ───────────────────────────────────────────────────────────
-// GET /v2/reports/email — returns emailsCreated, closed, resolutionTime, responseTime
-// GET /v2/reports/company — returns closed, repliesPerDay, customersHelped
 
 async function getWeekReport(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
@@ -92,23 +90,36 @@ async function getWeekReport(startStr, endStr) {
   };
 
   try {
-    // Fetch email report and company report in parallel
-    const [emailReport, companyReport] = await Promise.all([
+    const [emailReport, newConvReport, companyReport] = await Promise.all([
       hsGet('/reports/email', params).catch(() => null),
+      hsGet('/reports/conversations/new', params).catch(() => null),
       hsGet('/reports/company', params).catch(() => null),
     ]);
 
     const current = emailReport?.current || {};
     const companyCurrent = companyReport?.current || {};
 
-    const opened = current.volume?.emailsCreated ?? current.volume?.messagesReceived ?? 0;
+    // New tickets = brand new conversations created by customers in this period
+    // Use /reports/conversations/new count first, fall back to emailsCreated
+    const newConvCount = newConvReport?.current?.count ?? null;
+    const emailsCreated = current.volume?.emailsCreated ?? 0;
+    const opened = newConvCount !== null ? newConvCount : emailsCreated;
+
+    // Closed = conversations resolved/closed in this period
     const closed = current.resolutions?.closed ?? companyCurrent.closed ?? 0;
-    // resolutionTime comes back in seconds — convert to hours
+
+    // Resolution time comes back in seconds — convert to hours
     const resolutionTimeSecs = current.resolutions?.resolutionTime ?? null;
-    const resolutionTime = resolutionTimeSecs ? Math.round(resolutionTimeSecs / 3600 * 10) / 10 : null;
-    // firstResponseTime in seconds — convert to hours
+    const resolutionTime = resolutionTimeSecs
+      ? Math.round((resolutionTimeSecs / 3600) * 10) / 10
+      : null;
+
+    // First response time in seconds — convert to hours
     const frtSecs = current.responses?.firstResponseTime ?? null;
-    const firstResponseTime = frtSecs ? Math.round(frtSecs / 3600 * 10) / 10 : null;
+    const firstResponseTime = frtSecs
+      ? Math.round((frtSecs / 3600) * 10) / 10
+      : null;
+
     const repliesPerDay = companyCurrent.repliesPerDay ?? null;
 
     return { opened, closed, resolutionTime, firstResponseTime, repliesPerDay };
@@ -121,16 +132,17 @@ async function getWeekReport(startStr, endStr) {
 async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   try {
+    // active = assigned + unassigned open tickets, pending = awaiting customer reply
     const [activeData, pendingData] = await Promise.all([
       hsGet('/conversations', { mailbox: mailboxId, status: 'active', pageSize: 1 }),
       hsGet('/conversations', { mailbox: mailboxId, status: 'pending', pageSize: 1 }),
     ]);
     const active = activeData?.page?.totalElements || 0;
     const pending = pendingData?.page?.totalElements || 0;
-    return active + pending;
+    return { total: active + pending, active, pending };
   } catch (e) {
     console.error('Error fetching backlog:', e.message);
-    return 0;
+    return { total: 0, active: 0, pending: 0 };
   }
 }
 
@@ -138,7 +150,13 @@ async function getCurrentBacklog() {
 
 export async function fetchAllMetrics() {
   const weeks = getWeekRanges(12);
-  const currentBacklog = await getCurrentBacklog();
+  const backlogData = await getCurrentBacklog();
+  const currentBacklog = backlogData.total;
+
+  // Snapshot date for baseline label
+  const baselineDate = new Date().toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  });
 
   // Fetch all week reports in parallel
   const weeklyMetrics = await Promise.all(
@@ -165,7 +183,7 @@ export async function fetchAllMetrics() {
     if (runningBacklog < 0) runningBacklog = 0;
   }
 
-  // Baseline = backlog at the earliest week
+  // Baseline = backlog at the earliest week we track
   const baselineBacklog = weeklyMetrics[0].backlog;
 
   // Add percentage deltas to each week
@@ -183,7 +201,9 @@ export async function fetchAllMetrics() {
   return {
     fetchedAt: new Date().toISOString(),
     currentBacklog,
+    backlogBreakdown: backlogData,
     baselineBacklog,
+    baselineDate,
     weeks: weeklyMetrics,
   };
 }
@@ -191,14 +211,14 @@ export async function fetchAllMetrics() {
 export async function fetchCurrentWeekSnapshot() {
   const weeks = getWeekRanges(1);
   const week = weeks[0];
-  const [backlog, report] = await Promise.all([
+  const [backlogData, report] = await Promise.all([
     getCurrentBacklog(),
     getWeekReport(week.startStr, week.endStr),
   ]);
   return {
     fetchedAt: new Date().toISOString(),
     week: week.label,
-    backlog,
+    backlog: backlogData.total,
     opened: report.opened,
     closed: report.closed,
     burnRate: report.closed - report.opened,
