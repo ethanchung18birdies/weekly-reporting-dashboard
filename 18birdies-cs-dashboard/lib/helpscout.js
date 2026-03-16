@@ -2,7 +2,7 @@
 // Handles OAuth2 token management and all data fetching
 
 const HELPSCOUT_API = 'https://api.helpscout.net/v2';
-const TOKEN_URL = 'https://api.helpscout.net/v2/authentication/token';
+const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
 
 let _tokenCache = null;
 
