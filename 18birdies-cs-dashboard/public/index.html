@@ -400,19 +400,21 @@ function renderAll() {
   const elapsed = elapsedDays(w.startStr, w.endStr);
   const cpd = (w.closed / elapsed).toFixed(0);
   const cpdNote = elapsed < 5 ? ` (${elapsed} day${elapsed > 1 ? 's' : ''} elapsed)` : '';
-  const pctTarget = Math.round(w.closed / TARGET_WEEKLY * 100);
   document.getElementById('paceVal').textContent = `${cpd} tickets/day${cpdNote}`;
   const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
   const avgBurn = recentWeeks.reduce((a, x) => a + (x.closed - x.opened), 0) / recentWeeks.length;
   const weeksToZero = avgBurn > 0 ? Math.ceil(w.backlog / avgBurn) : null;
   document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
-  const onTrack = w.closed >= TARGET_WEEKLY * 0.8;
+  // Use elapsed-day target so Monday compares against 360*1, not 360*5
+  const elapsedTarget = TARGET_DAILY * elapsed;
+  const pctTarget = Math.round(w.closed / elapsedTarget * 100);
+  const onTrack = w.closed >= elapsedTarget * 0.8;
   const pill = document.getElementById('pacePill');
-  pill.textContent = onTrack ? `${pctTarget}% of target ✓` : `${pctTarget}% of target`;
+  pill.textContent = onTrack ? `${pctTarget}% of pace ✓` : `${pctTarget}% of pace`;
   pill.className = `pace-pill ${onTrack ? 'on-track' : 'off-track'}`;
 
   // Pace callout
-  renderCallout(w, prev, cpd, weeksToZero, onTrack);
+  renderCallout(w, prev, cpd, weeksToZero, onTrack, pctTarget, elapsed);
 
   // Week nav
   renderWeekNav();
@@ -451,17 +453,19 @@ function renderAll() {
     `Live data · 18Birdies HelpScout · Updated ${fetchedAt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
 }
 
-function renderCallout(w, prev, cpd, weeksToZero, onTrack) {
+function renderCallout(w, prev, cpd, weeksToZero, onTrack, pctTarget, elapsed) {
   const callout = document.getElementById('paceCallout');
   const burnRate = w.closed - w.opened;
+  const gap = (TARGET_DAILY - parseFloat(cpd)).toFixed(0);
+  const elapsedLabel = elapsed < 5 ? ` through day ${elapsed} of 5` : '';
   callout.className = `callout ${onTrack ? 'good' : 'warn'}`;
   document.getElementById('paceIcon').textContent = onTrack ? '📈' : '⚠️';
   document.getElementById('paceTitle').textContent = onTrack
-    ? `On track — ${Math.round(w.closed / TARGET_WEEKLY * 100)}% of weekly throughput goal`
-    : `Behind pace — need ${(TARGET_DAILY - cpd).toFixed(0)} more tickets/day to hit July target`;
+    ? `Ahead of pace — ${pctTarget}% of daily target${elapsedLabel}`
+    : `Behind pace — ${pctTarget}% of daily target${elapsedLabel}`;
   document.getElementById('paceText').textContent = onTrack
-    ? `Team closed ${w.closed.toLocaleString()} tickets this week (${cpd}/day). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} tickets/week net.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
-    : `Team closed ${w.closed.toLocaleString()} tickets this week (${cpd}/day vs. 360/day target). The backlog ${burnRate >= 0 ? 'is shrinking' : 'grew by ' + Math.abs(burnRate) + ' tickets'} this week. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
+    ? `Team closed ${w.closed.toLocaleString()} tickets (${cpd}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
+    : `Team closed ${w.closed.toLocaleString()} tickets (${cpd}/day vs. 360/day target). Need ${gap} more tickets/day to hit the July target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
 }
 
 function renderWeekNav() {
