@@ -90,20 +90,17 @@ async function getWeekReport(startStr, endStr) {
   };
 
   try {
-    const [emailReport, newConvReport, companyReport] = await Promise.all([
+    const [emailReport, companyReport] = await Promise.all([
       hsGet('/reports/email', params).catch(() => null),
-      hsGet('/reports/conversations/new', params).catch(() => null),
       hsGet('/reports/company', params).catch(() => null),
     ]);
 
     const current = emailReport?.current || {};
     const companyCurrent = companyReport?.current || {};
 
-    // New tickets = brand new conversations created by customers in this period
-    // Use /reports/conversations/new count first, fall back to emailsCreated
-    const newConvCount = newConvReport?.current?.count ?? null;
-    const emailsCreated = current.volume?.emailsCreated ?? 0;
-    const opened = newConvCount !== null ? newConvCount : emailsCreated;
+    // New tickets = email conversations received in this period
+    // emailConversations is the "Email Conversations" figure shown in HelpScout Email Report
+    const opened = current.volume?.emailConversations ?? current.volume?.emailsCreated ?? 0;
 
     // Closed = conversations resolved/closed in this period
     const closed = current.resolutions?.closed ?? companyCurrent.closed ?? 0;
