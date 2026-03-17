@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .callout-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
 
 /* KPI GRID */
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; position: relative; overflow: hidden; }
 .kpi::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kc, var(--accent)); border-radius: 3px 3px 0 0; }
 .kpi-label { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
@@ -502,6 +502,12 @@ function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
       <div class="kpi-note" style="margin-top:4px">${weeksToZero ? `~${weeksToZero} weeks to zero at current pace` : 'No burn trend yet'}</div>
     </div>`;
 
+  const rfrPct = w.resolvedOnFirstReplyPct != null ? Math.round(w.resolvedOnFirstReplyPct) + '%' : '—';
+  const prevRfrPct = prev?.resolvedOnFirstReplyPct != null ? prev.resolvedOnFirstReplyPct : null;
+  const rfrDelta = prevRfrPct != null
+    ? { txt: `${Math.round(w.resolvedOnFirstReplyPct) - Math.round(prevRfrPct) >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(w.resolvedOnFirstReplyPct) - Math.round(prevRfrPct))}pp vs prior week`, cls: Math.round(w.resolvedOnFirstReplyPct) >= Math.round(prevRfrPct) ? 'up' : 'down' }
+    : { txt: 'First week on record', cls: 'neutral' };
+
   const otherCards = [
     { label: 'Closed this week', value: w.closed.toLocaleString(), color: '#1a3a1a', ...delta(w.closed, prev?.closed), note: `${cpd}/day${cpdNote} · target 360/day` },
     { label: 'Opened this week', value: w.opened.toLocaleString(), color: '#1e40af', ...delta(w.opened, prev?.opened, true), note: 'New inbound volume' },
@@ -509,6 +515,7 @@ function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
       txt: burnRate > 0 ? '↓ Backlog shrinking' : burnRate < 0 ? '↑ Backlog growing' : '→ Flat this week',
       cls: burnRate > 0 ? 'up' : burnRate < 0 ? 'down' : 'neutral',
       note: 'Closed minus opened' },
+    { label: 'Resolved on first reply', value: rfrPct, color: '#0f766e', ...rfrDelta, note: 'Customer solved in 1 response' },
   ].map(c => `
     <div class="kpi" style="--kc:${c.color}">
       <div class="kpi-label">${c.label}</div>
