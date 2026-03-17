@@ -90,22 +90,17 @@ async function getWeekReport(startStr, endStr) {
   };
 
   try {
-    const [emailReport, companyReport] = await Promise.all([
-      hsGet('/reports/email', params).catch(() => null),
-      hsGet('/reports/company', params).catch(() => null),
-    ]);
+    const emailReport = await hsGet('/reports/email', params).catch(() => null);
 
     const current = emailReport?.current || {};
-    const companyCurrent = companyReport?.current || {};
 
-    // New tickets = email conversations received in this period
-    // emailConversations is the "Email Conversations" figure shown in HelpScout Email Report
-    const opened = current.volume?.emailConversations ?? current.volume?.emailsCreated ?? 0;
+    // Opened = emailConversations matches "Email Conversations" in HelpScout Email Report
+    const opened = current.volume?.emailConversations ?? 0;
 
-    // Closed = conversations resolved/closed in this period
-    const closed = current.resolutions?.closed ?? companyCurrent.closed ?? 0;
+    // Closed = resolved matches "Resolved" in HelpScout Email Report (not .closed which is different)
+    const closed = current.resolutions?.resolved ?? 0;
 
-    // Resolution time comes back in seconds — convert to hours
+    // Resolution time in seconds — convert to hours
     const resolutionTimeSecs = current.resolutions?.resolutionTime ?? null;
     const resolutionTime = resolutionTimeSecs
       ? Math.round((resolutionTimeSecs / 3600) * 10) / 10
@@ -117,9 +112,10 @@ async function getWeekReport(startStr, endStr) {
       ? Math.round((frtSecs / 3600) * 10) / 10
       : null;
 
-    const repliesPerDay = companyCurrent.repliesPerDay ?? null;
+    // Resolved on first reply percentage
+    const resolvedOnFirstReplyPct = current.resolutions?.percentResolvedOnFirstReply ?? null;
 
-    return { opened, closed, resolutionTime, firstResponseTime, repliesPerDay };
+    return { opened, closed, resolutionTime, firstResponseTime, resolvedOnFirstReplyPct };
   } catch (e) {
     console.error(`Error fetching week report ${startStr}-${endStr}:`, e.message);
     return { opened: 0, closed: 0, resolutionTime: null, firstResponseTime: null, repliesPerDay: null };
@@ -150,8 +146,9 @@ export async function fetchAllMetrics() {
   const backlogData = await getCurrentBacklog();
   const currentBacklog = backlogData.total;
 
-  // Snapshot date for baseline label
+  // Snapshot date in Pacific Time
   const baselineDate = new Date().toLocaleDateString('en-US', {
+    timeZone: 'America/Los_Angeles',
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
@@ -167,7 +164,7 @@ export async function fetchAllMetrics() {
         closed: report.closed,
         resolutionTime: report.resolutionTime,
         firstResponseTime: report.firstResponseTime,
-        repliesPerDay: report.repliesPerDay,
+        resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
       };
     })
   );
@@ -180,8 +177,8 @@ export async function fetchAllMetrics() {
     if (runningBacklog < 0) runningBacklog = 0;
   }
 
-  // Baseline = backlog at the earliest week we track
-  const baselineBacklog = weeklyMetrics[0].backlog;
+  // Baseline = today's actual live backlog count (not reconstructed)
+  const baselineBacklog = currentBacklog;
 
   // Add percentage deltas to each week
   for (let i = 0; i < weeklyMetrics.length; i++) {
@@ -221,5 +218,6 @@ export async function fetchCurrentWeekSnapshot() {
     burnRate: report.closed - report.opened,
     resolutionTime: report.resolutionTime,
     firstResponseTime: report.firstResponseTime,
+    resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
   };
 }
