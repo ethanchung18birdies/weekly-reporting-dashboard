@@ -100,10 +100,10 @@ async function getWeekReport(startStr, endStr) {
     // Closed = resolved matches "Resolved" in HelpScout Email Report (not .closed which is different)
     const closed = current.resolutions?.resolved ?? 0;
 
-    // Resolution time in seconds — convert to hours
+    // Resolution time in seconds — convert to days (more readable at this scale)
     const resolutionTimeSecs = current.resolutions?.resolutionTime ?? null;
     const resolutionTime = resolutionTimeSecs
-      ? Math.round((resolutionTimeSecs / 3600) * 10) / 10
+      ? Math.round((resolutionTimeSecs / 86400) * 10) / 10
       : null;
 
     // First response time in seconds — convert to hours
