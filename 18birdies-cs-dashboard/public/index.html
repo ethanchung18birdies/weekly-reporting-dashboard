@@ -263,7 +263,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
           <div class="chart-wrap" style="height:180px"><canvas id="ocChart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">Avg resolution time (hours)</div>
+          <div class="card-title">Avg resolution time (days)</div>
           <div class="chart-wrap" style="height:180px"><canvas id="rtChart"></canvas></div>
         </div>
       </div>
@@ -629,7 +629,7 @@ function renderRTChart() {
   charts['rt'] = new Chart(document.getElementById('rtChart'), {
     type: 'line',
     data: { labels: allData.weeks.map(w => w.label), datasets: [{
-      label: 'Resolution time (hrs)',
+      label: 'Resolution time (days)',
       data: rts,
       borderColor: '#6b21a8',
       backgroundColor: 'rgba(107,33,168,0.07)',
