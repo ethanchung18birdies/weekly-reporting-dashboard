@@ -22,37 +22,18 @@ export default async function handler(req, res) {
     }
     const { access_token } = await tokenRes.json();
 
-    // Test the reports/email endpoint for this week
-    const now = new Date();
+    // Last full week Mar 09-15 — matches what you see in HelpScout UI
     const start = '2026-03-09T00:00:00Z';
-    const end = '2026-03-15T23:59:59Z';
+    const end   = '2026-03-15T23:59:59Z';
 
-    const [emailReport, companyReport, backlogActive, backlogPending] = await Promise.all([
-      fetch(`${HELPSCOUT_API}/reports/email?start=${start}&end=${end}&mailbox=${mailboxId}`, {
-        headers: { Authorization: `Bearer ${access_token}` },
-      }).then(r => r.json()),
-      fetch(`${HELPSCOUT_API}/reports/company?start=${start}&end=${end}&mailbox=${mailboxId}`, {
-        headers: { Authorization: `Bearer ${access_token}` },
-      }).then(r => r.json()),
-      fetch(`${HELPSCOUT_API}/conversations?mailbox=${mailboxId}&status=active&pageSize=1`, {
-        headers: { Authorization: `Bearer ${access_token}` },
-      }).then(r => r.json()),
-      fetch(`${HELPSCOUT_API}/conversations?mailbox=${mailboxId}&status=pending&pageSize=1`, {
-        headers: { Authorization: `Bearer ${access_token}` },
-      }).then(r => r.json()),
-    ]);
+    const emailReport = await fetch(
+      `${HELPSCOUT_API}/reports/email?start=${start}&end=${end}&mailbox=${mailboxId}`,
+      { headers: { Authorization: `Bearer ${access_token}` } }
+    ).then(r => r.json());
 
+    // Return the FULL raw response so we can see every field
     return res.status(200).json({
-      auth: 'success',
-      period: { start, end },
-      backlog: {
-        active: backlogActive?.page?.totalElements,
-        pending: backlogPending?.page?.totalElements,
-      },
-      emailReport_current: emailReport?.current,
-      companyReport_current: companyReport?.current,
-      raw_email_error: emailReport?.error || null,
-      raw_company_error: companyReport?.error || null,
+      full_email_report: emailReport,
     });
   } catch (err) {
     return res.status(200).json({ step: 'exception', error: err.message });
