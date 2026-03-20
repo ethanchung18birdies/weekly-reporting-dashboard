@@ -81,58 +81,78 @@ function getWeekRanges(numWeeks = 12) {
 
 // ── REPORTS API ───────────────────────────────────────────────────────────
 
+// Team buckets with their HelpScout tag IDs
+const TEAM_BUCKETS = [
+  { name: 'Account recovery',             tags: [12840897] },
+  { name: 'In-app feedback',              tags: [6803395] },
+  { name: 'Golf course',                  tags: [12005051, 13734804, 14725073, 12446938] },
+  { name: 'Golf course build',            tags: [13695507, 13695508] },
+  { name: 'Golf course handicap',         tags: [] },
+  { name: 'Golf course no reported club', tags: [6875823] },
+];
+
 async function getWeekReport(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const params = {
+  const baseParams = {
     start: `${startStr}T00:00:00Z`,
-    end: `${endStr}T23:59:59Z`,
+    end:   `${endStr}T23:59:59Z`,
     mailbox: mailboxId,
   };
 
   try {
-    const emailReport = await hsGet('/reports/email', params).catch(() => null);
+    // Fetch overall report + one per bucket in parallel
+    const bucketFetches = TEAM_BUCKETS.map(b =>
+      b.tags.length > 0
+        ? hsGet('/reports/email', { ...baseParams, tags: b.tags.join(',') }).catch(() => null)
+        : Promise.resolve(null)
+    );
+
+    const [emailReport, ...bucketReports] = await Promise.all([
+      hsGet('/reports/email', baseParams).catch(() => null),
+      ...bucketFetches,
+    ]);
 
     const current = emailReport?.current || {};
 
-    // Opened = emailConversations matches "Email Conversations" in HelpScout Email Report
     const opened = current.volume?.emailConversations ?? 0;
-
-    // Closed = resolved matches "Resolved" in HelpScout Email Report (not .closed which is different)
     const closed = current.resolutions?.resolved ?? 0;
 
-    // Resolution time in seconds — convert to days (more readable at this scale)
     const resolutionTimeSecs = current.resolutions?.resolutionTime ?? null;
     const resolutionTime = resolutionTimeSecs
       ? Math.round((resolutionTimeSecs / 86400) * 10) / 10
       : null;
 
-    // First response time in seconds — convert to hours
     const frtSecs = current.responses?.firstResponseTime ?? null;
     const firstResponseTime = frtSecs
       ? Math.round((frtSecs / 3600) * 10) / 10
       : null;
 
-    // Resolved on first reply percentage
     const resolvedOnFirstReplyPct = current.resolutions?.percentResolvedOnFirstReply ?? null;
 
-    return { opened, closed, resolutionTime, firstResponseTime, resolvedOnFirstReplyPct };
+    // Build bucket breakdown from tag-filtered reports
+    const buckets = {};
+    let bucketedTotal = 0;
+    TEAM_BUCKETS.forEach((bucket, i) => {
+      const bClosed = bucketReports[i]?.current?.resolutions?.resolved ?? 0;
+      buckets[bucket.name] = bClosed;
+      bucketedTotal += bClosed;
+    });
+    buckets['Other'] = Math.max(0, closed - bucketedTotal);
+
+    return { opened, closed, resolutionTime, firstResponseTime, resolvedOnFirstReplyPct, buckets };
   } catch (e) {
     console.error(`Error fetching week report ${startStr}-${endStr}:`, e.message);
-    return { opened: 0, closed: 0, resolutionTime: null, firstResponseTime: null, repliesPerDay: null };
+    return { opened: 0, closed: 0, resolutionTime: null, firstResponseTime: null, resolvedOnFirstReplyPct: null, buckets: {} };
   }
 }
 
 async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   try {
-    // active = assigned + unassigned open tickets, pending = awaiting customer reply
-    const [activeData, pendingData] = await Promise.all([
-      hsGet('/conversations', { mailbox: mailboxId, status: 'active', pageSize: 1 }),
-      hsGet('/conversations', { mailbox: mailboxId, status: 'pending', pageSize: 1 }),
-    ]);
+    // active = assigned + unassigned open tickets only (excludes pending/spam/drafts)
+    const activeData = await hsGet('/conversations', { mailbox: mailboxId, status: 'active', pageSize: 1 });
     const active = activeData?.page?.totalElements || 0;
-    const pending = pendingData?.page?.totalElements || 0;
-    return { total: active + pending, active, pending };
+    return { total: active, active, pending: 0 };
   } catch (e) {
     console.error('Error fetching backlog:', e.message);
     return { total: 0, active: 0, pending: 0 };
@@ -146,11 +166,8 @@ export async function fetchAllMetrics() {
   const backlogData = await getCurrentBacklog();
   const currentBacklog = backlogData.total;
 
-  // Snapshot date in Pacific Time
-  const baselineDate = new Date().toLocaleDateString('en-US', {
-    timeZone: 'America/Los_Angeles',
-    month: 'long', day: 'numeric', year: 'numeric',
-  });
+  // Baseline date is fixed
+  const baselineDate = 'March 16, 2026';
 
   // Fetch all week reports in parallel
   const weeklyMetrics = await Promise.all(
@@ -165,6 +182,7 @@ export async function fetchAllMetrics() {
         resolutionTime: report.resolutionTime,
         firstResponseTime: report.firstResponseTime,
         resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
+        buckets: report.buckets,
       };
     })
   );
@@ -177,18 +195,18 @@ export async function fetchAllMetrics() {
     if (runningBacklog < 0) runningBacklog = 0;
   }
 
-  // Baseline = today's actual live backlog count (not reconstructed)
-  const baselineBacklog = currentBacklog;
+  // Baseline is fixed at 16,431 (as of March 16, 2026) — never changes
+  const baselineBacklog = 16431;
 
   // Add percentage deltas to each week
   for (let i = 0; i < weeklyMetrics.length; i++) {
     const w = weeklyMetrics[i];
     const prev = i > 0 ? weeklyMetrics[i - 1] : null;
     w.pctVsBaseline = baselineBacklog > 0
-      ? Math.round((w.backlog - baselineBacklog) / baselineBacklog * 100)
+      ? Math.round((w.backlog - baselineBacklog) / baselineBacklog * 10000) / 100
       : 0;
     w.pctVsPriorWeek = (prev && prev.backlog > 0)
-      ? Math.round((w.backlog - prev.backlog) / prev.backlog * 100)
+      ? Math.round((w.backlog - prev.backlog) / prev.backlog * 10000) / 100
       : null;
   }
 
