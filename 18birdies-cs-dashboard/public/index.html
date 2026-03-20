@@ -490,10 +490,10 @@ function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
   // Backlog card with two deltas side by side
   const vsBaseline = w.pctVsBaseline ?? 0;
   const vsBaseCls = vsBaseline <= 0 ? 'up' : 'down';
-  const vsBaseLabel = vsBaseline === 0 ? '→ 0% vs baseline' : `${vsBaseline <= 0 ? '↓' : '↑'} ${Math.abs(vsBaseline)}% vs baseline`;
+  const vsBaseLabel = vsBaseline === 0 ? '→ 0.00% vs baseline' : `${vsBaseline <= 0 ? '↓' : '↑'} ${Math.abs(vsBaseline).toFixed(2)}% vs baseline`;
   const vsPrior = w.pctVsPriorWeek;
   const vsPriorCls = vsPrior == null ? 'neutral' : vsPrior <= 0 ? 'up' : 'down';
-  const vsPriorLabel = vsPrior == null ? '— vs last week' : `${vsPrior <= 0 ? '↓' : '↑'} ${Math.abs(vsPrior)}% vs last week`;
+  const vsPriorLabel = vsPrior == null ? '— vs last week' : `${vsPrior <= 0 ? '↓' : '↑'} ${Math.abs(vsPrior).toFixed(2)}% vs last week`;
 
   const backlogCard = `
     <div class="kpi" style="--kc:#92400e">
@@ -513,7 +513,7 @@ function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
     : { txt: 'First week on record', cls: 'neutral' };
 
   const otherCards = [
-    { label: 'Closed this week', value: w.closed.toLocaleString(), color: '#1a3a1a', ...delta(w.closed, prev?.closed), note: `${cpd}/day${cpdNote} · target 360/day` },
+    { label: 'Closed this week', value: w.closed.toLocaleString(), color: '#1a3a1a', ...delta(w.closed, prev?.closed), note: `Tickets fully resolved this week · ${cpd}/day${cpdNote} · target 360/day` },
     { label: 'Opened this week', value: w.opened.toLocaleString(), color: '#1e40af', ...delta(w.opened, prev?.opened, true), note: 'New inbound volume' },
     { label: 'Net burn rate', value: (burnRate >= 0 ? '+' : '') + burnRate, color: burnRate >= 0 ? '#1a6b3a' : '#991b1b',
       txt: burnRate > 0 ? '↓ Backlog shrinking' : burnRate < 0 ? '↑ Backlog growing' : '→ Flat this week',
@@ -531,14 +531,23 @@ function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
   document.getElementById('kpiGrid').innerHTML = backlogCard + otherCards;
 }
 
+const BUCKET_ORDER = [
+  'Account recovery',
+  'In-app feedback',
+  'Golf course',
+  'Golf course build',
+  'Golf course handicap',
+  'Golf course no reported club',
+  'Other',
+];
+
 function getBuckets(w) {
   const raw = w.buckets || {};
-  const entries = Object.entries(raw).sort((a, b) => b[1] - a[1]);
-  const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
-  return entries.slice(0, 6).map(([name, count], i) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    count,
-    pct: Math.round(count / total * 100),
+  const total = Object.values(raw).reduce((s, v) => s + v, 0) || 1;
+  return BUCKET_ORDER.map((name, i) => ({
+    name,
+    count: raw[name] ?? 0,
+    pct: Math.round((raw[name] ?? 0) / total * 100),
     color: BUCKET_COLORS[i % BUCKET_COLORS.length],
   }));
 }
