@@ -305,6 +305,7 @@ const TARGET_WEEKLY = TARGET_DAILY * 5;
 let allData = null;
 let selWeek = null;
 const charts = {};
+const bucketCache = {}; // keyed by startStr
 
 const BUCKET_COLORS = ['#1a3a1a','#1e40af','#92400e','#6b21a8','#be123c','#0f766e','#c2410c','#1d4ed8'];
 
@@ -341,6 +342,7 @@ async function loadData(force = false) {
     allData = await res.json();
     selWeek = allData.weeks.length - 1;
     renderAll();
+    loadBuckets(selWeek);
     setStatus('ok');
   } catch (err) {
     console.error(err);
@@ -474,7 +476,29 @@ function renderWeekNav() {
   ).join('');
 }
 
-function selectWeek(i) { selWeek = i; renderAll(); }
+function selectWeek(i) {
+  selWeek = i;
+  renderAll();
+  loadBuckets(i);
+}
+
+async function loadBuckets(weekIdx) {
+  const w = allData.weeks[weekIdx];
+  if (bucketCache[w.startStr]) {
+    renderBucketBars({ buckets: bucketCache[w.startStr] });
+    renderBucketTable({ ...w, buckets: bucketCache[w.startStr] }, weekIdx > 0 ? allData.weeks[weekIdx-1] : null);
+    return;
+  }
+  try {
+    const res = await fetch(`/api/buckets?start=${w.startStr}&end=${w.endStr}`);
+    const data = await res.json();
+    bucketCache[w.startStr] = data.buckets;
+    renderBucketBars({ buckets: data.buckets });
+    renderBucketTable({ ...w, buckets: data.buckets }, weekIdx > 0 ? allData.weeks[weekIdx-1] : null);
+  } catch (e) {
+    console.error('Failed to load buckets:', e);
+  }
+}
 
 function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
   function delta(cur, p, invertGood = false) {
