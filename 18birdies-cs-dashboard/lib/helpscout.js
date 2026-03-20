@@ -91,27 +91,18 @@ const TEAM_BUCKETS = [
   { name: 'Golf course no reported club', tags: [6875823] },
 ];
 
+// Fast report — overall metrics only, no per-bucket breakdown
+// Used for all 12 weeks to keep the main load quick
 async function getWeekReport(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const baseParams = {
+  const params = {
     start: `${startStr}T00:00:00Z`,
     end:   `${endStr}T23:59:59Z`,
     mailbox: mailboxId,
   };
 
   try {
-    // Fetch overall report + one per bucket in parallel
-    const bucketFetches = TEAM_BUCKETS.map(b =>
-      b.tags.length > 0
-        ? hsGet('/reports/email', { ...baseParams, tags: b.tags.join(',') }).catch(() => null)
-        : Promise.resolve(null)
-    );
-
-    const [emailReport, ...bucketReports] = await Promise.all([
-      hsGet('/reports/email', baseParams).catch(() => null),
-      ...bucketFetches,
-    ]);
-
+    const emailReport = await hsGet('/reports/email', params).catch(() => null);
     const current = emailReport?.current || {};
 
     const opened = current.volume?.emailConversations ?? 0;
@@ -129,7 +120,40 @@ async function getWeekReport(startStr, endStr) {
 
     const resolvedOnFirstReplyPct = current.resolutions?.percentResolvedOnFirstReply ?? null;
 
-    // Build bucket breakdown from tag-filtered reports
+    return { opened, closed, resolutionTime, firstResponseTime, resolvedOnFirstReplyPct };
+  } catch (e) {
+    console.error(`Error fetching week report ${startStr}-${endStr}:`, e.message);
+    return { opened: 0, closed: 0, resolutionTime: null, firstResponseTime: null, resolvedOnFirstReplyPct: null };
+  }
+}
+
+// Bucket breakdown — fetches per-team tag breakdown for a single week
+// Called separately so it doesn't slow down the main 12-week load
+export async function fetchWeekBuckets(startStr, endStr) {
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  const baseParams = {
+    start: `${startStr}T00:00:00Z`,
+    end:   `${endStr}T23:59:59Z`,
+    mailbox: mailboxId,
+  };
+
+  try {
+    const token = await getAccessToken();
+
+    // Get overall closed count + each bucket in parallel
+    const bucketFetches = TEAM_BUCKETS.map(b =>
+      b.tags.length > 0
+        ? hsGet('/reports/email', { ...baseParams, tags: b.tags.join(',') }).catch(() => null)
+        : Promise.resolve(null)
+    );
+
+    const [emailReport, ...bucketReports] = await Promise.all([
+      hsGet('/reports/email', baseParams).catch(() => null),
+      ...bucketFetches,
+    ]);
+
+    const closed = emailReport?.current?.resolutions?.resolved ?? 0;
+
     const buckets = {};
     let bucketedTotal = 0;
     TEAM_BUCKETS.forEach((bucket, i) => {
@@ -139,10 +163,10 @@ async function getWeekReport(startStr, endStr) {
     });
     buckets['Other'] = Math.max(0, closed - bucketedTotal);
 
-    return { opened, closed, resolutionTime, firstResponseTime, resolvedOnFirstReplyPct, buckets };
+    return buckets;
   } catch (e) {
-    console.error(`Error fetching week report ${startStr}-${endStr}:`, e.message);
-    return { opened: 0, closed: 0, resolutionTime: null, firstResponseTime: null, resolvedOnFirstReplyPct: null, buckets: {} };
+    console.error(`Error fetching buckets ${startStr}-${endStr}:`, e.message);
+    return {};
   }
 }
 
@@ -182,7 +206,6 @@ export async function fetchAllMetrics() {
         resolutionTime: report.resolutionTime,
         firstResponseTime: report.firstResponseTime,
         resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
-        buckets: report.buckets,
       };
     })
   );
