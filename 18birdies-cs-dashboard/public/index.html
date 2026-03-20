@@ -243,7 +243,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
         <div class="chart-wrap" style="height:160px"><canvas id="burnChart"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">Closed tickets by bucket</div>
+        <div class="card-title">Closed tickets by bucket — this week</div>
         <div class="bucket-list" id="bucketBars"></div>
       </div>
     </div>
@@ -533,7 +533,7 @@ function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
   const rfrPct = w.resolvedOnFirstReplyPct != null ? Math.round(w.resolvedOnFirstReplyPct) + '%' : '—';
   const prevRfrPct = prev?.resolvedOnFirstReplyPct != null ? prev.resolvedOnFirstReplyPct : null;
   const rfrDelta = prevRfrPct != null
-    ? { txt: `${Math.round(w.resolvedOnFirstReplyPct) - Math.round(prevRfrPct) >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(w.resolvedOnFirstReplyPct) - Math.round(prevRfrPct))}pp vs prior week`, cls: Math.round(w.resolvedOnFirstReplyPct) >= Math.round(prevRfrPct) ? 'up' : 'down' }
+    ? { txt: `${Math.round(w.resolvedOnFirstReplyPct) - Math.round(prevRfrPct) >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(w.resolvedOnFirstReplyPct) - Math.round(prevRfrPct))}% vs prior week`, cls: Math.round(w.resolvedOnFirstReplyPct) >= Math.round(prevRfrPct) ? 'up' : 'down' }
     : { txt: 'First week on record', cls: 'neutral' };
 
   const otherCards = [
