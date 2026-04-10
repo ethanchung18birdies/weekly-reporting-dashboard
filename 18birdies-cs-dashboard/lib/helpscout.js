@@ -81,15 +81,154 @@ function getWeekRanges(numWeeks = 12) {
 
 // ── REPORTS API ───────────────────────────────────────────────────────────
 
-// Team buckets with their HelpScout tag IDs
-const TEAM_BUCKETS = [
-  { name: 'Account recovery',             tags: [12840897] },
-  { name: 'In-app feedback',              tags: [6803395] },
-  { name: 'Golf course',                  tags: [12005051, 13734804, 14725073, 12446938] },
-  { name: 'Golf course build',            tags: [13695507, 13695508] },
-  { name: 'Golf course handicap',         tags: [] },
-  { name: 'Golf course no reported club', tags: [6875823] },
+const CATEGORY_TAGS = [
+  { name: 'Account', hsName: 'category: account' },
+  { name: 'Billing', hsName: 'category: billing' },
+  { name: 'Community', hsName: 'category: community' },
+  { name: 'Course Data', hsName: 'category: course data' },
+  { name: 'Feature Request', hsName: 'category: feature request' },
+  { name: 'Golf School', hsName: 'category: golf school' },
+  { name: 'Messaging', hsName: 'category: messaging' },
+  { name: 'Non-actionable Feedback', hsName: 'category: non-actionable feedback' },
+  { name: 'Other', hsName: 'category: other' },
+  { name: 'Partnerships', hsName: 'category: partnerships' },
+  { name: 'Spam', hsName: 'category: spam' },
+  { name: 'Stats', hsName: 'category: stats' },
+  { name: 'Tournaments', hsName: 'category: tournaments' },
+  { name: 'Unresolved Bugs', hsName: 'category: app failure' },
+  { name: 'Usability', hsName: 'category: usability' },
+  { name: 'Watch', hsName: 'category: watch' },
 ];
+
+const SUBCATEGORY_TAGS = [
+  { name: 'Account Recovery', hsName: 'subcategory: account recovery' },
+  { name: 'Account Setup & Deletion', hsName: 'subcategory: account setup & deletion' },
+  { name: 'Ad Experience', hsName: 'subcategory: ad experience' },
+  { name: 'Advanced Stats', hsName: 'subcategory: advanced stats' },
+  { name: 'Android Watch', hsName: 'subcategory: android watch' },
+  { name: 'App Crash/Feature Break Fix', hsName: 'subcategory: app crash/feature break fix' },
+  { name: 'Apple Watch', hsName: 'subcategory: apple watch' },
+  { name: 'Betting/Games', hsName: 'subcategory: betting/games' },
+  { name: 'Cancel Premium', hsName: 'subcategory: cancel premium' },
+  { name: 'Compliments', hsName: 'subcategory: compliments' },
+  { name: 'Community', hsName: 'subcategory: community' },
+  { name: 'Content & Educational', hsName: 'subcategory: content & educational' },
+  { name: 'Core Round Functionality', hsName: 'subcategory: core round functionality' },
+  { name: 'Course Closed', hsName: 'subcategory: course closed' },
+  { name: 'Course Layout Missing', hsName: 'subcategory: course layout missing' },
+  { name: 'Course Profile Info', hsName: 'subcategory: course profile info' },
+  { name: 'Course Setup', hsName: 'subcategory: course setup' },
+  { name: 'Device Compatibility', hsName: 'subcategory: device compatibility' },
+  { name: 'Drills', hsName: 'subcategory: drills' },
+  { name: 'Facility Missing', hsName: 'subcategory: facility missing' },
+  { name: 'Feed & Sharing', hsName: 'subcategory: feed & sharing' },
+  { name: 'Friend Requests', hsName: 'subcategory: friend requests' },
+  { name: 'Golf Bag & Club Management', hsName: 'subcategory: golf bag & club management' },
+  { name: 'GPS Data Incorrect', hsName: 'subcategory: gps data incorrect' },
+  { name: 'Handicap Calculation', hsName: 'subcategory: handicap calculation' },
+  { name: 'Missing Golf Clubs for Bag Management', hsName: 'subcategory: missing golf clubs for bag management' },
+  { name: 'More Course Info Needed', hsName: 'subcategory: more course info needed' },
+  { name: 'Newsletter Unsub', hsName: 'subcategory: newsletter unsub' },
+  { name: 'Non-actionable Feedback', hsName: 'subcategory: non-actionable feedback' },
+  { name: 'Notifications', hsName: 'subcategory: notifications' },
+  { name: 'Other', hsName: 'subcategory: other' },
+  { name: 'Other Feature Requests', hsName: 'subcategory: other feature requests' },
+  { name: 'Partnership Requests', hsName: 'subcategory: partnership requests' },
+  { name: 'Refund Premium', hsName: 'subcategory: refund premium' },
+  { name: 'Scorecard Data', hsName: 'subcategory: scorecard data' },
+  { name: 'Scoring - Classic', hsName: 'subcategory: scoring - classic' },
+  { name: 'Scoring - Smart Tracking', hsName: 'subcategory: scoring - smart tracking' },
+  { name: 'Scoring - Team Modes', hsName: 'subcategory: scoring - team modes' },
+  { name: 'Shot Tracking', hsName: 'subcategory: shot tracking' },
+  { name: 'Side Games', hsName: 'subcategory: side games' },
+  { name: 'Spam', hsName: 'subcategory: spam' },
+  { name: 'Subscription Access Error', hsName: 'subcategory: subscription access error' },
+  { name: 'Swing Analysis', hsName: 'subcategory: swing analysis' },
+  { name: 'Third Party Integrations', hsName: 'subcategory: third party integrations' },
+  { name: 'Too Complicated', hsName: 'subcategory: too complicated' },
+  { name: 'Tournaments', hsName: 'subcategory: tournaments' },
+  { name: 'UI / UX Improvements', hsName: 'subcategory: ui / ux improvements' },
+  { name: 'Watch Features', hsName: 'subcategory: watch features' },
+];
+
+let _tagIdCache = null;
+
+async function listAllTags() {
+  if (_tagIdCache) return _tagIdCache;
+
+  const byName = new Map();
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const data = await hsGet('/tags', { page }).catch(() => null);
+    const tags = data?._embedded?.tags || [];
+
+    for (const tag of tags) {
+      if (tag?.name) {
+        byName.set(tag.name.trim().toLowerCase(), tag.id);
+      }
+    }
+
+    totalPages = data?.page?.totalPages || 1;
+    page += 1;
+  } while (page <= totalPages);
+
+  _tagIdCache = byName;
+  return byName;
+}
+
+async function resolveTagConfig(config) {
+  const tagMap = await listAllTags();
+  return config.map((item) => ({
+    ...item,
+    tagId: tagMap.get(item.hsName.trim().toLowerCase()) ?? null,
+  }));
+}
+
+function sortMetricBreakdown(items, total, metricKey) {
+  const taggedTotal = items.reduce((sum, item) => sum + (item[metricKey] || 0), 0);
+  const notTagged = Math.max(0, total - taggedTotal);
+
+  return [
+    ...items.map((item) => ({ name: item.name, count: item[metricKey] || 0 })),
+    { name: 'Not tagged', count: notTagged },
+  ]
+    .filter((item) => item.count > 0 || item.name === 'Not tagged')
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      if (a.name === 'Not tagged') return 1;
+      if (b.name === 'Not tagged') return -1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+async function fetchTaggedClosureMetrics(baseParams, config) {
+  const resolvedConfig = await resolveTagConfig(config);
+
+  return Promise.all(
+    resolvedConfig.map(async (item) => {
+      if (!item.tagId) {
+        return { name: item.name, withReply: 0, noReply: 0, both: 0 };
+      }
+
+      const report = await hsGet('/reports/email', {
+        ...baseParams,
+        tags: String(item.tagId),
+      }).catch(() => null);
+
+      const resolved = report?.current?.resolutions?.resolved ?? 0;
+      const closed = report?.current?.resolutions?.closed ?? 0;
+
+      return {
+        name: item.name,
+        withReply: resolved,
+        noReply: Math.max(0, closed - resolved),
+        both: closed,
+      };
+    })
+  );
+}
 
 // Fast report — overall metrics only, no per-bucket breakdown
 // Used for all 12 weeks to keep the main load quick
@@ -120,132 +259,121 @@ async function getWeekReport(startStr, endStr) {
 
     const resolvedOnFirstReplyPct = current.resolutions?.percentResolvedOnFirstReply ?? null;
 
-    return { opened, closed, resolutionTime, firstResponseTime, resolvedOnFirstReplyPct };
+    return {
+      opened,
+      closed,
+      resolutionTime,
+      firstResponseTime,
+      resolvedOnFirstReplyPct,
+    };
   } catch (e) {
     console.error(`Error fetching week report ${startStr}-${endStr}:`, e.message);
-    return { opened: 0, closed: 0, resolutionTime: null, firstResponseTime: null, resolvedOnFirstReplyPct: null };
+    return {
+      opened: 0,
+      closed: 0,
+      resolutionTime: null,
+      firstResponseTime: null,
+      resolvedOnFirstReplyPct: null,
+    };
   }
 }
 
-// Bucket breakdown — fetches per-team tag breakdown for a single week
-// Called separately so it doesn't slow down the main 12-week load
+// Tag breakdown — category + subcategory for one selected week
 export async function fetchWeekBuckets(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   const baseParams = {
     start: `${startStr}T00:00:00Z`,
-    end:   `${endStr}T23:59:59Z`,
+    end: `${endStr}T23:59:59Z`,
     mailbox: mailboxId,
   };
 
   try {
-    const token = await getAccessToken();
+    const emailReport = await hsGet('/reports/email', baseParams).catch(() => null);
+    const resolved = emailReport?.current?.resolutions?.resolved ?? 0;
+    const closed = emailReport?.current?.resolutions?.closed ?? 0;
+    const noReply = Math.max(0, closed - resolved);
 
-    // Get overall closed count + each bucket in parallel
-    const bucketFetches = TEAM_BUCKETS.map(b =>
-      b.tags.length > 0
-        ? hsGet('/reports/email', { ...baseParams, tags: b.tags.join(',') }).catch(() => null)
-        : Promise.resolve(null)
-    );
-
-    const [emailReport, ...bucketReports] = await Promise.all([
-      hsGet('/reports/email', baseParams).catch(() => null),
-      ...bucketFetches,
+    const [categoryMetrics, subcategoryMetrics] = await Promise.all([
+      fetchTaggedClosureMetrics(baseParams, CATEGORY_TAGS),
+      fetchTaggedClosureMetrics(baseParams, SUBCATEGORY_TAGS),
     ]);
 
-    const closed = emailReport?.current?.resolutions?.resolved ?? 0;
-
-    const buckets = {};
-    let bucketedTotal = 0;
-    TEAM_BUCKETS.forEach((bucket, i) => {
-      const bClosed = bucketReports[i]?.current?.resolutions?.resolved ?? 0;
-      buckets[bucket.name] = bClosed;
-      bucketedTotal += bClosed;
-    });
-    buckets['Other'] = Math.max(0, closed - bucketedTotal);
-
-    return buckets;
+    return {
+      category: {
+        withReply: sortMetricBreakdown(categoryMetrics, resolved, 'withReply'),
+        noReply: sortMetricBreakdown(categoryMetrics, noReply, 'noReply'),
+        both: sortMetricBreakdown(categoryMetrics, closed, 'both'),
+      },
+      subcategory: {
+        withReply: sortMetricBreakdown(subcategoryMetrics, resolved, 'withReply'),
+        noReply: sortMetricBreakdown(subcategoryMetrics, noReply, 'noReply'),
+        both: sortMetricBreakdown(subcategoryMetrics, closed, 'both'),
+      },
+    };
   } catch (e) {
-    console.error(`Error fetching buckets ${startStr}-${endStr}:`, e.message);
-    return {};
+    console.error(`Error fetching tag breakdown ${startStr}-${endStr}:`, e.message);
+    return {
+      category: { withReply: [], noReply: [], both: [] },
+      subcategory: { withReply: [], noReply: [], both: [] },
+    };
   }
 }
 
 async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  try {
-    // active = assigned + unassigned open tickets only (excludes pending/spam/drafts)
-    const activeData = await hsGet('/conversations', { mailbox: mailboxId, status: 'active', pageSize: 1 });
-    const active = activeData?.page?.totalElements || 0;
-    return { total: active, active, pending: 0 };
-  } catch (e) {
-    console.error('Error fetching backlog:', e.message);
-    return { total: 0, active: 0, pending: 0 };
-  }
+  const data = await hsGet('/conversations', {
+    mailbox: mailboxId,
+    status: 'active',
+    pageSize: 1,
+  });
+  return { total: data.page?.totalElements ?? 0 };
 }
 
-// ── MAIN EXPORT ───────────────────────────────────────────────────────────
+// ── PUBLIC FUNCTIONS ──────────────────────────────────────────────────────
 
-export async function fetchAllMetrics() {
+export async function fetchDashboardData() {
   const weeks = getWeekRanges(12);
-  const backlogData = await getCurrentBacklog();
-  const currentBacklog = backlogData.total;
 
-  // Baseline date is fixed
-  const baselineDate = 'March 16, 2026';
-
-  // Fetch all week reports in parallel
-  const weeklyMetrics = await Promise.all(
-    weeks.map(async (week) => {
-      const report = await getWeekReport(week.startStr, week.endStr);
-      return {
-        label: week.label,
-        startStr: week.startStr,
-        endStr: week.endStr,
-        opened: report.opened,
-        closed: report.closed,
-        resolutionTime: report.resolutionTime,
-        firstResponseTime: report.firstResponseTime,
-        resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
-      };
-    })
+  // Pull weekly report data in parallel
+  const reports = await Promise.all(
+    weeks.map((w) => getWeekReport(w.startStr, w.endStr))
   );
 
-  // Reconstruct backlog per week working backwards from current live count
-  let runningBacklog = currentBacklog;
-  for (let i = weeklyMetrics.length - 1; i >= 0; i--) {
-    weeklyMetrics[i].backlog = Math.max(0, runningBacklog);
-    runningBacklog = runningBacklog + weeklyMetrics[i].opened - weeklyMetrics[i].closed;
-    if (runningBacklog < 0) runningBacklog = 0;
-  }
+  // Get current backlog once
+  const backlogData = await getCurrentBacklog();
+  let currentBacklog = backlogData.total;
 
-  // Baseline is fixed at 16,431 (as of March 16, 2026) — never changes
-  const baselineBacklog = 16431;
+  // Reconstruct historical backlog backwards from live backlog
+  const fullWeeks = [];
+  for (let i = weeks.length - 1; i >= 0; i--) {
+    const week = weeks[i];
+    const report = reports[i];
 
-  // Add percentage deltas to each week
-  for (let i = 0; i < weeklyMetrics.length; i++) {
-    const w = weeklyMetrics[i];
-    const prev = i > 0 ? weeklyMetrics[i - 1] : null;
-    w.pctVsBaseline = baselineBacklog > 0
-      ? Math.round((w.backlog - baselineBacklog) / baselineBacklog * 10000) / 100
-      : 0;
-    w.pctVsPriorWeek = (prev && prev.backlog > 0)
-      ? Math.round((w.backlog - prev.backlog) / prev.backlog * 10000) / 100
-      : null;
+    fullWeeks.unshift({
+      label: week.label,
+      startStr: week.startStr,
+      endStr: week.endStr,
+      backlog: currentBacklog,
+      opened: report.opened,
+      closed: report.closed,
+      burnRate: report.closed - report.opened,
+      resolutionTime: report.resolutionTime,
+      firstResponseTime: report.firstResponseTime,
+      resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
+    });
+
+    // Previous week's backlog = this week's backlog - net burn
+    currentBacklog = currentBacklog - report.closed + report.opened;
   }
 
   return {
     fetchedAt: new Date().toISOString(),
-    currentBacklog,
-    backlogBreakdown: backlogData,
-    baselineBacklog,
-    baselineDate,
-    weeks: weeklyMetrics,
+    weeks: fullWeeks,
   };
 }
 
 export async function fetchCurrentWeekSnapshot() {
-  const weeks = getWeekRanges(1);
-  const week = weeks[0];
+  const week = getWeekRanges(1)[0];
   const [backlogData, report] = await Promise.all([
     getCurrentBacklog(),
     getWeekReport(week.startStr, week.endStr),
