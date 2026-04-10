@@ -1,5 +1,5 @@
 // GET /api/buckets?start=2026-03-09&end=2026-03-15
-// Returns per-team bucket breakdown for a single week
+// Returns tag breakdown for a single week
 // Called on demand when a week tab is selected, not during main load
 
 import { fetchWeekBuckets } from '../lib/helpscout.js';
