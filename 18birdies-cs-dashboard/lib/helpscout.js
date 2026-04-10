@@ -223,10 +223,17 @@ function sortMetricBreakdown(items, total, metricKey) {
 async function fetchTaggedClosureMetrics(baseParams, config) {
   const resolvedConfig = await resolveTagConfig(config);
 
-  return Promise.all(
+  const results = await Promise.all(
     resolvedConfig.map(async (item) => {
       if (!item.tagId) {
-        return { name: item.name, withReply: 0, noReply: 0, both: 0 };
+        return {
+          name: item.name,
+          hsName: item.hsName,
+          tagId: null,
+          withReply: 0,
+          noReply: 0,
+          both: 0,
+        };
       }
 
       const report = await hsGet('/reports/email', {
@@ -239,12 +246,16 @@ async function fetchTaggedClosureMetrics(baseParams, config) {
 
       return {
         name: item.name,
+        hsName: item.hsName,
+        tagId: item.tagId,
         withReply: resolved,
         noReply: Math.max(0, closed - resolved),
         both: closed,
       };
     })
   );
+
+  return results;
 }
 
 // Fast report — overall metrics only, no per-tag breakdown
@@ -262,6 +273,7 @@ async function getWeekReport(startStr, endStr) {
 
     const opened = current.volume?.emailConversations ?? 0;
     const closed = current.resolutions?.resolved ?? 0;
+    const totalClosed = current.resolutions?.closed ?? 0;
 
     const resolutionTimeSecs = current.resolutions?.resolutionTime ?? null;
     const resolutionTime = resolutionTimeSecs
@@ -278,6 +290,7 @@ async function getWeekReport(startStr, endStr) {
     return {
       opened,
       closed,
+      totalClosed,
       resolutionTime,
       firstResponseTime,
       resolvedOnFirstReplyPct,
@@ -287,6 +300,7 @@ async function getWeekReport(startStr, endStr) {
     return {
       opened: 0,
       closed: 0,
+      totalClosed: 0,
       resolutionTime: null,
       firstResponseTime: null,
       resolvedOnFirstReplyPct: null,
@@ -313,6 +327,21 @@ export async function fetchWeekBuckets(startStr, endStr) {
       fetchTaggedClosureMetrics(baseParams, SUBCATEGORY_TAGS),
     ]);
 
+    const unresolvedSubcategoryTags = subcategoryMetrics
+      .filter(x => !x.tagId)
+      .map(x => x.hsName);
+
+    const resolvedSubcategoryTags = subcategoryMetrics
+      .filter(x => x.tagId)
+      .map(x => ({
+        hsName: x.hsName,
+        tagId: x.tagId,
+        both: x.both,
+        withReply: x.withReply,
+        noReply: x.noReply,
+      }))
+      .sort((a, b) => b.both - a.both);
+
     return {
       category: {
         withReply: sortMetricBreakdown(categoryMetrics, resolved, 'withReply'),
@@ -324,12 +353,20 @@ export async function fetchWeekBuckets(startStr, endStr) {
         noReply: sortMetricBreakdown(subcategoryMetrics, noReply, 'noReply'),
         both: sortMetricBreakdown(subcategoryMetrics, closed, 'both'),
       },
+      debug: {
+        unresolvedSubcategoryTags,
+        resolvedSubcategoryTags,
+      },
     };
   } catch (e) {
     console.error(`Error fetching buckets ${startStr}-${endStr}:`, e.message);
     return {
       category: { withReply: [], noReply: [], both: [] },
       subcategory: { withReply: [], noReply: [], both: [] },
+      debug: {
+        unresolvedSubcategoryTags: [],
+        resolvedSubcategoryTags: [],
+      },
     };
   }
 }
@@ -360,20 +397,21 @@ export async function fetchAllMetrics() {
   const baselineDate = 'March 16, 2026';
 
   const weeklyMetrics = await Promise.all(
-    weeks.map(async (week) => {
-      const report = await getWeekReport(week.startStr, week.endStr);
-      return {
-        label: week.label,
-        startStr: week.startStr,
-        endStr: week.endStr,
-        opened: report.opened,
-        closed: report.closed,
-        resolutionTime: report.resolutionTime,
-        firstResponseTime: report.firstResponseTime,
-        resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
-      };
-    })
-  );
+  weeks.map(async (week) => {
+    const report = await getWeekReport(week.startStr, week.endStr);
+    return {
+      label: week.label,
+      startStr: week.startStr,
+      endStr: week.endStr,
+      opened: report.opened,
+      closed: report.closed,
+      totalClosed: report.totalClosed,
+      resolutionTime: report.resolutionTime,
+      firstResponseTime: report.firstResponseTime,
+      resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
+    };
+  })
+);
 
   let runningBacklog = currentBacklog;
   for (let i = weeklyMetrics.length - 1; i >= 0; i--) {
@@ -426,5 +464,6 @@ export async function fetchCurrentWeekSnapshot() {
     resolutionTime: report.resolutionTime,
     firstResponseTime: report.firstResponseTime,
     resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
+    totalClosed: report.totalClosed
   };
 }
