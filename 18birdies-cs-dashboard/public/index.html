@@ -5,297 +5,128 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>18Birdies · CS Operations Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #f8f7f3;
+  --bg: #f4f3ef;
   --surface: #ffffff;
-  --surface2: #f5f5f2;
-  --border: #e9e7e1;
-  --border2: #d8d4c8;
-  --text: #161616;
-  --muted: #6b7280;
-  --muted2: #9ca3af;
+  --surface2: #f9f8f5;
+  --border: #e4e2db;
+  --border2: #d0cec5;
+  --text: #1a1917;
+  --muted: #7a786f;
+  --muted2: #a09e96;
   --accent: #1a3a1a;
-  --accent2: #92400e;
-  --green: #14532d;
-  --green-bg: #dcfce7;
+  --accent-light: #e8f0e8;
+  --green: #1a6b3a;
+  --green-bg: #e6f4ed;
+  --amber: #8a4a00;
+  --amber-bg: #fef3e2;
   --red: #991b1b;
-  --red-bg: #fee2e2;
-  --amber: #92400e;
-  --amber-bg: #fef3c7;
+  --red-bg: #fef2f2;
   --blue: #1e40af;
-  --blue-bg: #dbeafe;
-  --teal: #0f766e;
-  --purple: #6b21a8;
-  --font: 'Inter', system-ui, sans-serif;
-  --mono: 'JetBrains Mono', monospace;
+  --blue-bg: #eff6ff;
+  --font: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; min-height: 100vh; }
 
 /* HEADER */
-.hdr {
-  padding: 24px 28px 18px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.hdr { background: var(--accent); color: #fff; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; }
 .hdr-brand { display: flex; align-items: center; gap: 12px; }
-.hdr-logo {
-  width: 40px; height: 40px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), #2d5a2d);
-  display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 20px; font-weight: 700;
-  box-shadow: 0 2px 10px rgba(26,58,26,0.15);
-}
-.hdr-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
-.hdr-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.hdr-actions { display: flex; align-items: center; gap: 10px; }
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--green); box-shadow: 0 0 0 3px rgba(20,83,45,0.1);
-}
-.status-dot.loading {
-  background: var(--amber);
-  animation: pulse 1.6s infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.btn {
-  border: 1px solid var(--border2);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 11px;
-  font-family: var(--mono);
-  padding: 8px 12px;
-  border-radius: 7px;
-  cursor: pointer;
-  display: flex; align-items: center; gap: 6px;
-  transition: all 0.15s;
-}
-.btn:hover { background: var(--surface2); border-color: var(--muted2); }
-.btn-primary {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-}
-.btn-primary:hover { background: #2d5a2d; border-color: #2d5a2d; }
-.btn-ghost { color: var(--muted); }
+.hdr-logo { width: 32px; height: 32px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.hdr-title { font-size: 15px; font-weight: 600; color: #fff; }
+.hdr-sub { font-size: 11px; color: rgba(255,255,255,0.5); font-family: var(--mono); margin-top: 1px; }
+.hdr-actions { display: flex; align-items: center; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer; border: none; transition: opacity 0.15s, transform 0.1s; }
+.btn:active { transform: scale(0.97); }
+.btn-ghost { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.2); }
+.btn-ghost:hover { background: rgba(255,255,255,0.2); }
+.btn-primary { background: #fff; color: var(--accent); }
+.btn-primary:hover { opacity: 0.9; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 2px rgba(74,222,128,0.3); }
+.status-dot.loading { background: var(--amber); box-shadow: 0 0 0 2px rgba(251,191,36,0.3); animation: pulse 1s infinite; }
+.status-dot.error { background: #f87171; box-shadow: 0 0 0 2px rgba(248,113,113,0.3); }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
 
-/* GOAL BAR */
-.goal-bar {
-  margin: 18px 28px 0;
-  background: linear-gradient(135deg, #f8f7f3, #f5f5f2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-.goal-item { display: flex; flex-direction: column; gap: 2px; }
-.goal-label {
-  font-size: 10px; font-family: var(--mono);
-  color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em;
-}
-.goal-val { font-size: 13px; font-weight: 600; }
-.goal-sep { width: 1px; height: 24px; background: var(--border); }
-.pace-pill {
-  margin-left: auto;
-  font-size: 11px; font-weight: 600;
-  padding: 6px 10px; border-radius: 999px;
-  display: inline-flex; align-items: center; gap: 5px;
-}
-.pace-pill.on { background: var(--green-bg); color: var(--green); }
-.pace-pill.off { background: var(--amber-bg); color: var(--amber); }
+/* GOAL BANNER */
+.goal-bar { background: var(--accent-light); border-bottom: 1px solid #c5d9c5; padding: 9px 28px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.goal-item { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.goal-label { color: var(--muted); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; }
+.goal-val { font-weight: 600; color: var(--accent); }
+.goal-sep { width: 1px; height: 16px; background: #c5d9c5; }
+.pace-pill { margin-left: auto; font-size: 11px; font-family: var(--mono); padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+.pace-pill.on-track { background: var(--green-bg); color: var(--green); }
+.pace-pill.off-track { background: var(--amber-bg); color: var(--amber); }
 
-/* WEEK NAV */
-.week-nav {
-  display: flex; gap: 8px; padding: 18px 28px 0;
-  overflow-x: auto; scrollbar-width: none;
-}
-.week-nav::-webkit-scrollbar { display: none; }
-.week-tab {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 9px;
-  padding: 10px 14px;
-  min-width: 92px;
-  cursor: pointer;
-  transition: all 0.15s;
-  position: relative;
-}
-.week-tab:hover { border-color: var(--border2); transform: translateY(-1px); }
-.week-tab.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
-  box-shadow: 0 4px 12px rgba(26,58,26,0.18);
-}
-.week-lbl { font-size: 11px; font-family: var(--mono); font-weight: 500; }
-.week-meta { font-size: 10px; opacity: 0.8; margin-top: 3px; }
+/* WEEK TABS */
+.week-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; display: flex; overflow-x: auto; }
+.wtab { padding: 10px 13px; font-size: 11px; font-family: var(--mono); color: var(--muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s, border-color 0.15s; }
+.wtab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.wtab:hover:not(.active) { color: var(--text); }
 
-/* LOADING / ERROR */
-.state-screen {
-  min-height: 45vh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 14px; color: var(--muted);
-}
-.spinner {
-  width: 28px; height: 28px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
+/* LOADING / ERROR STATES */
+.state-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 12px; color: var(--muted); }
+.state-screen h2 { font-size: 16px; font-weight: 500; color: var(--text); }
+.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.state-screen h2 { font-size: 17px; color: var(--text); }
-.state-screen p { font-size: 13px; }
 
 /* MAIN */
-.main { padding: 18px 28px 24px; display: flex; flex-direction: column; gap: 14px; }
+.main { padding: 20px 28px; display: flex; flex-direction: column; gap: 16px; }
 
-/* CALLOUT */
-.callout {
-  border-radius: 10px;
-  padding: 14px 16px;
-  display: flex; gap: 12px; align-items: flex-start;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-.callout.good { background: linear-gradient(135deg, #f0fdf4, #ffffff); border-color: #bbf7d0; }
-.callout.warn { background: linear-gradient(135deg, #fffbeb, #ffffff); border-color: #fde68a; }
-.callout-icon { font-size: 18px; line-height: 1; margin-top: 1px; }
-.callout-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-.callout-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+/* PACE CALLOUT */
+.callout { border-radius: 8px; padding: 14px 16px; display: flex; gap: 12px; border: 1px solid; }
+.callout.good { background: var(--green-bg); border-color: #b6d9c5; }
+.callout.warn { background: var(--amber-bg); border-color: #f5d9a8; }
+.callout-icon { font-size: 18px; flex-shrink: 0; }
+.callout-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.callout.good .callout-title { color: var(--green); }
+.callout.warn .callout-title { color: var(--amber); }
+.callout-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
 
 /* KPI GRID */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
-}
-.kpi {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
-  position: relative;
-  overflow: hidden;
-}
-.kpi::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: var(--kc, var(--accent));
-}
-.kpi-label {
-  font-size: 10px; font-family: var(--mono);
-  color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em;
-  margin-bottom: 10px;
-}
-.kpi-value {
-  font-size: 27px; font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  margin-bottom: 8px;
-}
-.kpi-delta {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 500;
-}
-.kpi-delta.up { color: var(--green); }
-.kpi-delta.down { color: var(--red); }
-.kpi-delta.neutral { color: var(--muted); }
-.kpi-note {
-  margin-top: 8px;
-  font-size: 11px; color: var(--muted);
-  line-height: 1.4;
-}
-.big-card { grid-column: span 2; }
+.kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; position: relative; overflow: hidden; }
+.kpi::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kc, var(--accent)); border-radius: 3px 3px 0 0; }
+.kpi-label { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+.kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; margin-bottom: 5px; }
+.kpi-delta { font-size: 11px; font-family: var(--mono); }
+.kpi-note { font-size: 10px; color: var(--muted2); margin-top: 3px; }
+.up { color: var(--green); } .down { color: var(--red); } .neutral { color: var(--muted); }
 
-/* GRID LAYOUTS */
-.two-col { display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; }
-.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+/* TWO COL */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 
-/* CARD */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
-}
-.card-title {
-  font-size: 12px; font-weight: 600;
-  margin-bottom: 12px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-
-/* TOGGLES */
-.toggle-stack {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.tag-toggle {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  gap: 4px;
-}
-.tag-toggle-btn {
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font-size: 10px;
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 5px 10px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-.tag-toggle-btn.active {
-  background: var(--surface);
-  color: var(--accent);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-}
-.empty-state {
-  font-size: 12px;
-  color: var(--muted);
-  padding: 12px 0;
-}
-
-/* CHART */
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.card-title { font-size: 10px; font-family: var(--mono); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .chart-wrap { position: relative; width: 100%; }
 
-/* BURNDOWN STATS */
-.burn-stats {
-  display: flex; gap: 16px; margin-bottom: 10px;
-  padding-bottom: 10px; border-bottom: 1px solid var(--border);
-}
-.burn-stat { display: flex; flex-direction: column; gap: 2px; }
-.burn-stat-l { font-size: 10px; font-family: var(--mono); color: var(--muted2); text-transform: uppercase; }
-.burn-stat-v { font-size: 16px; font-weight: 600; }
+/* BURN STATS */
+.burn-stats { display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+.bstat { display: flex; flex-direction: column; gap: 2px; }
+.bstat-val { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.bstat-lbl { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 
-/* BUCKETS */
+/* BUCKET BARS */
 .bucket-list { display: flex; flex-direction: column; gap: 10px; }
-.bucket-row { display: flex; flex-direction: column; gap: 5px; }
-.bucket-row-top { display: flex; justify-content: space-between; align-items: center; }
-.bucket-name { font-size: 12px; display: flex; align-items: center; gap: 7px; }
+.bucket-row {}
+.bucket-row-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.bucket-name { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 7px; }
 .bdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .bucket-count { font-size: 11px; font-family: var(--mono); color: var(--muted); }
 .prog-bg { height: 5px; background: var(--border); border-radius: 3px; }
 .prog-fill { height: 5px; border-radius: 3px; transition: width 0.5s ease; }
+
+/* bucket controls */
+.bucket-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+.seg-btn { border: none; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 10px; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
+.seg-btn.active { background: var(--surface); color: var(--accent); box-shadow: inset 0 0 0 1px var(--border); }
+.empty-state { color: var(--muted); font-size: 12px; padding: 8px 0; }
 
 /* BUCKET TABLE */
 .btable { width: 100%; border-collapse: collapse; }
@@ -421,15 +252,15 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); -web
       <div class="card">
         <div class="card-title">
           <span id="bucketCardTitle">Closed tickets by category — both</span>
-          <div class="toggle-stack">
-            <div class="tag-toggle">
-              <button class="tag-toggle-btn active" id="toggleCategory" onclick="setBucketView('category')">Category</button>
-              <button class="tag-toggle-btn" id="toggleSubcategory" onclick="setBucketView('subcategory')">Subcategory</button>
+          <div class="bucket-controls">
+            <div class="seg">
+              <button class="seg-btn active" id="toggleCategory" onclick="setBucketView('category')">Category</button>
+              <button class="seg-btn" id="toggleSubcategory" onclick="setBucketView('subcategory')">Subcategory</button>
             </div>
-            <div class="tag-toggle">
-              <button class="tag-toggle-btn" id="toggleWithReply" onclick="setClosureMode('withReply')">Closed w/ reply</button>
-              <button class="tag-toggle-btn" id="toggleNoReply" onclick="setClosureMode('noReply')">Closed no reply</button>
-              <button class="tag-toggle-btn active" id="toggleBoth" onclick="setClosureMode('both')">Both</button>
+            <div class="seg">
+              <button class="seg-btn" id="toggleWithReply" onclick="setClosureMode('withReply')">With reply</button>
+              <button class="seg-btn" id="toggleNoReply" onclick="setClosureMode('noReply')">No reply</button>
+              <button class="seg-btn active" id="toggleBoth" onclick="setClosureMode('both')">Both</button>
             </div>
           </div>
         </div>
@@ -498,108 +329,165 @@ const bucketCache = {};
 let bucketView = 'category';
 let closureMode = 'both';
 
-const BUCKET_COLORS = [
-  '#1a3a1a', '#92400e', '#1e40af', '#6b21a8', '#0f766e', '#991b1b',
-  '#14532d', '#7c2d12', '#3730a3', '#be123c', '#065f46', '#78350f',
-  '#4c1d95', '#9f1239', '#064e3b', '#525252', '#9ca3af'
-];
+const BUCKET_COLORS = ['#1a3a1a','#1e40af','#92400e','#6b21a8','#be123c','#0f766e','#c2410c','#1d4ed8','#7c3aed','#0d9488','#b45309','#475569','#4f46e5','#b91c1c'];
 
-function fmtPct(v) {
-  if (v == null || Number.isNaN(v)) return '—';
-  return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+// ── CHART HELPERS ─────────────────────────────────────────────────────────
+const gridColor = 'rgba(0,0,0,0.05)';
+const tickStyle = { color: '#a09e96', font: { family: 'DM Mono', size: 10 } };
+const tooltipStyle = {
+  backgroundColor: '#1a1917', borderColor: 'rgba(0,0,0,0.1)', borderWidth: 1,
+  titleColor: '#a09e96', bodyColor: '#f4f3ef', padding: 10,
+  titleFont: { family: 'DM Mono', size: 10 }, bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+};
+function baseScales(yMin = 0) {
+  return {
+    x: { grid: { color: gridColor }, ticks: tickStyle },
+    y: { grid: { color: gridColor }, ticks: tickStyle, min: yMin },
+  };
 }
-function fmtNum(v) {
-  if (v == null || Number.isNaN(v)) return '—';
-  return v.toLocaleString();
-}
-function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
-function getCurrentPstDate() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-}
-function elapsedDays(startStr, endStr) {
-  const nowPST = getCurrentPstDate();
-  const currentDateStr = nowPST.toISOString().split('T')[0];
-  if (endStr < currentDateStr) return 5;
-  const start = new Date(`${startStr}T00:00:00-08:00`);
-  const diffMs = nowPST - start;
-  return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1);
-}
-function isCurrentWeek(w) {
-  const nowPST = getCurrentPstDate();
-  const currentDateStr = nowPST.toISOString().split('T')[0];
-  return w.startStr <= currentDateStr && currentDateStr <= w.endStr;
-}
+// ── DATA LOAD ─────────────────────────────────────────────────────────────
+async function loadData(force = false) {
+  setStatus('loading');
+  document.getElementById('loadingState').style.display = 'flex';
+  document.getElementById('errorState').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
 
-function setLoading(on) {
-  document.getElementById('statusDot').classList.toggle('loading', on);
-  document.getElementById('refreshBtn').disabled = on;
-}
-
-function showState(type, msg) {
-  document.getElementById('loadingState').style.display = type === 'loading' ? 'flex' : 'none';
-  document.getElementById('errorState').style.display = type === 'error' ? 'flex' : 'none';
-  document.getElementById('dashboard').style.display = type === 'ready' ? 'block' : 'none';
-  if (type === 'error') document.getElementById('errorMsg').textContent = msg || 'Unknown error';
-}
-
-async function loadData() {
   try {
-    setLoading(true);
-    showState('loading');
-
-    const res = await fetch('/api/metrics');
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to load metrics');
-
-    allData = data;
-    selWeek = data.weeks.length - 1;
-
-    renderWeekTabs();
+    const url = force ? '/api/metrics?refresh=true' : '/api/metrics';
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(err.detail || err.error || `HTTP ${res.status}`);
+    }
+    allData = await res.json();
+    selWeek = allData.weeks.length - 1;
     renderAll();
-    await loadBuckets(selWeek);
-
-    const fetchedAt = new Date(data.fetchedAt);
-    document.getElementById('hdrSub').textContent = `Live HelpScout data · Last updated ${fetchedAt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
-    document.getElementById('footerLeft').textContent = `Live data · Refreshed ${fetchedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-
-    showState('ready');
-  } catch (e) {
-    console.error(e);
-    showState('error', e.message);
-  } finally {
-    setLoading(false);
+    loadBuckets(selWeek);
+    setStatus('ok');
+  } catch (err) {
+    console.error(err);
+    document.getElementById('errorMsg').textContent = err.message;
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display = 'flex';
+    setStatus('error');
   }
 }
 
 async function refreshData() {
-  try {
-    setLoading(true);
-    const res = await fetch('/api/refresh', { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to refresh');
-    await loadData();
-  } catch (e) {
-    console.error(e);
-    showState('error', e.message);
-    setLoading(false);
-  }
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing...';
+  await loadData(true);
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh`;
 }
 
-function renderWeekTabs() {
-  document.getElementById('weekNav').innerHTML = allData.weeks.map((w, i) => `
-    <button class="week-tab ${i === selWeek ? 'active' : ''}" onclick="selectWeek(${i})">
-      <div class="week-lbl">${w.label}</div>
-      <div class="week-meta">${w.startStr.slice(5)} → ${w.endStr.slice(5)}</div>
-    </button>
-  `).join('');
+function setStatus(s) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot' + (s === 'loading' ? ' loading' : s === 'error' ? ' error' : '');
 }
 
-async function selectWeek(i) {
+// ── RENDER ────────────────────────────────────────────────────────────────
+function elapsedDays(startStr, endStr) {
+  const ptDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  const todayPT = new Date(ptDateStr + 'T00:00:00');
+
+  const weekStart = new Date(startStr + 'T00:00:00');
+  const weekEnd = new Date(endStr + 'T00:00:00');
+
+  if (todayPT > weekEnd) return 5;
+  if (todayPT < weekStart) return 5;
+
+  const msElapsed = todayPT - weekStart;
+  const daysElapsed = Math.floor(msElapsed / (1000 * 60 * 60 * 24)) + 1;
+  return Math.min(5, Math.max(1, daysElapsed));
+}
+
+function renderAll() {
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  const w = allData.weeks[selWeek];
+  const prev = selWeek > 0 ? allData.weeks[selWeek - 1] : null;
+
+  const fetchedAt = new Date(allData.fetchedAt);
+  document.getElementById('hdrSub').textContent =
+    `Last updated ${fetchedAt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} at ${fetchedAt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
+
+  const elapsed = elapsedDays(w.startStr, w.endStr);
+  const cpd = (w.closed / elapsed).toFixed(0);
+  const cpdNote = elapsed < 5 ? ` (${elapsed} day${elapsed > 1 ? 's' : ''} elapsed)` : '';
+  document.getElementById('paceVal').textContent = `${cpd} tickets/day${cpdNote}`;
+
+  const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
+  const avgBurn = recentWeeks.reduce((a, x) => a + (x.closed - x.opened), 0) / recentWeeks.length;
+  const weeksToZero = avgBurn > 0 ? Math.ceil(w.backlog / avgBurn) : null;
+  document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
+
+  const elapsedTarget = TARGET_DAILY * elapsed;
+  const pctTarget = elapsedTarget > 0 ? Math.round(w.closed / elapsedTarget * 100) : 0;
+  const onTrack = w.closed >= elapsedTarget * 0.8;
+  const pill = document.getElementById('pacePill');
+  pill.textContent = onTrack ? `${pctTarget}% of pace ✓` : `${pctTarget}% of pace`;
+  pill.className = `pace-pill ${onTrack ? 'on-track' : 'off-track'}`;
+
+  renderCallout(w, prev, cpd, weeksToZero, onTrack, pctTarget, elapsed);
+  renderWeekNav();
+  renderKPIs(w, prev, weeksToZero, cpd, cpdNote);
+
+  const baselineBacklog = allData.baselineBacklog || allData.weeks[0].backlog;
+  const baselineDate = allData.baselineDate || 'start';
+  const reduced = Math.max(0, baselineBacklog - w.backlog);
+  const reducedPct = baselineBacklog > 0 ? Math.round(reduced / baselineBacklog * 100) : 0;
+  document.getElementById('burnStats').innerHTML = `
+    <div class="bstat"><div class="bstat-val">${w.backlog.toLocaleString()}</div><div class="bstat-lbl">Current backlog</div></div>
+    <div class="bstat"><div class="bstat-val">${baselineBacklog.toLocaleString()}</div><div class="bstat-lbl">Baseline as of ${baselineDate}</div></div>
+    <div class="bstat"><div class="bstat-val" style="color:var(--green)">−${reduced.toLocaleString()}</div><div class="bstat-lbl">Tickets reduced</div></div>
+    <div class="bstat"><div class="bstat-val" style="color:var(--green)">${reducedPct}%</div><div class="bstat-lbl">Of baseline cleared</div></div>
+    <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
+  `;
+
+  renderBucketBars(w);
+  renderBucketTable(w, prev);
+  syncBucketControls();
+
+  renderBurnChart();
+  renderOCChart();
+  renderRTChart();
+  renderBurnRateChart();
+  renderThroughputChart();
+
+  document.getElementById('footerLeft').textContent =
+    `Live data · 18Birdies HelpScout · Updated ${fetchedAt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
+}
+
+function renderCallout(w, prev, cpd, weeksToZero, onTrack, pctTarget, elapsed) {
+  const callout = document.getElementById('paceCallout');
+  const burnRate = w.closed - w.opened;
+  const gap = (TARGET_DAILY - parseFloat(cpd)).toFixed(0);
+  const elapsedLabel = elapsed < 5 ? ` through day ${elapsed} of 5` : '';
+  callout.className = `callout ${onTrack ? 'good' : 'warn'}`;
+  document.getElementById('paceIcon').textContent = onTrack ? '📈' : '⚠️';
+  document.getElementById('paceTitle').textContent = onTrack
+    ? `Ahead of pace — ${pctTarget}% of daily target${elapsedLabel}`
+    : `Behind pace — ${pctTarget}% of daily target${elapsedLabel}`;
+  document.getElementById('paceText').textContent = onTrack
+    ? `Team closed ${w.closed.toLocaleString()} tickets (${cpd}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
+    : `Team closed ${w.closed.toLocaleString()} tickets (${cpd}/day vs. 360/day target). Need ${gap} more tickets/day to hit the July target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
+}
+
+function renderWeekNav() {
+  document.getElementById('weekNav').innerHTML = allData.weeks.map((w, i) =>
+    `<button class="wtab ${i === selWeek ? 'active' : ''}" onclick="selectWeek(${i})">${w.label}</button>`
+  ).join('');
+}
+
+function selectWeek(i) {
   selWeek = i;
-  renderWeekTabs();
   renderAll();
-  await loadBuckets(i);
+  loadBuckets(i);
 }
 
 function setBucketView(view) {
@@ -609,7 +497,7 @@ function setBucketView(view) {
   if (!w) return;
   renderBucketBars(w);
   renderBucketTable(w, prev);
-  syncBucketViewUI();
+  syncBucketControls();
 }
 
 function setClosureMode(mode) {
@@ -619,10 +507,10 @@ function setClosureMode(mode) {
   if (!w) return;
   renderBucketBars(w);
   renderBucketTable(w, prev);
-  syncBucketViewUI();
+  syncBucketControls();
 }
 
-function syncBucketViewUI() {
+function syncBucketControls() {
   const isCategory = bucketView === 'category';
   document.getElementById('toggleCategory').classList.toggle('active', isCategory);
   document.getElementById('toggleSubcategory').classList.toggle('active', !isCategory);
@@ -631,11 +519,7 @@ function syncBucketViewUI() {
   document.getElementById('toggleNoReply').classList.toggle('active', closureMode === 'noReply');
   document.getElementById('toggleBoth').classList.toggle('active', closureMode === 'both');
 
-  const modeLabel =
-    closureMode === 'withReply' ? 'closed w/ reply' :
-    closureMode === 'noReply' ? 'closed no reply' :
-    'both';
-
+  const modeLabel = closureMode === 'withReply' ? 'with reply' : closureMode === 'noReply' ? 'no reply' : 'both';
   document.getElementById('bucketCardTitle').textContent = `Closed tickets by ${bucketView} — ${modeLabel}`;
   document.getElementById('bucketSectionLabel').textContent = `Breakdown by ${bucketView} — ${modeLabel}`;
 }
@@ -645,17 +529,15 @@ async function loadBuckets(weekIdx) {
 
   if (bucketCache[w.startStr]) {
     renderBucketBars({ buckets: bucketCache[w.startStr] });
-    renderBucketTable(
-      { ...w, buckets: bucketCache[w.startStr] },
-      weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
-    );
+    renderBucketTable({ ...w, buckets: bucketCache[w.startStr] }, weekIdx > 0 ? allData.weeks[weekIdx - 1] : null);
+    syncBucketControls();
     return;
   }
 
   try {
     const res = await fetch(`/api/buckets?start=${w.startStr}&end=${w.endStr}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to load bucket data');
+    if (!res.ok) throw new Error(data.error || 'Failed to load buckets');
 
     bucketCache[w.startStr] = data.buckets || {
       category: { withReply: [], noReply: [], both: [] },
@@ -663,123 +545,40 @@ async function loadBuckets(weekIdx) {
     };
 
     renderBucketBars({ buckets: bucketCache[w.startStr] });
-    renderBucketTable(
-      { ...w, buckets: bucketCache[w.startStr] },
-      weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
-    );
+    renderBucketTable({ ...w, buckets: bucketCache[w.startStr] }, weekIdx > 0 ? allData.weeks[weekIdx - 1] : null);
+    syncBucketControls();
   } catch (e) {
     console.error('Failed to load buckets:', e);
-    document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load bucket data.</div>';
-    document.getElementById('bucketTable').innerHTML = `<tbody><tr><td style="padding:12px">Failed to load bucket data.</td></tr></tbody>`;
+    document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
+    document.getElementById('bucketTable').innerHTML = '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
   }
 }
 
-function destroyChart(key) {
-  if (charts[key]) charts[key].destroy();
-}
-
-const tooltipStyle = {
-  backgroundColor: '#111827',
-  titleFont: { family: 'JetBrains Mono', size: 11, weight: '500' },
-  bodyFont: { family: 'Inter', size: 11 },
-  padding: 10,
-  cornerRadius: 6,
-  displayColors: true,
-};
-function baseScales(minY = undefined) {
-  return {
-    x: {
-      grid: { display: false },
-      border: { display: false },
-      ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 } },
-    },
-    y: {
-      beginAtZero: true,
-      min: minY,
-      grid: { color: '#f0f0ec' },
-      border: { display: false },
-      ticks: { color: '#9ca3af', font: { family: 'JetBrains Mono', size: 10 } },
-    },
-  };
-}
-
-function renderAll() {
-  const w = allData.weeks[selWeek];
-  const prev = selWeek > 0 ? allData.weeks[selWeek - 1] : null;
-  const currentBacklog = allData.weeks[allData.weeks.length - 1].backlog;
-  const baseline = 16431;
-  const backlogChangeFromBaseline = ((w.backlog - baseline) / baseline) * 100;
-  const backlogChangeWoW = prev ? ((w.backlog - prev.backlog) / prev.backlog) * 100 : null;
-
-  const daysElapsed = elapsedDays(w.startStr, w.endStr);
-  const cpd = Math.round(w.closed / daysElapsed);
-  const targetSoFar = TARGET_DAILY * daysElapsed;
-  const targetGap = w.closed - targetSoFar;
-  const recent = allData.weeks.slice(-4);
-  const avgNetBurn = recent.reduce((a, x) => a + (x.closed - x.opened), 0) / recent.length;
-  const weeksToZero = avgNetBurn > 0 ? Math.ceil(currentBacklog / avgNetBurn) : null;
-
-  const paceGood = targetGap >= 0;
-  const pacePill = document.getElementById('pacePill');
-  pacePill.className = `pace-pill ${paceGood ? 'on' : 'off'}`;
-  pacePill.textContent = paceGood ? 'On track to target' : 'Below target pace';
-
-  document.getElementById('paceVal').textContent = `${cpd}/day`;
-  document.getElementById('weeksToZero').textContent = weeksToZero ? `${weeksToZero} weeks` : '—';
-
-  const callout = document.getElementById('paceCallout');
-  callout.className = `callout ${paceGood ? 'good' : 'warn'}`;
-  document.getElementById('paceIcon').textContent = paceGood ? '📈' : '⚠️';
-  document.getElementById('paceTitle').textContent =
-    paceGood
-      ? `${fmtNum(w.closed)} resolved so far this week — ahead of the ${fmtNum(targetSoFar)} pace target`
-      : `${fmtNum(w.closed)} resolved so far this week — behind the ${fmtNum(targetSoFar)} pace target`;
-  document.getElementById('paceText').textContent =
-    isCurrentWeek(w)
-      ? `The target is measured against ${daysElapsed} elapsed day${daysElapsed === 1 ? '' : 's'} this week, not the full 5-day weekly target.`
-      : `This week is complete. Tickets/day is based on a 5-day work week.`;
-
-  document.getElementById('burnStats').innerHTML = `
-    <div class="burn-stat"><div class="burn-stat-l">Current backlog</div><div class="burn-stat-v">${fmtNum(currentBacklog)}</div></div>
-    <div class="burn-stat"><div class="burn-stat-l">Baseline</div><div class="burn-stat-v">${fmtNum(baseline)}</div></div>
-    <div class="burn-stat"><div class="burn-stat-l">Avg net burn</div><div class="burn-stat-v">${avgNetBurn > 0 ? '+' : ''}${Math.round(avgNetBurn)}/wk</div></div>
-  `;
-
-  renderKpis(w, prev, baseline, backlogChangeFromBaseline, backlogChangeWoW, cpd, weeksToZero);
-  renderBucketBars(w);
-  renderBucketTable(w, prev);
-  syncBucketViewUI();
-
-  renderBurnChart();
-  renderOCChart();
-  renderRTChart();
-  renderBurnRateChart();
-  renderThroughputChart();
-}
-
-function renderKpis(w, prev, baseline, backlogChangeFromBaseline, backlogChangeWoW, cpd, weeksToZero) {
+function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
+  function delta(cur, p, invertGood = false) {
+    if (p == null) return { txt: 'First week on record', cls: 'neutral' };
+    const diff = cur - p;
+    const pct = Math.round(Math.abs(diff) / Math.max(p, 1) * 100);
+    const up = diff > 0;
+    const good = invertGood ? !up : up;
+    return { txt: `${up ? '↑' : '↓'} ${pct}% vs prior week`, cls: good ? 'up' : 'down' };
+  }
   const burnRate = w.closed - w.opened;
-  const cpdNote = isCurrentWeek(w) ? ` over ${elapsedDays(w.startStr, w.endStr)} elapsed day${elapsedDays(w.startStr, w.endStr) === 1 ? '' : 's'}` : ' over 5 days';
 
-  const delta = (val, prevVal, goodIfDown = false, suffix = '') => {
-    if (prevVal == null || prevVal === 0) return { txt: 'No prior week', cls: 'neutral' };
-    const diffPct = ((val - prevVal) / prevVal) * 100;
-    const better = goodIfDown ? diffPct < 0 : diffPct >= 0;
-    return {
-      txt: `${better ? '↑' : '↓'} ${Math.abs(diffPct).toFixed(2)}% vs prior week${suffix}`,
-      cls: better ? 'up' : 'down',
-    };
-  };
+  const vsBaseline = w.pctVsBaseline ?? 0;
+  const vsBaseCls = vsBaseline <= 0 ? 'up' : 'down';
+  const vsBaseLabel = vsBaseline === 0 ? '→ 0.00% vs baseline' : `${vsBaseline <= 0 ? '↓' : '↑'} ${Math.abs(vsBaseline).toFixed(2)}% vs baseline`;
+  const vsPrior = w.pctVsPriorWeek;
+  const vsPriorCls = vsPrior == null ? 'neutral' : vsPrior <= 0 ? 'up' : 'down';
+  const vsPriorLabel = vsPrior == null ? '— vs last week' : `${vsPrior <= 0 ? '↓' : '↑'} ${Math.abs(vsPrior).toFixed(2)}% vs last week`;
 
   const backlogCard = `
-    <div class="kpi big-card" style="--kc:#92400e">
-      <div class="kpi-label">Backlog remaining</div>
-      <div class="kpi-value">${fmtNum(w.backlog)}</div>
-      <div class="kpi-delta ${backlogChangeWoW != null ? (backlogChangeWoW <= 0 ? 'up' : 'down') : 'neutral'}">
-        ${backlogChangeWoW != null ? `${backlogChangeWoW <= 0 ? '↓' : '↑'} ${Math.abs(backlogChangeWoW).toFixed(2)}% vs prior week` : 'First week on record'}
-      </div>
-      <div class="kpi-note" style="margin-top:6px">
-        ${fmtPct(backlogChangeFromBaseline)} vs baseline of ${fmtNum(baseline)} on Mar 16, 2026
+    <div class="kpi" style="--kc:#92400e">
+      <div class="kpi-label">Backlog</div>
+      <div class="kpi-value">${w.backlog.toLocaleString()}</div>
+      <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
+        <span class="kpi-delta ${vsBaseCls}" style="font-size:10px;background:${vsBaseline<=0?'var(--green-bg)':'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsBaseLabel}</span>
+        <span class="kpi-delta ${vsPriorCls}" style="font-size:10px;background:${vsPrior==null?'var(--surface2)':vsPrior<=0?'var(--green-bg)':'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsPriorLabel}</span>
       </div>
       <div class="kpi-note" style="margin-top:4px">${weeksToZero ? `~${weeksToZero} weeks to zero at current pace` : 'No burn trend yet'}</div>
     </div>`;
@@ -813,7 +612,8 @@ function getBuckets(w) {
   const raw = Array.isArray(w?.buckets?.[bucketView]?.[closureMode])
     ? w.buckets[bucketView][closureMode]
     : [];
-  const total = raw.reduce((sum, item) => sum + (item.count || 0), 0) || 1;
+
+  const total = raw.reduce((s, item) => s + (item.count || 0), 0) || 1;
 
   return raw.map((item, i) => ({
     name: item.name,
@@ -825,6 +625,7 @@ function getBuckets(w) {
 
 function renderBucketBars(w) {
   const buckets = getBuckets(w);
+
   if (!buckets.length) {
     document.getElementById('bucketBars').innerHTML = '<div class="empty-state">No tag data for this week yet.</div>';
     return;
@@ -848,12 +649,20 @@ function renderBucketTable(w, prev) {
 
   const thead = `<thead style="background:var(--surface2)"><tr>
     <th style="padding:10px 12px">${label}</th>
-    <th>Tickets</th><th>% of week</th>
+    <th>Tickets</th>
+    <th>% of week</th>
     <th>vs prior week</th>
   </tr></thead>`;
 
   if (!buckets.length) {
-    document.getElementById('bucketTable').innerHTML = thead + `<tbody><tr><td colspan="4" style="padding:12px;text-align:left;font-family:var(--font);color:var(--muted)">No tag data for this week yet.</td></tr></tbody>`;
+    document.getElementById('bucketTable').innerHTML = thead + `
+      <tbody>
+        <tr>
+          <td colspan="4" style="padding:12px;text-align:left;color:var(--muted)">
+            No tag data for this week yet.
+          </td>
+        </tr>
+      </tbody>`;
     return;
   }
 
@@ -862,6 +671,7 @@ function renderBucketTable(w, prev) {
     const chg = prevCount != null ? b.count - prevCount : null;
     const chipCls = chg == null ? 'chip-n' : chg >= 0 ? 'chip-g' : 'chip-r';
     const chipTxt = chg == null ? '—' : (chg >= 0 ? '+' : '') + chg;
+
     return `<tr>
       <td style="padding:10px 12px"><div style="display:flex;align-items:center;gap:8px"><span class="bdot" style="background:${b.color}"></span>${b.name}</div></td>
       <td>${b.count}</td>
@@ -869,6 +679,7 @@ function renderBucketTable(w, prev) {
       <td><span class="chip ${chipCls}">${chipTxt}</span></td>
     </tr>`;
   }).join('');
+
   document.getElementById('bucketTable').innerHTML = thead + `<tbody>${rows}</tbody>`;
 }
 
@@ -877,6 +688,7 @@ function renderBurnChart() {
   destroyChart('burn');
   const labels = allData.weeks.map(w => w.label);
   const data = allData.weeks.map(w => w.backlog);
+
   const recentWeeks = allData.weeks.slice(-4);
   const avgBurn = recentWeeks.reduce((a, x) => a + (x.closed - x.opened), 0) / recentWeeks.length;
   const projLabels = [...labels];
