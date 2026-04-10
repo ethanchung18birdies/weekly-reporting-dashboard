@@ -1,4 +1,4 @@
-import { fetchDashboardData } from '../lib/helpscout.js';
+import { fetchAllMetrics } from '../lib/helpscout.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const data = await fetchDashboardData();
+    const data = await fetchAllMetrics();
     return res.status(200).json(data);
   } catch (err) {
     console.error('Metrics error:', err);
