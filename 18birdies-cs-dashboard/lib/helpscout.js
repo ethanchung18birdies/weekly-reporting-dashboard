@@ -5,25 +5,30 @@ const HELPSCOUT_API = 'https://api.helpscout.net/v2';
 const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
 
 let _tokenCache = null;
+let _tagIdCache = null;
 
 async function getAccessToken() {
   if (_tokenCache && _tokenCache.expiresAt > Date.now() + 60_000) {
     return _tokenCache.token;
   }
+
   const params = new URLSearchParams({
     grant_type: 'client_credentials',
     client_id: process.env.HELPSCOUT_APP_ID,
     client_secret: process.env.HELPSCOUT_APP_SECRET,
   });
+
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString(),
   });
+
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`HelpScout auth failed: ${res.status} ${err}`);
   }
+
   const data = await res.json();
   _tokenCache = {
     token: data.access_token,
@@ -35,14 +40,19 @@ async function getAccessToken() {
 async function hsGet(path, params = {}) {
   const token = await getAccessToken();
   const url = new URL(`${HELPSCOUT_API}${path}`);
-  Object.entries(params).forEach(([k, v]) => v !== undefined && url.searchParams.set(k, v));
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) url.searchParams.set(k, v);
+  });
+
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
   });
+
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`HelpScout API error ${res.status} for ${path}: ${err}`);
   }
+
   return res.json();
 }
 
@@ -65,21 +75,25 @@ function getWeekRanges(numWeeks = 12) {
   const weeks = [];
   const now = new Date();
   let weekStart = startOfWeek(now);
+
   for (let i = 0; i < numWeeks; i++) {
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     weekEnd.setUTCHours(23, 59, 59, 999);
+
     weeks.unshift({
       label: `W${formatDate(weekStart).slice(5).replace('-', '/')}`,
       startStr: formatDate(weekStart),
       endStr: formatDate(weekEnd),
     });
+
     weekStart.setUTCDate(weekStart.getUTCDate() - 7);
   }
+
   return weeks;
 }
 
-// ── REPORTS API ───────────────────────────────────────────────────────────
+// ── TAG CONFIG ────────────────────────────────────────────────────────────
 
 const CATEGORY_TAGS = [
   { name: 'Account', hsName: 'category: account' },
@@ -151,7 +165,7 @@ const SUBCATEGORY_TAGS = [
   { name: 'Watch Features', hsName: 'subcategory: watch features' },
 ];
 
-let _tagIdCache = null;
+// ── REPORTS API ───────────────────────────────────────────────────────────
 
 async function listAllTags() {
   if (_tagIdCache) return _tagIdCache;
@@ -191,7 +205,10 @@ function sortMetricBreakdown(items, total, metricKey) {
   const notTagged = Math.max(0, total - taggedTotal);
 
   return [
-    ...items.map((item) => ({ name: item.name, count: item[metricKey] || 0 })),
+    ...items.map((item) => ({
+      name: item.name,
+      count: item[metricKey] || 0,
+    })),
     { name: 'Not tagged', count: notTagged },
   ]
     .filter((item) => item.count > 0 || item.name === 'Not tagged')
@@ -230,13 +247,12 @@ async function fetchTaggedClosureMetrics(baseParams, config) {
   );
 }
 
-// Fast report — overall metrics only, no per-bucket breakdown
-// Used for all 12 weeks to keep the main load quick
+// Fast report — overall metrics only, no per-tag breakdown
 async function getWeekReport(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   const params = {
     start: `${startStr}T00:00:00Z`,
-    end:   `${endStr}T23:59:59Z`,
+    end: `${endStr}T23:59:59Z`,
     mailbox: mailboxId,
   };
 
@@ -278,7 +294,6 @@ async function getWeekReport(startStr, endStr) {
   }
 }
 
-// Tag breakdown — category + subcategory for one selected week
 export async function fetchWeekBuckets(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   const baseParams = {
@@ -311,7 +326,7 @@ export async function fetchWeekBuckets(startStr, endStr) {
       },
     };
   } catch (e) {
-    console.error(`Error fetching tag breakdown ${startStr}-${endStr}:`, e.message);
+    console.error(`Error fetching buckets ${startStr}-${endStr}:`, e.message);
     return {
       category: { withReply: [], noReply: [], both: [] },
       subcategory: { withReply: [], noReply: [], both: [] },
@@ -321,63 +336,86 @@ export async function fetchWeekBuckets(startStr, endStr) {
 
 async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const data = await hsGet('/conversations', {
-    mailbox: mailboxId,
-    status: 'active',
-    pageSize: 1,
-  });
-  return { total: data.page?.totalElements ?? 0 };
+  try {
+    const activeData = await hsGet('/conversations', {
+      mailbox: mailboxId,
+      status: 'active',
+      pageSize: 1,
+    });
+    const active = activeData?.page?.totalElements || 0;
+    return { total: active, active, pending: 0 };
+  } catch (e) {
+    console.error('Error fetching backlog:', e.message);
+    return { total: 0, active: 0, pending: 0 };
+  }
 }
 
-// ── PUBLIC FUNCTIONS ──────────────────────────────────────────────────────
+// ── MAIN EXPORT ───────────────────────────────────────────────────────────
 
-export async function fetchDashboardData() {
+export async function fetchAllMetrics() {
   const weeks = getWeekRanges(12);
+  const backlogData = await getCurrentBacklog();
+  const currentBacklog = backlogData.total;
 
-  // Pull weekly report data in parallel
-  const reports = await Promise.all(
-    weeks.map((w) => getWeekReport(w.startStr, w.endStr))
+  const baselineDate = 'March 16, 2026';
+
+  const weeklyMetrics = await Promise.all(
+    weeks.map(async (week) => {
+      const report = await getWeekReport(week.startStr, week.endStr);
+      return {
+        label: week.label,
+        startStr: week.startStr,
+        endStr: week.endStr,
+        opened: report.opened,
+        closed: report.closed,
+        resolutionTime: report.resolutionTime,
+        firstResponseTime: report.firstResponseTime,
+        resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
+      };
+    })
   );
 
-  // Get current backlog once
-  const backlogData = await getCurrentBacklog();
-  let currentBacklog = backlogData.total;
+  let runningBacklog = currentBacklog;
+  for (let i = weeklyMetrics.length - 1; i >= 0; i--) {
+    weeklyMetrics[i].backlog = Math.max(0, runningBacklog);
+    runningBacklog = runningBacklog + weeklyMetrics[i].opened - weeklyMetrics[i].closed;
+    if (runningBacklog < 0) runningBacklog = 0;
+  }
 
-  // Reconstruct historical backlog backwards from live backlog
-  const fullWeeks = [];
-  for (let i = weeks.length - 1; i >= 0; i--) {
-    const week = weeks[i];
-    const report = reports[i];
+  const baselineBacklog = 16431;
 
-    fullWeeks.unshift({
-      label: week.label,
-      startStr: week.startStr,
-      endStr: week.endStr,
-      backlog: currentBacklog,
-      opened: report.opened,
-      closed: report.closed,
-      burnRate: report.closed - report.opened,
-      resolutionTime: report.resolutionTime,
-      firstResponseTime: report.firstResponseTime,
-      resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
-    });
+  for (let i = 0; i < weeklyMetrics.length; i++) {
+    const w = weeklyMetrics[i];
+    const prev = i > 0 ? weeklyMetrics[i - 1] : null;
 
-    // Previous week's backlog = this week's backlog - net burn
-    currentBacklog = currentBacklog - report.closed + report.opened;
+    w.pctVsBaseline = baselineBacklog > 0
+      ? Math.round(((w.backlog - baselineBacklog) / baselineBacklog) * 10000) / 100
+      : 0;
+
+    w.pctVsPriorWeek = (prev && prev.backlog > 0)
+      ? Math.round(((w.backlog - prev.backlog) / prev.backlog) * 10000) / 100
+      : null;
   }
 
   return {
     fetchedAt: new Date().toISOString(),
-    weeks: fullWeeks,
+    currentBacklog,
+    backlogBreakdown: backlogData,
+    baselineBacklog,
+    baselineDate,
+    weeks: weeklyMetrics,
   };
 }
 
 export async function fetchCurrentWeekSnapshot() {
-  const week = getWeekRanges(1)[0];
+  const weeks = getWeekRanges(1);
+  const week = weeks[0];
+
   const [backlogData, report] = await Promise.all([
     getCurrentBacklog(),
     getWeekReport(week.startStr, week.endStr),
   ]);
+
   return {
     fetchedAt: new Date().toISOString(),
     week: week.label,
