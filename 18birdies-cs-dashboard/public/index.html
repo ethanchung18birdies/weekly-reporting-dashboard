@@ -719,7 +719,6 @@
             </div>
           </div>
           <div class="bucket-list" id="bucketBars"></div>
-          <div id="bucketDebug" style="margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--muted);white-space:pre-wrap;"></div>
         </div>
       </div>
 
@@ -730,7 +729,7 @@
             <div class="card-title">
               Opened vs closed per week
               <div style="display:flex;gap:10px">
-                <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:2px;background:#1a3a1a;display:inline-block"></span>Closed</span>
+                <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:2px;background:#1a3a1a;display:inline-block"></span>Closed w/ reply</span>
                 <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:2px;background:#d1d5db;display:inline-block"></span>Opened</span>
               </div>
             </div>
@@ -919,7 +918,6 @@
       renderKPIs(w, prev, weeksToZero, cpd, cpdNote);
       renderBucketBars(w);
       renderBucketTable(w, prev);
-      renderBucketDebug(w);
       syncBucketControls();
 
       renderBurnChart();
@@ -968,7 +966,6 @@
       if (!w) return;
       renderBucketBars(w);
       renderBucketTable(w, prev);
-      renderBucketDebug(w);
       syncBucketControls();
     }
 
@@ -979,7 +976,6 @@
       if (!w) return;
       renderBucketBars(w);
       renderBucketTable(w, prev);
-      renderBucketDebug(w);
       syncBucketControls();
     }
 
@@ -1012,38 +1008,6 @@
           </tr>
         </tbody>
       `;
-
-      const debugEl = document.getElementById('bucketDebug');
-      if (debugEl) debugEl.textContent = '';
-    }
-
-    function renderBucketDebug(w) {
-      const debug = w?.buckets?.debug;
-      const el = document.getElementById('bucketDebug');
-      if (!el) return;
-
-      if (bucketView !== 'subcategory') {
-        el.textContent = '';
-        return;
-      }
-
-      if (!debug) {
-        el.textContent = 'Subcategory debug: no debug data returned.';
-        return;
-      }
-
-      const unresolved = debug.unresolvedSubcategoryTags || [];
-      const resolved = debug.resolvedSubcategoryTags || [];
-
-      const resolvedLines = resolved
-        .slice(0, 50)
-        .map(x => `${x.hsName} [id:${x.tagId}] both=${x.both} withReply=${x.withReply} noReply=${x.noReply}`)
-        .join('\n');
-
-      el.textContent =
-        `Subcategory debug\n\n` +
-        `Resolved tags (${resolved.length}):\n${resolvedLines || 'None'}\n\n` +
-        `Unresolved tags (${unresolved.length}):\n${unresolved.join('\n') || 'None'}`;
     }
 
     async function loadBuckets(weekIdx) {
@@ -1055,7 +1019,6 @@
           { ...w, buckets: bucketCache[w.startStr] },
           weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
         );
-        renderBucketDebug({ ...w, buckets: bucketCache[w.startStr] });
         syncBucketControls();
         return;
       }
@@ -1070,7 +1033,6 @@
         bucketCache[w.startStr] = data.buckets || {
           category: { withReply: [], noReply: [], both: [] },
           subcategory: { withReply: [], noReply: [], both: [] },
-          debug: { unresolvedSubcategoryTags: [], resolvedSubcategoryTags: [] },
         };
 
         renderBucketBars({ buckets: bucketCache[w.startStr] });
@@ -1078,13 +1040,11 @@
           { ...w, buckets: bucketCache[w.startStr] },
           weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
         );
-        renderBucketDebug({ ...w, buckets: bucketCache[w.startStr] });
         syncBucketControls();
       } catch (e) {
         console.error('Failed to load buckets:', e);
         document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
         document.getElementById('bucketTable').innerHTML = '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
-        document.getElementById('bucketDebug').textContent = '';
       }
     }
 
