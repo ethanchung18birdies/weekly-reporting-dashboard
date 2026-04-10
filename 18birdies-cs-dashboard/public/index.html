@@ -363,12 +363,6 @@
       gap: 12px;
     }
 
-    .three-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-    }
-
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -617,7 +611,7 @@
 
     @media (max-width: 768px) {
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-      .two-col, .three-col { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
       .hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
       .goal-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
       .pace-pill { margin-left: 0; }
@@ -628,9 +622,6 @@
       body { background: white; }
       .card, .kpi { break-inside: avoid; }
     }
-
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
   </style>
 </head>
 <body>
@@ -644,14 +635,8 @@
     </div>
     <div class="hdr-actions">
       <div class="status-dot loading" id="statusDot"></div>
-      <button class="btn btn-ghost" id="refreshBtn" onclick="refreshData()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-        Refresh
-      </button>
-      <button class="btn btn-primary" onclick="window.print()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-        Export PDF
-      </button>
+      <button class="btn btn-ghost" id="refreshBtn" onclick="refreshData()">Refresh</button>
+      <button class="btn btn-primary" onclick="window.print()">Export PDF</button>
     </div>
   </div>
 
@@ -726,13 +711,7 @@
         <div class="section-label">Efficiency trends — all weeks</div>
         <div class="two-col">
           <div class="card">
-            <div class="card-title">
-              Opened vs closed per week
-              <div style="display:flex;gap:10px">
-                <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:2px;background:#1a3a1a;display:inline-block"></span>Closed w/ reply</span>
-                <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:2px;background:#d1d5db;display:inline-block"></span>Opened</span>
-              </div>
-            </div>
+            <div class="card-title">Opened vs closed per week</div>
             <div class="chart-wrap" style="height:180px"><canvas id="ocChart"></canvas></div>
           </div>
 
@@ -814,6 +793,23 @@
       }
     }
 
+    function getWeekWithBuckets(index) {
+      const w = allData.weeks[index];
+      return {
+        ...w,
+        buckets: bucketCache[w.startStr] || null,
+      };
+    }
+
+    function getPrevWeekWithBuckets(index) {
+      if (index <= 0) return null;
+      const w = allData.weeks[index - 1];
+      return {
+        ...w,
+        buckets: bucketCache[w.startStr] || null,
+      };
+    }
+
     async function loadData(force = false) {
       setStatus('loading');
       document.getElementById('loadingState').style.display = 'flex';
@@ -848,7 +844,7 @@
       btn.textContent = 'Refreshing...';
       await loadData(true);
       btn.disabled = false;
-      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Refresh';
+      btn.textContent = 'Refresh';
     }
 
     function setStatus(s) {
@@ -874,8 +870,8 @@
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
 
-      const w = allData.weeks[selWeek];
-      const prev = selWeek > 0 ? allData.weeks[selWeek - 1] : null;
+      const w = getWeekWithBuckets(selWeek);
+      const prev = getPrevWeekWithBuckets(selWeek);
 
       const fetchedAt = new Date(allData.fetchedAt);
       document.getElementById('hdrSub').textContent =
@@ -961,9 +957,8 @@
 
     function setBucketView(view) {
       bucketView = view;
-      const w = allData?.weeks?.[selWeek];
-      const prev = selWeek > 0 ? allData.weeks[selWeek - 1] : null;
-      if (!w) return;
+      const w = getWeekWithBuckets(selWeek);
+      const prev = getPrevWeekWithBuckets(selWeek);
       renderBucketBars(w);
       renderBucketTable(w, prev);
       syncBucketControls();
@@ -971,9 +966,8 @@
 
     function setClosureMode(mode) {
       closureMode = mode;
-      const w = allData?.weeks?.[selWeek];
-      const prev = selWeek > 0 ? allData.weeks[selWeek - 1] : null;
-      if (!w) return;
+      const w = getWeekWithBuckets(selWeek);
+      const prev = getPrevWeekWithBuckets(selWeek);
       renderBucketBars(w);
       renderBucketTable(w, prev);
       syncBucketControls();
@@ -1014,12 +1008,7 @@
       const w = allData.weeks[weekIdx];
 
       if (bucketCache[w.startStr]) {
-        renderBucketBars({ buckets: bucketCache[w.startStr] });
-        renderBucketTable(
-          { ...w, buckets: bucketCache[w.startStr] },
-          weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
-        );
-        syncBucketControls();
+        renderAll();
         return;
       }
 
@@ -1035,12 +1024,9 @@
           subcategory: { withReply: [], noReply: [], both: [] },
         };
 
-        renderBucketBars({ buckets: bucketCache[w.startStr] });
-        renderBucketTable(
-          { ...w, buckets: bucketCache[w.startStr] },
-          weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
-        );
-        syncBucketControls();
+        if (selWeek === weekIdx) {
+          renderAll();
+        }
       } catch (e) {
         console.error('Failed to load buckets:', e);
         document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
