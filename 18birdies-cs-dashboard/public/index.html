@@ -121,6 +121,24 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .prog-bg { height: 5px; background: var(--border); border-radius: 3px; }
 .prog-fill { height: 5px; border-radius: 3px; transition: width 0.5s ease; }
 
+.bucket-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 0;
+}
+
+.bucket-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 /* bucket controls */
 .bucket-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .seg { display: inline-flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
@@ -484,6 +502,23 @@ function renderWeekNav() {
   ).join('');
 }
 
+function renderBucketLoading() {
+  document.getElementById('bucketBars').innerHTML = `
+    <div class="bucket-loading">
+      <div class="bucket-spinner"></div>
+      <span>Loading tag data...</span>
+    </div>
+  `;
+
+  document.getElementById('bucketTable').innerHTML = `
+    <tbody>
+      <tr>
+        <td style="padding:12px;color:var(--muted)">Loading tag data...</td>
+      </tr>
+    </tbody>
+  `;
+}
+
 function selectWeek(i) {
   selWeek = i;
   renderAll();
@@ -529,10 +564,15 @@ async function loadBuckets(weekIdx) {
 
   if (bucketCache[w.startStr]) {
     renderBucketBars({ buckets: bucketCache[w.startStr] });
-    renderBucketTable({ ...w, buckets: bucketCache[w.startStr] }, weekIdx > 0 ? allData.weeks[weekIdx - 1] : null);
+    renderBucketTable(
+      { ...w, buckets: bucketCache[w.startStr] },
+      weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
+    );
     syncBucketControls();
     return;
   }
+
+  renderBucketLoading();
 
   try {
     const res = await fetch(`/api/buckets?start=${w.startStr}&end=${w.endStr}`);
@@ -545,12 +585,17 @@ async function loadBuckets(weekIdx) {
     };
 
     renderBucketBars({ buckets: bucketCache[w.startStr] });
-    renderBucketTable({ ...w, buckets: bucketCache[w.startStr] }, weekIdx > 0 ? allData.weeks[weekIdx - 1] : null);
+    renderBucketTable(
+      { ...w, buckets: bucketCache[w.startStr] },
+      weekIdx > 0 ? allData.weeks[weekIdx - 1] : null
+    );
     syncBucketControls();
   } catch (e) {
     console.error('Failed to load buckets:', e);
-    document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
-    document.getElementById('bucketTable').innerHTML = '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
+    document.getElementById('bucketBars').innerHTML =
+      '<div class="empty-state">Failed to load tag data.</div>';
+    document.getElementById('bucketTable').innerHTML =
+      '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
   }
 }
 
