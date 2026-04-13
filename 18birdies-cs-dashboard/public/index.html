@@ -896,9 +896,11 @@
         `Last updated ${fetchedAt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} at ${fetchedAt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
 
       const elapsed = elapsedDays(w.startStr, w.endStr);
-      const cpd = (w.closed / elapsed).toFixed(0);
+      const paceClosed = w.totalClosed ?? w.closed;
+      const cpd = (paceClosed / elapsed).toFixed(0);
       const cpdNote = elapsed < 5 ? ` (${elapsed} day${elapsed > 1 ? 's' : ''} elapsed)` : '';
-      document.getElementById('paceVal').textContent = `${cpd} tickets/day${cpdNote}`;
+      document.getElementById('paceVal').textContent = `${paceClosed}/${TARGET_DAILY}${cpdNote}`;
+
 
       const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
       const avgBurn = recentWeeks.reduce((a, x) => a + (x.closed - x.opened), 0) / recentWeeks.length;
@@ -906,8 +908,8 @@
       document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
 
       const elapsedTarget = TARGET_DAILY * elapsed;
-      const pctTarget = elapsedTarget > 0 ? Math.round(w.closed / elapsedTarget * 100) : 0;
-      const onTrack = w.closed >= elapsedTarget * 0.8;
+      const pctTarget = elapsedTarget > 0 ? Math.round(paceClosed / elapsedTarget * 100) : 0;
+      const onTrack = paceClosed >= elapsedTarget;
 
       const pill = document.getElementById('pacePill');
       pill.textContent = onTrack ? `${pctTarget}% of pace ✓` : `${pctTarget}% of pace`;
@@ -953,18 +955,19 @@
     function renderCallout(w, weeksToZero, onTrack, pctTarget, elapsed) {
       const callout = document.getElementById('paceCallout');
       const burnRate = w.closed - w.opened;
-      const gap = (TARGET_DAILY - parseFloat((w.closed / elapsed).toFixed(0))).toFixed(0);
+      const paceClosed = w.totalClosed ?? w.closed;
+      const gap = (TARGET_DAILY - parseFloat((paceClosed / elapsed).toFixed(0))).toFixed(0);
       const elapsedLabel = elapsed < 5 ? ` through day ${elapsed} of 5` : '';
-
+    
       callout.className = `callout ${onTrack ? 'good' : 'warn'}`;
       document.getElementById('paceIcon').textContent = onTrack ? '📈' : '⚠️';
       document.getElementById('paceTitle').textContent = onTrack
-        ? `Ahead of pace — ${pctTarget}% of daily target${elapsedLabel}`
-        : `Behind pace — ${pctTarget}% of daily target${elapsedLabel}`;
-
+        ? `Ahead of pace — ${paceClosed}/${TARGET_DAILY} through day ${elapsed} of 5`
+        : `Behind pace — ${paceClosed}/${TARGET_DAILY} through day ${elapsed} of 5`;
+    
       document.getElementById('paceText').textContent = onTrack
-        ? `Team closed ${w.closed.toLocaleString()} tickets with a reply (${(w.closed / elapsed).toFixed(0)}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
-        : `Team closed ${w.closed.toLocaleString()} tickets with a reply (${(w.closed / elapsed).toFixed(0)}/day vs. 360/day target). Need ${gap} more tickets/day to hit the July target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
+        ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${(paceClosed / elapsed).toFixed(0)}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
+        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${(paceClosed / elapsed).toFixed(0)}/day vs. 360/day target). Need ${gap} more tickets/day to hit the July target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
     }
 
     function renderWeekNav() {
@@ -1258,18 +1261,26 @@
     }
 
     function renderAssigneeBars(rows) {
-      const el = getEl('assigneeBars');
-      if (!el) return;
+      const container = document.getElementById('assigneeBars');
+      if (!container) return;
     
-      if (!rows || !rows.length) {
-        el.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+      if (!Array.isArray(rows) || !rows.length) {
+        container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
         return;
       }
     
-      const displayRows = rows.slice(0, 10);
-      const total = displayRows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
+      const displayRows = rows
+        .filter(r => r && typeof r.count === 'number' && r.count > 0)
+        .slice(0, 10);
     
-      el.innerHTML = displayRows.map((r, i) => {
+      if (!displayRows.length) {
+        container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+        return;
+      }
+    
+      const total = displayRows.reduce((sum, r) => sum + r.count, 0) || 1;
+    
+      container.innerHTML = displayRows.map((r, i) => {
         const pct = Math.max(2, Math.round((r.count / total) * 100));
         const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
     
@@ -1280,7 +1291,7 @@
                 <span class="bdot" style="background:${color}"></span>
                 ${r.name}
               </div>
-              <div class="bucket-count">${r.count}</div>
+              <div class="bucket-count">${r.count} · ${pct}%</div>
             </div>
             <div class="prog-bg">
               <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
