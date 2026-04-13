@@ -6,6 +6,7 @@ const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
 
 let _tokenCache = null;
 let _tagIdCache = null;
+const _assigneeWeekCache = new Map();
 
 async function getAccessToken() {
   if (_tokenCache && _tokenCache.expiresAt > Date.now() + 60_000) {
@@ -447,31 +448,48 @@ export async function fetchAllMetrics() {
 }
 
 export async function fetchWeekAssignees(startStr, endStr) {
+  const cacheKey = `${startStr}_${endStr}`;
+  const cached = _assigneeWeekCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   const startMs = Date.parse(`${startStr}T00:00:00Z`);
   const endMs = Date.parse(`${endStr}T23:59:59Z`);
 
   const counts = new Map();
   let page = 1;
-  let totalPages = 1;
+  let done = false;
 
   try {
-    do {
+    while (!done) {
       const data = await hsGet('/conversations', {
         mailbox: mailboxId,
         status: 'closed',
         page,
         pageSize: 100,
+        sortField: 'modifiedAt',
+        sortOrder: 'desc',
       });
 
       const rows = data?._embedded?.conversations || [];
+      if (!rows.length) break;
 
       for (const convo of rows) {
         const closedAtRaw = convo?.closedAt;
         const closedAtMs = closedAtRaw ? Date.parse(closedAtRaw) : NaN;
 
         if (!Number.isFinite(closedAtMs)) continue;
-        if (closedAtMs < startMs || closedAtMs > endMs) continue;
+
+        if (closedAtMs > endMs) {
+          continue;
+        }
+
+        if (closedAtMs < startMs) {
+          done = true;
+          break;
+        }
 
         const assignee = convo?.assignee || convo?.owner || null;
 
@@ -485,13 +503,21 @@ export async function fetchWeekAssignees(startStr, endStr) {
         counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
       }
 
-      totalPages = data?.page?.totalPages || 1;
+      const totalPages = data?.page?.totalPages || 1;
+      if (done || page >= totalPages) break;
       page += 1;
-    } while (page <= totalPages);
+    }
 
-    return Array.from(counts.entries())
+    const result = Array.from(counts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+    _assigneeWeekCache.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    });
+
+    return result;
   } catch (e) {
     console.error(`Error fetching assignee breakdown ${startStr}-${endStr}:`, e.message);
     throw e;
