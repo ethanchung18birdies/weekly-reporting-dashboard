@@ -137,8 +137,8 @@
     }
 
     @keyframes pulse {
-      0%,100%{opacity:1}
-      50%{opacity:0.4}
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
 
     .goal-bar {
@@ -427,6 +427,7 @@
       justify-content: space-between;
       align-items: baseline;
       margin-bottom: 4px;
+      gap: 12px;
     }
 
     .bucket-name {
@@ -435,6 +436,15 @@
       display: flex;
       align-items: center;
       gap: 7px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .bucket-name span:last-child,
+    .bucket-name-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .bdot {
@@ -448,6 +458,7 @@
       font-size: 11px;
       font-family: var(--mono);
       color: var(--muted);
+      white-space: nowrap;
     }
 
     .prog-bg {
@@ -609,6 +620,16 @@
       border-radius: 2px;
     }
 
+    .inline-select {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
     @media (max-width: 768px) {
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .two-col { grid-template-columns: 1fr; }
@@ -618,7 +639,7 @@
     }
 
     @media print {
-      .week-nav, .hdr-actions, .btn { display: none !important; }
+      .week-nav, .hdr-actions, .btn, .inline-select { display: none !important; }
       body { background: white; }
       .card, .kpi { break-inside: avoid; }
     }
@@ -712,6 +733,16 @@
         <div class="bucket-list" id="assigneeBars"></div>
       </div>
 
+      <div class="card">
+        <div class="card-title">
+          <span id="assigneeSubcategoryTitle">Closed tickets by subcategory — all assignees</span>
+          <select id="assigneeSelect" class="inline-select" onchange="handleAssigneeSelectChange()">
+            <option value="all">All assignees</option>
+          </select>
+        </div>
+        <div class="bucket-list" id="assigneeSubcategoryBars"></div>
+      </div>
+
       <div>
         <div class="section-label">Efficiency trends — all weeks</div>
         <div class="two-col">
@@ -758,18 +789,22 @@
 
   <script>
     const TARGET_DAILY = 360;
+
     let allData = null;
     let selWeek = null;
+    let bucketView = 'category';
+    let closureMode = 'both';
+    let selectedAssignee = 'all';
+
     const charts = {};
     const bucketCache = {};
     const assigneeCache = {};
-    let bucketView = 'category';
-    let closureMode = 'both';
+    const assigneeSubcategoryCache = {};
 
     const BUCKET_COLORS = [
       '#1a3a1a', '#1e40af', '#92400e', '#6b21a8', '#be123c', '#0f766e',
       '#c2410c', '#1d4ed8', '#7c3aed', '#0d9488', '#b45309', '#475569',
-      '#4f46e5', '#b91c1c'
+      '#4f46e5', '#b91c1c', '#166534', '#7c2d12', '#0369a1', '#6d28d9'
     ];
 
     const gridColor = 'rgba(0,0,0,0.05)';
@@ -801,19 +836,13 @@
 
     function getWeekWithBuckets(index) {
       const w = allData.weeks[index];
-      return {
-        ...w,
-        buckets: bucketCache[w.startStr] || null,
-      };
+      return { ...w, buckets: bucketCache[w.startStr] || null };
     }
 
     function getPrevWeekWithBuckets(index) {
       if (index <= 0) return null;
       const w = allData.weeks[index - 1];
-      return {
-        ...w,
-        buckets: bucketCache[w.startStr] || null,
-      };
+      return { ...w, buckets: bucketCache[w.startStr] || null };
     }
 
     async function loadData(force = false) {
@@ -825,6 +854,7 @@
       try {
         const url = force ? '/api/metrics?refresh=true' : '/api/metrics';
         const res = await fetch(url);
+
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
           throw new Error(err.detail || err.error || `HTTP ${res.status}`);
@@ -837,6 +867,7 @@
         setTimeout(() => {
           loadBuckets(selWeek);
           loadAssignees(selWeek);
+          loadAssigneeSubcategories(selWeek, selectedAssignee);
         }, 0);
 
         setStatus('ok');
@@ -858,9 +889,9 @@
       btn.textContent = 'Refresh';
     }
 
-    function setStatus(s) {
+    function setStatus(state) {
       const dot = document.getElementById('statusDot');
-      dot.className = 'status-dot' + (s === 'loading' ? ' loading' : s === 'error' ? ' error' : '');
+      dot.className = 'status-dot' + (state === 'loading' ? ' loading' : state === 'error' ? ' error' : '');
     }
 
     function elapsedDays(startStr, endStr) {
@@ -886,7 +917,7 @@
 
       const fetchedAt = new Date(allData.fetchedAt);
       document.getElementById('hdrSub').textContent =
-        `Last updated ${fetchedAt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} at ${fetchedAt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
+        `Last updated ${fetchedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${fetchedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
 
       const elapsed = elapsedDays(w.startStr, w.endStr);
       const paceClosed = w.totalClosed ?? w.closed;
@@ -900,19 +931,19 @@
       document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
 
       const elapsedTarget = TARGET_DAILY * elapsed;
-      const pctTarget = elapsedTarget > 0 ? Math.round(paceClosed / elapsedTarget * 100) : 0;
+      const pctTarget = elapsedTarget > 0 ? Math.round((paceClosed / elapsedTarget) * 100) : 0;
       const onTrack = paceClosed >= elapsedTarget;
 
       const pill = document.getElementById('pacePill');
       pill.textContent = onTrack ? `${pctTarget}% of pace ✓` : `${pctTarget}% of pace`;
       pill.className = `pace-pill ${onTrack ? 'on-track' : 'off-track'}`;
 
-      renderCallout(w, weeksToZero, onTrack, pctTarget, elapsed);
+      renderCallout(w, weeksToZero, onTrack, elapsed);
 
       const baselineBacklog = allData.baselineBacklog || allData.weeks[0].backlog;
       const baselineDate = allData.baselineDate || 'start';
       const reduced = Math.max(0, baselineBacklog - w.backlog);
-      const reducedPct = baselineBacklog > 0 ? Math.round(reduced / baselineBacklog * 100) : 0;
+      const reducedPct = baselineBacklog > 0 ? Math.round((reduced / baselineBacklog) * 100) : 0;
 
       document.getElementById('burnStats').innerHTML = `
         <div class="bstat"><div class="bstat-val">${w.backlog.toLocaleString()}</div><div class="bstat-lbl">Current backlog</div></div>
@@ -934,6 +965,16 @@
         renderAssigneeLoading();
       }
 
+      populateAssigneeSelect();
+      updateAssigneeSubcategoryTitle();
+
+      const assigneeSubcategoryKey = `${w.startStr}_${selectedAssignee}`;
+      if (assigneeSubcategoryCache[assigneeSubcategoryKey]) {
+        renderAssigneeSubcategoryBars(assigneeSubcategoryCache[assigneeSubcategoryKey]);
+      } else {
+        renderAssigneeSubcategoryLoading();
+      }
+
       renderBurnChart();
       renderOCChart();
       renderRTChart();
@@ -941,10 +982,10 @@
       renderThroughputChart();
 
       document.getElementById('footerLeft').textContent =
-        `Live data · 18Birdies HelpScout · Updated ${fetchedAt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}`;
+        `Live data · 18Birdies HelpScout · Updated ${fetchedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     }
 
-    function renderCallout(w, weeksToZero, onTrack, pctTarget, elapsed) {
+    function renderCallout(w, weeksToZero, onTrack, elapsed) {
       const callout = document.getElementById('paceCallout');
       const burnRate = w.closed - w.opened;
       const paceClosed = w.totalClosed ?? w.closed;
@@ -972,6 +1013,7 @@
       renderAll();
       loadBuckets(i);
       loadAssignees(i);
+      loadAssigneeSubcategories(i, selectedAssignee);
     }
 
     function setBucketView(view) {
@@ -1013,7 +1055,6 @@
           <span>Loading tag data...</span>
         </div>
       `;
-
       document.getElementById('bucketTable').innerHTML = `
         <tbody>
           <tr>
@@ -1026,11 +1067,21 @@
     function renderAssigneeLoading() {
       const el = document.getElementById('assigneeBars');
       if (!el) return;
-
       el.innerHTML = `
         <div class="bucket-loading">
           <div class="bucket-spinner"></div>
           <span>Loading assignee data...</span>
+        </div>
+      `;
+    }
+
+    function renderAssigneeSubcategoryLoading() {
+      const el = document.getElementById('assigneeSubcategoryBars');
+      if (!el) return;
+      el.innerHTML = `
+        <div class="bucket-loading">
+          <div class="bucket-spinner"></div>
+          <span>Loading subcategory data...</span>
         </div>
       `;
     }
@@ -1069,7 +1120,11 @@
       if (!el) return;
 
       if (assigneeCache[w.startStr]) {
-        if (selWeek === weekIdx) renderAssigneeBars(assigneeCache[w.startStr]);
+        if (selWeek === weekIdx) {
+          renderAssigneeBars(assigneeCache[w.startStr]);
+          populateAssigneeSelect();
+          updateAssigneeSubcategoryTitle();
+        }
         return;
       }
 
@@ -1084,10 +1139,45 @@
 
         if (selWeek === weekIdx) {
           renderAssigneeBars(assigneeCache[w.startStr]);
+          populateAssigneeSelect();
+          updateAssigneeSubcategoryTitle();
         }
       } catch (e) {
         console.error('Failed to load assignees:', e);
         el.innerHTML = '<div class="empty-state">Failed to load assignee data.</div>';
+      }
+    }
+
+    async function loadAssigneeSubcategories(weekIdx, assignee = 'all') {
+      const w = allData.weeks[weekIdx];
+      const cacheKey = `${w.startStr}_${assignee}`;
+
+      if (assigneeSubcategoryCache[cacheKey]) {
+        if (selWeek === weekIdx) {
+          renderAssigneeSubcategoryBars(assigneeSubcategoryCache[cacheKey]);
+          updateAssigneeSubcategoryTitle();
+        }
+        return;
+      }
+
+      renderAssigneeSubcategoryLoading();
+      updateAssigneeSubcategoryTitle();
+
+      try {
+        const res = await fetch(`/api/assignee-subcategories?start=${w.startStr}&end=${w.endStr}&assignee=${assignee}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.error || 'Failed to load assignee subcategories');
+
+        assigneeSubcategoryCache[cacheKey] = data.subcategories || [];
+
+        if (selWeek === weekIdx && String(selectedAssignee) === String(assignee)) {
+          renderAssigneeSubcategoryBars(assigneeSubcategoryCache[cacheKey]);
+          updateAssigneeSubcategoryTitle();
+        }
+      } catch (e) {
+        console.error('Failed to load assignee subcategories:', e);
+        const el = document.getElementById('assigneeSubcategoryBars');
+        if (el) el.innerHTML = '<div class="empty-state">Failed to load subcategory data.</div>';
       }
     }
 
@@ -1104,18 +1194,23 @@
       const burnRate = w.closed - w.opened;
       const vsBaseline = w.pctVsBaseline ?? 0;
       const vsBaseCls = vsBaseline <= 0 ? 'up' : 'down';
-      const vsBaseLabel = vsBaseline === 0 ? '→ 0.00% vs baseline' : `${vsBaseline <= 0 ? '↓' : '↑'} ${Math.abs(vsBaseline).toFixed(2)}% vs baseline`;
+      const vsBaseLabel = vsBaseline === 0
+        ? '→ 0.00% vs baseline'
+        : `${vsBaseline <= 0 ? '↓' : '↑'} ${Math.abs(vsBaseline).toFixed(2)}% vs baseline`;
+
       const vsPrior = w.pctVsPriorWeek;
       const vsPriorCls = vsPrior == null ? 'neutral' : vsPrior <= 0 ? 'up' : 'down';
-      const vsPriorLabel = vsPrior == null ? '— vs last week' : `${vsPrior <= 0 ? '↓' : '↑'} ${Math.abs(vsPrior).toFixed(2)}% vs last week`;
+      const vsPriorLabel = vsPrior == null
+        ? '— vs last week'
+        : `${vsPrior <= 0 ? '↓' : '↑'} ${Math.abs(vsPrior).toFixed(2)}% vs last week`;
 
       const backlogCard = `
         <div class="kpi" style="--kc:#92400e">
           <div class="kpi-label">Backlog</div>
           <div class="kpi-value">${w.backlog.toLocaleString()}</div>
           <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
-            <span class="kpi-delta ${vsBaseCls}" style="font-size:10px;background:${vsBaseline<=0?'var(--green-bg)':'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsBaseLabel}</span>
-            <span class="kpi-delta ${vsPriorCls}" style="font-size:10px;background:${vsPrior==null?'var(--surface2)':vsPrior<=0?'var(--green-bg)':'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsPriorLabel}</span>
+            <span class="kpi-delta ${vsBaseCls}" style="font-size:10px;background:${vsBaseline <= 0 ? 'var(--green-bg)' : 'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsBaseLabel}</span>
+            <span class="kpi-delta ${vsPriorCls}" style="font-size:10px;background:${vsPrior == null ? 'var(--surface2)' : vsPrior <= 0 ? 'var(--green-bg)' : 'var(--red-bg)'};padding:2px 7px;border-radius:3px">${vsPriorLabel}</span>
           </div>
           <div class="kpi-note" style="margin-top:4px">${weeksToZero ? `~${weeksToZero} weeks to zero at current pace` : 'No burn trend yet'}</div>
         </div>`;
@@ -1204,7 +1299,7 @@
       document.getElementById('bucketBars').innerHTML = buckets.map(b => `
         <div class="bucket-row">
           <div class="bucket-row-top">
-            <div class="bucket-name"><span class="bdot" style="background:${b.color}"></span>${b.name}</div>
+            <div class="bucket-name"><span class="bdot" style="background:${b.color}"></span><span class="bucket-name-text">${b.name}</span></div>
             <div class="bucket-count">${b.count} · ${b.pct}%</div>
           </div>
           <div class="prog-bg"><div class="prog-fill" style="width:${b.pct}%;background:${b.color}"></div></div>
@@ -1255,43 +1350,107 @@
     }
 
     function renderAssigneeBars(rows) {
-  const container = document.getElementById('assigneeBars');
-  if (!container) return;
+      const container = document.getElementById('assigneeBars');
+      if (!container) return;
 
-  if (!Array.isArray(rows) || !rows.length) {
-    container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
-    return;
-  }
+      if (!Array.isArray(rows) || !rows.length) {
+        container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+        return;
+      }
 
-  const displayRows = rows.filter(r => r && typeof r.count === 'number');
+      const displayRows = rows.filter(r => r && typeof r.count === 'number');
 
-  if (!displayRows.length) {
-    container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
-    return;
-  }
+      if (!displayRows.length) {
+        container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+        return;
+      }
 
-  const total = displayRows.reduce((sum, r) => sum + r.count, 0) || 1;
+      const total = displayRows.reduce((sum, r) => sum + r.count, 0) || 1;
 
-  container.innerHTML = displayRows.map((r, i) => {
-    const pct = Math.max(2, Math.round((r.count / total) * 100));
-    const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+      container.innerHTML = displayRows.map((r, i) => {
+        const pct = Math.max(2, Math.round((r.count / total) * 100));
+        const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
 
-    return `
-      <div class="bucket-row">
-        <div class="bucket-row-top">
-          <div class="bucket-name">
-            <span class="bdot" style="background:${color}"></span>
-            ${r.name}
+        return `
+          <div class="bucket-row">
+            <div class="bucket-row-top">
+              <div class="bucket-name"><span class="bdot" style="background:${color}"></span><span class="bucket-name-text">${r.name}</span></div>
+              <div class="bucket-count">${r.count} · ${pct}%</div>
+            </div>
+            <div class="prog-bg">
+              <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
           </div>
-          <div class="bucket-count">${r.count} · ${pct}%</div>
-        </div>
-        <div class="prog-bg">
-          <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
+        `;
+      }).join('');
+    }
+
+    function renderAssigneeSubcategoryBars(rows) {
+      const container = document.getElementById('assigneeSubcategoryBars');
+      if (!container) return;
+
+      if (!Array.isArray(rows) || !rows.length) {
+        container.innerHTML = '<div class="empty-state">No subcategory data for this selection yet.</div>';
+        return;
+      }
+
+      const total = rows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
+
+      container.innerHTML = rows.map((r, i) => {
+        const pct = Math.max(2, Math.round((r.count / total) * 100));
+        const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+
+        return `
+          <div class="bucket-row">
+            <div class="bucket-row-top">
+              <div class="bucket-name"><span class="bdot" style="background:${color}"></span><span class="bucket-name-text">${r.name}</span></div>
+              <div class="bucket-count">${r.count} · ${pct}%</div>
+            </div>
+            <div class="prog-bg">
+              <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function populateAssigneeSelect() {
+      const select = document.getElementById('assigneeSelect');
+      if (!select) return;
+
+      const currentWeek = allData?.weeks?.[selWeek];
+      if (!currentWeek) return;
+
+      const rows = assigneeCache[currentWeek.startStr] || [];
+      const currentValue = selectedAssignee;
+
+      select.innerHTML = `<option value="all">All assignees</option>` +
+        rows.map(row => `<option value="${row.id}">${row.name}</option>`).join('');
+
+      const exists = Array.from(select.options).some(opt => String(opt.value) === String(currentValue));
+      select.value = exists ? currentValue : 'all';
+      selectedAssignee = select.value;
+    }
+
+    function updateAssigneeSubcategoryTitle() {
+      const title = document.getElementById('assigneeSubcategoryTitle');
+      if (!title) return;
+
+      const currentWeek = allData?.weeks?.[selWeek];
+      const rows = currentWeek ? (assigneeCache[currentWeek.startStr] || []) : [];
+      const selectedRow = rows.find(r => String(r.id) === String(selectedAssignee));
+
+      title.textContent = selectedAssignee === 'all'
+        ? 'Closed tickets by subcategory — all assignees'
+        : `Closed tickets by subcategory — ${selectedRow?.name || 'selected assignee'}`;
+    }
+
+    function handleAssigneeSelectChange() {
+      const select = document.getElementById('assigneeSelect');
+      selectedAssignee = select?.value || 'all';
+      updateAssigneeSubcategoryTitle();
+      loadAssigneeSubcategories(selWeek, selectedAssignee);
+    }
 
     function renderBurnChart() {
       destroyChart('burn');
