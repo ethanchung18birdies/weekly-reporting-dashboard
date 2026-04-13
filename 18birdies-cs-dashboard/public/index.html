@@ -708,10 +708,7 @@
       </div>
 
       <div class="card">
-        <div class="card-title">
-          <span>Closed tickets by assignee — selected week</span>
-          <span style="font-size:10px;color:var(--muted2);text-transform:none;letter-spacing:0">Top 10 shown</span>
-        </div>
+        <div class="card-title">Closed tickets by assignee — selected week</div>
         <div class="bucket-list" id="assigneeBars"></div>
       </div>
 
@@ -1258,45 +1255,43 @@
     }
 
     function renderAssigneeBars(rows) {
-      const container = document.getElementById('assigneeBars');
-      if (!container) return;
+  const container = document.getElementById('assigneeBars');
+  if (!container) return;
 
-      if (!Array.isArray(rows) || !rows.length) {
-        container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
-        return;
-      }
+  if (!Array.isArray(rows) || !rows.length) {
+    container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+    return;
+  }
 
-      const displayRows = rows
-        .filter(r => r && typeof r.count === 'number' && r.count > 0)
-        .slice(0, 10);
+  const displayRows = rows.filter(r => r && typeof r.count === 'number');
 
-      if (!displayRows.length) {
-        container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
-        return;
-      }
+  if (!displayRows.length) {
+    container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+    return;
+  }
 
-      const total = displayRows.reduce((sum, r) => sum + r.count, 0) || 1;
+  const total = displayRows.reduce((sum, r) => sum + r.count, 0) || 1;
 
-      container.innerHTML = displayRows.map((r, i) => {
-        const pct = Math.max(2, Math.round((r.count / total) * 100));
-        const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+  container.innerHTML = displayRows.map((r, i) => {
+    const pct = Math.max(2, Math.round((r.count / total) * 100));
+    const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
 
-        return `
-          <div class="bucket-row">
-            <div class="bucket-row-top">
-              <div class="bucket-name">
-                <span class="bdot" style="background:${color}"></span>
-                ${r.name}
-              </div>
-              <div class="bucket-count">${r.count} · ${pct}%</div>
-            </div>
-            <div class="prog-bg">
-              <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
-            </div>
+    return `
+      <div class="bucket-row">
+        <div class="bucket-row-top">
+          <div class="bucket-name">
+            <span class="bdot" style="background:${color}"></span>
+            ${r.name}
           </div>
-        `;
-      }).join('');
-    }
+          <div class="bucket-count">${r.count} · ${pct}%</div>
+        </div>
+        <div class="prog-bg">
+          <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
     function renderBurnChart() {
       destroyChart('burn');
