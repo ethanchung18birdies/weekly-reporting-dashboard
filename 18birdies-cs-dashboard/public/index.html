@@ -1019,13 +1019,16 @@
     }
 
     function renderAssigneeLoading() {
-      document.getElementById('assigneeBars').innerHTML = `
-        <div class="bucket-loading">
-          <div class="bucket-spinner"></div>
-          <span>Loading assignee data...</span>
-        </div>
-      `;
-    }
+  const el = document.getElementById('assigneeBars');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div class="bucket-loading">
+      <div class="bucket-spinner"></div>
+      <span>Loading assignee data...</span>
+    </div>
+  `;
+}
 
     async function loadBuckets(weekIdx) {
       const w = allData.weeks[weekIdx];
@@ -1244,6 +1247,7 @@
 
     function renderAssigneeBars(rows) {
   const container = document.getElementById('assigneeBars');
+  if (!container) return;
 
   if (!rows || !rows.length) {
     container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
