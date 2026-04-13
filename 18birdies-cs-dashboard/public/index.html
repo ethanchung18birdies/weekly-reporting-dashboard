@@ -707,9 +707,9 @@
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Closed tickets by assignee — selected week</div>
-        <div class="bucket-list" id="assigneeBars"></div>
+      <div class="card-title">
+          <span>Closed tickets by assignee — selected week</span>
+          <span style="font-size:10px;color:var(--muted2);text-transform:none;letter-spacing:0">Top 10 shown</span>
       </div>
 
       <div>
@@ -1243,29 +1243,36 @@
     }
 
     function renderAssigneeBars(rows) {
-      const total = rows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
+  const container = document.getElementById('assigneeBars');
 
-      if (!rows.length) {
-        document.getElementById('assigneeBars').innerHTML =
-          '<div class="empty-state">No assignee data for this week yet.</div>';
-        return;
-      }
+  if (!rows || !rows.length) {
+    container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+    return;
+  }
 
-      document.getElementById('assigneeBars').innerHTML = rows.map((r, i) => {
-        const pct = Math.round((r.count / total) * 100);
-        const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+  const displayRows = rows.slice(0, 10);
+  const total = displayRows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
 
-        return `
-          <div class="bucket-row">
-            <div class="bucket-row-top">
-              <div class="bucket-name"><span class="bdot" style="background:${color}"></span>${r.name}</div>
-              <div class="bucket-count">${r.count} · ${pct}%</div>
-            </div>
-            <div class="prog-bg"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>
+  container.innerHTML = displayRows.map((r, i) => {
+    const pct = Math.max(2, Math.round((r.count / total) * 100));
+    const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+
+    return `
+      <div class="bucket-row">
+        <div class="bucket-row-top">
+          <div class="bucket-name">
+            <span class="bdot" style="background:${color}"></span>
+            ${r.name}
           </div>
-        `;
-      }).join('');
-    }
+          <div class="bucket-count">${r.count}</div>
+        </div>
+        <div class="prog-bg">
+          <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
     function renderBurnChart() {
       destroyChart('burn');
