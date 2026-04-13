@@ -448,53 +448,51 @@ export async function fetchAllMetrics() {
 
 export async function fetchWeekAssignees(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const start = new Date(`${startStr}T00:00:00Z`);
-  const end = new Date(`${endStr}T23:59:59Z`);
+  const startMs = Date.parse(`${startStr}T00:00:00Z`);
+  const endMs = Date.parse(`${endStr}T23:59:59Z`);
 
   const counts = new Map();
   let page = 1;
-  let done = false;
+  let totalPages = 1;
 
   try {
-    while (!done) {
+    do {
       const data = await hsGet('/conversations', {
         mailbox: mailboxId,
         status: 'closed',
         page,
+        pageSize: 100,
         sortField: 'modifiedAt',
         sortOrder: 'desc',
       }).catch(() => null);
 
       const rows = data?._embedded?.conversations || [];
-      if (!rows.length) break;
 
       for (const convo of rows) {
-        const closedAt = convo?.closedAt ? new Date(convo.closedAt) : null;
-        if (!closedAt) continue;
+        const closedAtRaw = convo?.closedAt;
+        const closedAtMs = closedAtRaw ? Date.parse(closedAtRaw) : NaN;
 
-        if (closedAt > end) {
-          continue;
-        }
+        if (!Number.isFinite(closedAtMs)) continue;
+        if (closedAtMs < startMs || closedAtMs > endMs) continue;
 
-        if (closedAt < start) {
-          done = true;
-          break;
-        }
-
-        const assignee = convo?.assignee || null;
+        const assignee =
+          convo?.assignee ||
+          convo?.owner ||
+          null;
 
         const assigneeName =
-          assignee
-            ? [assignee.first, assignee.last].filter(Boolean).join(' ').trim() || assignee.email || 'Assigned'
-            : 'Unassigned';
+          assignee?.name ||
+          [assignee?.firstName, assignee?.lastName].filter(Boolean).join(' ').trim() ||
+          [assignee?.first, assignee?.last].filter(Boolean).join(' ').trim() ||
+          assignee?.email ||
+          'Unassigned';
 
         counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
       }
 
-      const totalPages = data?.page?.totalPages || 1;
-      if (page >= totalPages) break;
+      totalPages = data?.page?.totalPages || 1;
       page += 1;
-    }
+    } while (page <= totalPages);
 
     return Array.from(counts.entries())
       .map(([name, count]) => ({ name, count }))
