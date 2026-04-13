@@ -458,31 +458,27 @@ export async function fetchWeekAssignees(startStr, endStr) {
   const startMs = Date.parse(`${startStr}T00:00:00Z`);
   const endMs = Date.parse(`${endStr}T23:59:59Z`);
 
-  // Mapped to exact Help Scout display names from mailbox users
-  // John Carl Baetiong -> Baetiong John
-  // Joshua Espuerta -> John Espuerta
-  // Marianne Grace Figueroa -> Marianne Figueroa
-  // Mary Cris Tolentin -> Mary Shen
-  // Czar Cruz -> Czarina Cruz
-  const ASSIGNEE_FILTERS = new Set([
-    'Jane Matienzo',
-    'Jhird Verano',
-    'Baetiong John',
-    'John Espuerta',
-    'Marianne Figueroa',
-    'Nestor Cortez',
-    'Nico Delos Reyes',
-    'Rendell Severino',
-    'Mary Shen',
-    'Ben Atienza',
-    'Cjay Baetiong',
-    'Czarina Cruz',
-    'Jennifer Moron',
-    'Mickael De Guzman',
-  ]);
+  // Stable Help Scout user IDs from mailbox users list
+  const ASSIGNEES = [
+    { id: 905541, name: 'Jane Matienzo' },
+    { id: 905525, name: 'Jhird Verano' },
+    { id: 905514, name: 'Baetiong John' },
+    { id: 905526, name: 'John Espuerta' },
+    { id: 905521, name: 'Marianne Figueroa' },
+    { id: 905519, name: 'Nestor Cortez' },
+    { id: 905515, name: 'Nico Delos Reyes' },
+    { id: 905523, name: 'Rendell Severino' },
+    { id: 905524, name: 'Mary Shen' },
+    { id: 865188, name: 'Ben Atienza' },
+    { id: 905876, name: 'Cjay Baetiong' },
+    { id: 906539, name: 'Czarina Cruz' },
+    { id: 865187, name: 'Jennifer Moron' },
+    { id: 905518, name: 'Mickael De Guzman' },
+  ];
 
-  const counts = new Map();
-  for (const name of ASSIGNEE_FILTERS) counts.set(name, 0);
+  const allowedIds = new Set(ASSIGNEES.map(a => a.id));
+  const idToName = new Map(ASSIGNEES.map(a => [a.id, a.name]));
+  const counts = new Map(ASSIGNEES.map(a => [a.name, 0]));
 
   let page = 1;
   let done = false;
@@ -506,7 +502,6 @@ export async function fetchWeekAssignees(startStr, endStr) {
         const closedAtMs = closedAtRaw ? Date.parse(closedAtRaw) : NaN;
 
         if (!Number.isFinite(closedAtMs)) continue;
-
         if (closedAtMs > endMs) continue;
 
         if (closedAtMs < startMs) {
@@ -514,16 +509,13 @@ export async function fetchWeekAssignees(startStr, endStr) {
           break;
         }
 
-        const assignee = convo?.assignee || convo?.owner || null;
-        const assigneeName =
-          assignee?.name ||
-          [assignee?.firstName, assignee?.lastName].filter(Boolean).join(' ').trim() ||
-          [assignee?.first, assignee?.last].filter(Boolean).join(' ').trim() ||
-          assignee?.email ||
-          'Unassigned';
+        const assigneeObj = convo?.assignee || convo?.owner || null;
+        const assigneeId = Number(assigneeObj?.id);
 
-        if (!ASSIGNEE_FILTERS.has(assigneeName)) continue;
+        if (!Number.isFinite(assigneeId)) continue;
+        if (!allowedIds.has(assigneeId)) continue;
 
+        const assigneeName = idToName.get(assigneeId);
         counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
       }
 
