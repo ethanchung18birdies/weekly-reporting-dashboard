@@ -707,6 +707,11 @@
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title">Closed tickets by assignee — selected week</div>
+        <div class="bucket-list" id="assigneeBars"></div>
+      </div>
+
       <div>
         <div class="section-label">Efficiency trends — all weeks</div>
         <div class="two-col">
@@ -757,6 +762,7 @@
     let selWeek = null;
     const charts = {};
     const bucketCache = {};
+    const assigneeCache = {};
     let bucketView = 'category';
     let closureMode = 'both';
 
@@ -828,6 +834,7 @@
         selWeek = allData.weeks.length - 1;
         renderAll();
         loadBuckets(selWeek);
+        loadAssignees(selWeek);
         setStatus('ok');
       } catch (err) {
         console.error(err);
@@ -916,6 +923,12 @@
       renderBucketTable(w, prev);
       syncBucketControls();
 
+      if (assigneeCache[w.startStr]) {
+        renderAssigneeBars(assigneeCache[w.startStr]);
+      } else {
+        renderAssigneeLoading();
+      }
+
       renderBurnChart();
       renderOCChart();
       renderRTChart();
@@ -953,6 +966,7 @@
       selWeek = i;
       renderAll();
       loadBuckets(i);
+      loadAssignees(i);
     }
 
     function setBucketView(view) {
@@ -1004,6 +1018,15 @@
       `;
     }
 
+    function renderAssigneeLoading() {
+      document.getElementById('assigneeBars').innerHTML = `
+        <div class="bucket-loading">
+          <div class="bucket-spinner"></div>
+          <span>Loading assignee data...</span>
+        </div>
+      `;
+    }
+
     async function loadBuckets(weekIdx) {
       const w = allData.weeks[weekIdx];
 
@@ -1024,13 +1047,35 @@
           subcategory: { withReply: [], noReply: [], both: [] },
         };
 
-        if (selWeek === weekIdx) {
-          renderAll();
-        }
+        if (selWeek === weekIdx) renderAll();
       } catch (e) {
         console.error('Failed to load buckets:', e);
         document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
         document.getElementById('bucketTable').innerHTML = '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
+      }
+    }
+
+    async function loadAssignees(weekIdx) {
+      const w = allData.weeks[weekIdx];
+
+      if (assigneeCache[w.startStr]) {
+        if (selWeek === weekIdx) renderAssigneeBars(assigneeCache[w.startStr]);
+        return;
+      }
+
+      renderAssigneeLoading();
+
+      try {
+        const res = await fetch(`/api/assignees?start=${w.startStr}&end=${w.endStr}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load assignees');
+
+        assigneeCache[w.startStr] = data.assignees || [];
+
+        if (selWeek === weekIdx) renderAssigneeBars(assigneeCache[w.startStr]);
+      } catch (e) {
+        console.error('Failed to load assignees:', e);
+        document.getElementById('assigneeBars').innerHTML = '<div class="empty-state">Failed to load assignee data.</div>';
       }
     }
 
@@ -1195,6 +1240,31 @@
       }).join('');
 
       document.getElementById('bucketTable').innerHTML = thead + `<tbody>${rows}</tbody>`;
+    }
+
+    function renderAssigneeBars(rows) {
+      const total = rows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
+
+      if (!rows.length) {
+        document.getElementById('assigneeBars').innerHTML =
+          '<div class="empty-state">No assignee data for this week yet.</div>';
+        return;
+      }
+
+      document.getElementById('assigneeBars').innerHTML = rows.map((r, i) => {
+        const pct = Math.round((r.count / total) * 100);
+        const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+
+        return `
+          <div class="bucket-row">
+            <div class="bucket-row-top">
+              <div class="bucket-name"><span class="bdot" style="background:${color}"></span>${r.name}</div>
+              <div class="bucket-count">${r.count} · ${pct}%</div>
+            </div>
+            <div class="prog-bg"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>
+          </div>
+        `;
+      }).join('');
     }
 
     function renderBurnChart() {
