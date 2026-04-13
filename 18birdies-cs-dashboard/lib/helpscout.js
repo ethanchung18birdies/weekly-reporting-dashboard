@@ -458,9 +458,9 @@ export async function fetchWeekAssignees(startStr, endStr) {
         mailbox: mailboxId,
         status: 'closed',
         page,
-        pageSize: 100,
         sortField: 'closedAt',
         sortOrder: 'desc',
+        query: `(closedAt:[${startStr}T00:00:00Z TO ${endStr}T23:59:59Z])`,
       }).catch(() => null);
 
       const rows = data?._embedded?.conversations || [];
@@ -472,7 +472,6 @@ export async function fetchWeekAssignees(startStr, endStr) {
 
     const start = new Date(`${startStr}T00:00:00Z`);
     const end = new Date(`${endStr}T23:59:59Z`);
-
     const counts = new Map();
 
     for (const convo of allConversations) {
@@ -480,14 +479,17 @@ export async function fetchWeekAssignees(startStr, endStr) {
       if (!closedAt) continue;
       if (closedAt < start || closedAt > end) continue;
 
+      const assignee =
+        convo?.assignee ||
+        convo?.owner ||
+        null;
+
       const assigneeName =
-        convo?.assignee?.firstName && convo?.assignee?.lastName
-          ? `${convo.assignee.firstName} ${convo.assignee.lastName}`.trim()
-          : convo?.assignee?.firstName
-          ? convo.assignee.firstName
-          : convo?.assignee?.email
-          ? convo.assignee.email
-          : 'Unassigned';
+        assignee?.name ||
+        [assignee?.firstName, assignee?.lastName].filter(Boolean).join(' ').trim() ||
+        assignee?.email ||
+        convo?.assignedName ||
+        'Unassigned';
 
       counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
     }
