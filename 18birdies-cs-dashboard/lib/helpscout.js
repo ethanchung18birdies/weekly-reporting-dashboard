@@ -455,8 +455,6 @@ export async function fetchWeekAssignees(startStr, endStr) {
   }
 
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const startMs = Date.parse(`${startStr}T00:00:00Z`);
-  const endMs = Date.parse(`${endStr}T23:59:59Z`);
 
   const ASSIGNEES = [
     { id: 905541, name: 'Jane Matienzo' },
@@ -478,39 +476,19 @@ export async function fetchWeekAssignees(startStr, endStr) {
   try {
     const results = await Promise.all(
       ASSIGNEES.map(async ({ id, name }) => {
-        let count = 0;
-        let page = 1;
-        let totalPages = 1;
+        const report = await hsGet('/reports/user', {
+          user: id,
+          start: `${startStr}T00:00:00Z`,
+          end: `${endStr}T23:59:59Z`,
+          mailboxes: mailboxId,
+          types: 'email',
+        }).catch(() => null);
 
-        do {
-          const data = await hsGet('/conversations', {
-            mailbox: mailboxId,
-            status: 'closed',
-            assigned_to: id,
-            page,
-            pageSize: 100,
-            sortField: 'modifiedAt',
-            sortOrder: 'desc',
-            query: `(modifiedAt:[${startStr}T00:00:00Z TO ${endStr}T23:59:59Z])`,
-          });
-
-          const rows = data?._embedded?.conversations || [];
-
-          for (const convo of rows) {
-            const closedAtRaw = convo?.closedAt;
-            const closedAtMs = closedAtRaw ? Date.parse(closedAtRaw) : NaN;
-
-            if (!Number.isFinite(closedAtMs)) continue;
-            if (closedAtMs < startMs || closedAtMs > endMs) continue;
-
-            count += 1;
-          }
-
-          totalPages = data?.page?.totalPages || 1;
-          page += 1;
-        } while (page <= totalPages);
-
-        return { name, count };
+        return {
+          id,
+          name,
+          count: report?.current?.closed ?? 0,
+        };
       })
     );
 
