@@ -707,9 +707,9 @@
         </div>
       </div>
 
-      <div class="card-title">
-          <span>Closed tickets by assignee — selected week</span>
-          <span style="font-size:10px;color:var(--muted2);text-transform:none;letter-spacing:0">Top 10 shown</span>
+      <div class="card">
+        <div class="card-title">Closed tickets by assignee — selected week</div>
+        <div class="bucket-list" id="assigneeBars"></div>
       </div>
 
       <div>
@@ -873,6 +873,17 @@
       return Math.min(5, Math.max(1, daysElapsed));
     }
 
+    function setHtml(id, html) {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      el.innerHTML = html;
+      return true;
+    }
+
+    function getEl(id) {
+      return document.getElementById(id);
+    }
+
     function renderAll() {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
@@ -1019,16 +1030,13 @@
     }
 
     function renderAssigneeLoading() {
-  const el = document.getElementById('assigneeBars');
-  if (!el) return;
-
-  el.innerHTML = `
-    <div class="bucket-loading">
-      <div class="bucket-spinner"></div>
-      <span>Loading assignee data...</span>
-    </div>
-  `;
-}
+      setHtml('assigneeBars', `
+        <div class="bucket-loading">
+          <div class="bucket-spinner"></div>
+          <span>Loading assignee data...</span>
+        </div>
+      `);
+    }
 
     async function loadBuckets(weekIdx) {
       const w = allData.weeks[weekIdx];
@@ -1060,25 +1068,29 @@
 
     async function loadAssignees(weekIdx) {
       const w = allData.weeks[weekIdx];
-
+      const el = getEl('assigneeBars');
+      if (!el) return;
+    
       if (assigneeCache[w.startStr]) {
         if (selWeek === weekIdx) renderAssigneeBars(assigneeCache[w.startStr]);
         return;
       }
-
+    
       renderAssigneeLoading();
-
+    
       try {
         const res = await fetch(`/api/assignees?start=${w.startStr}&end=${w.endStr}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load assignees');
-
+    
         assigneeCache[w.startStr] = data.assignees || [];
-
-        if (selWeek === weekIdx) renderAssigneeBars(assigneeCache[w.startStr]);
+    
+        if (selWeek === weekIdx) {
+          renderAssigneeBars(assigneeCache[w.startStr]);
+        }
       } catch (e) {
         console.error('Failed to load assignees:', e);
-        document.getElementById('assigneeBars').innerHTML = '<div class="empty-state">Failed to load assignee data.</div>';
+        setHtml('assigneeBars', '<div class="empty-state">Failed to load assignee data.</div>');
       }
     }
 
@@ -1246,37 +1258,37 @@
     }
 
     function renderAssigneeBars(rows) {
-  const container = document.getElementById('assigneeBars');
-  if (!container) return;
-
-  if (!rows || !rows.length) {
-    container.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
-    return;
-  }
-
-  const displayRows = rows.slice(0, 10);
-  const total = displayRows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
-
-  container.innerHTML = displayRows.map((r, i) => {
-    const pct = Math.max(2, Math.round((r.count / total) * 100));
-    const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
-
-    return `
-      <div class="bucket-row">
-        <div class="bucket-row-top">
-          <div class="bucket-name">
-            <span class="bdot" style="background:${color}"></span>
-            ${r.name}
+      const el = getEl('assigneeBars');
+      if (!el) return;
+    
+      if (!rows || !rows.length) {
+        el.innerHTML = '<div class="empty-state">No assignee data for this week yet.</div>';
+        return;
+      }
+    
+      const displayRows = rows.slice(0, 10);
+      const total = displayRows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
+    
+      el.innerHTML = displayRows.map((r, i) => {
+        const pct = Math.max(2, Math.round((r.count / total) * 100));
+        const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+    
+        return `
+          <div class="bucket-row">
+            <div class="bucket-row-top">
+              <div class="bucket-name">
+                <span class="bdot" style="background:${color}"></span>
+                ${r.name}
+              </div>
+              <div class="bucket-count">${r.count}</div>
+            </div>
+            <div class="prog-bg">
+              <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
           </div>
-          <div class="bucket-count">${r.count}</div>
-        </div>
-        <div class="prog-bg">
-          <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
+        `;
+      }).join('');
+    }
 
     function renderBurnChart() {
       destroyChart('burn');
