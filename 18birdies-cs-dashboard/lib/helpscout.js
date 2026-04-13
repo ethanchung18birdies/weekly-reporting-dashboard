@@ -462,9 +462,7 @@ export async function fetchWeekAssignees(startStr, endStr) {
         status: 'closed',
         page,
         pageSize: 100,
-        sortField: 'modifiedAt',
-        sortOrder: 'desc',
-      }).catch(() => null);
+      });
 
       const rows = data?._embedded?.conversations || [];
 
@@ -475,10 +473,7 @@ export async function fetchWeekAssignees(startStr, endStr) {
         if (!Number.isFinite(closedAtMs)) continue;
         if (closedAtMs < startMs || closedAtMs > endMs) continue;
 
-        const assignee =
-          convo?.assignee ||
-          convo?.owner ||
-          null;
+        const assignee = convo?.assignee || convo?.owner || null;
 
         const assigneeName =
           assignee?.name ||
@@ -499,7 +494,7 @@ export async function fetchWeekAssignees(startStr, endStr) {
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   } catch (e) {
     console.error(`Error fetching assignee breakdown ${startStr}-${endStr}:`, e.message);
-    return [];
+    throw e;
   }
 }
 export async function fetchCurrentWeekSnapshot() {
