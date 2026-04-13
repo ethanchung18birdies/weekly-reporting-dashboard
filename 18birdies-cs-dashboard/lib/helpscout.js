@@ -7,6 +7,7 @@ const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
 let _tokenCache = null;
 let _tagIdCache = null;
 const _assigneeWeekCache = new Map();
+const _assigneeSubcategoryCache = new Map();
 
 async function getAccessToken() {
   if (_tokenCache && _tokenCache.expiresAt > Date.now() + 60_000) {
@@ -504,6 +505,111 @@ export async function fetchWeekAssignees(startStr, endStr) {
     console.error(`Error fetching assignee breakdown ${startStr}-${endStr}:`, e.message);
     throw e;
   }
+}
+
+export async function fetchAssigneeSubcategories(startStr, endStr, assignee = 'all') {
+  const cacheKey = `${startStr}_${endStr}_${assignee}`;
+  const cached = _assigneeSubcategoryCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  const baseStart = `${startStr}T00:00:00Z`;
+  const baseEnd = `${endStr}T23:59:59Z`;
+
+  const resolvedConfig = await resolveTagConfig(SUBCATEGORY_TAGS);
+
+  const assigneeId =
+    assignee && assignee !== 'all' ? Number(assignee) : null;
+
+  const totalClosedReport = assigneeId
+    ? await hsGet('/reports/user', {
+        user: assigneeId,
+        start: baseStart,
+        end: baseEnd,
+        mailboxes: mailboxId,
+        types: 'email',
+      }).catch(() => null)
+    : await hsGet('/reports/email', {
+        start: baseStart,
+        end: baseEnd,
+        mailbox: mailboxId,
+      }).catch(() => null);
+
+  const totalClosed = assigneeId
+    ? totalClosedReport?.current?.closed ?? 0
+    : totalClosedReport?.current?.resolutions?.closed ?? 0;
+
+  const items = await Promise.all(
+    resolvedConfig.map(async (item) => {
+      if (!item.tagId) {
+        return {
+          name: item.name,
+          count: 0,
+          hsName: item.hsName,
+          tagId: null,
+        };
+      }
+
+      const report = assigneeId
+        ? await hsGet('/reports/user', {
+            user: assigneeId,
+            start: baseStart,
+            end: baseEnd,
+            mailboxes: mailboxId,
+            types: 'email',
+            tags: String(item.tagId),
+          }).catch(() => null)
+        : await hsGet('/reports/email', {
+            start: baseStart,
+            end: baseEnd,
+            mailbox: mailboxId,
+            tags: String(item.tagId),
+          }).catch(() => null);
+
+      const count = assigneeId
+        ? report?.current?.closed ?? 0
+        : report?.current?.resolutions?.closed ?? 0;
+
+      return {
+        name: item.name,
+        count,
+        hsName: item.hsName,
+        tagId: item.tagId,
+      };
+    })
+  );
+
+  const taggedTotal = items.reduce((sum, item) => sum + (item.count || 0), 0);
+  const notTagged = Math.max(0, totalClosed - taggedTotal);
+
+  const breakdown = [
+    ...items.map((item) => ({
+      name: item.name,
+      count: item.count || 0,
+    })),
+    { name: 'Not tagged', count: notTagged },
+  ]
+    .filter((item) => item.count > 0 || item.name === 'Not tagged')
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      if (a.name === 'Not tagged') return 1;
+      if (b.name === 'Not tagged') return -1;
+      return a.name.localeCompare(b.name);
+    });
+
+  const data = {
+    totalClosed,
+    subcategories: breakdown,
+  };
+
+  _assigneeSubcategoryCache.set(cacheKey, {
+    data,
+    expiresAt: Date.now() + 15 * 60 * 1000,
+  });
+
+  return data;
 }
 
 export async function fetchCurrentWeekSnapshot() {
