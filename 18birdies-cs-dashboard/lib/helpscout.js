@@ -371,6 +371,7 @@ export async function fetchWeekBuckets(startStr, endStr) {
   }
 }
 
+
 async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   try {
@@ -443,6 +444,61 @@ export async function fetchAllMetrics() {
     baselineDate,
     weeks: weeklyMetrics,
   };
+}
+
+export async function fetchWeekAssignees(startStr, endStr) {
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  const allConversations = [];
+  let page = 1;
+  let totalPages = 1;
+
+  try {
+    do {
+      const data = await hsGet('/conversations', {
+        mailbox: mailboxId,
+        status: 'closed',
+        page,
+        pageSize: 100,
+        sortField: 'closedAt',
+        sortOrder: 'desc',
+      }).catch(() => null);
+
+      const rows = data?._embedded?.conversations || [];
+      allConversations.push(...rows);
+
+      totalPages = data?.page?.totalPages || 1;
+      page += 1;
+    } while (page <= totalPages);
+
+    const start = new Date(`${startStr}T00:00:00Z`);
+    const end = new Date(`${endStr}T23:59:59Z`);
+
+    const counts = new Map();
+
+    for (const convo of allConversations) {
+      const closedAt = convo?.closedAt ? new Date(convo.closedAt) : null;
+      if (!closedAt) continue;
+      if (closedAt < start || closedAt > end) continue;
+
+      const assigneeName =
+        convo?.assignee?.firstName && convo?.assignee?.lastName
+          ? `${convo.assignee.firstName} ${convo.assignee.lastName}`.trim()
+          : convo?.assignee?.firstName
+          ? convo.assignee.firstName
+          : convo?.assignee?.email
+          ? convo.assignee.email
+          : 'Unassigned';
+
+      counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  } catch (e) {
+    console.error(`Error fetching assignee breakdown ${startStr}-${endStr}:`, e.message);
+    return [];
+  }
 }
 
 export async function fetchCurrentWeekSnapshot() {
