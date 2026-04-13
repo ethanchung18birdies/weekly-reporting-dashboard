@@ -458,7 +458,32 @@ export async function fetchWeekAssignees(startStr, endStr) {
   const startMs = Date.parse(`${startStr}T00:00:00Z`);
   const endMs = Date.parse(`${endStr}T23:59:59Z`);
 
+  // Mapped to exact Help Scout display names from mailbox users
+  // John Carl Baetiong -> Baetiong John
+  // Joshua Espuerta -> John Espuerta
+  // Marianne Grace Figueroa -> Marianne Figueroa
+  // Mary Cris Tolentin -> Mary Shen
+  // Czar Cruz -> Czarina Cruz
+  const ASSIGNEE_FILTERS = new Set([
+    'Jane Matienzo',
+    'Jhird Verano',
+    'Baetiong John',
+    'John Espuerta',
+    'Marianne Figueroa',
+    'Nestor Cortez',
+    'Nico Delos Reyes',
+    'Rendell Severino',
+    'Mary Shen',
+    'Ben Atienza',
+    'Cjay Baetiong',
+    'Czarina Cruz',
+    'Jennifer Moron',
+    'Mickael De Guzman',
+  ]);
+
   const counts = new Map();
+  for (const name of ASSIGNEE_FILTERS) counts.set(name, 0);
+
   let page = 1;
   let done = false;
 
@@ -482,9 +507,7 @@ export async function fetchWeekAssignees(startStr, endStr) {
 
         if (!Number.isFinite(closedAtMs)) continue;
 
-        if (closedAtMs > endMs) {
-          continue;
-        }
+        if (closedAtMs > endMs) continue;
 
         if (closedAtMs < startMs) {
           done = true;
@@ -492,13 +515,14 @@ export async function fetchWeekAssignees(startStr, endStr) {
         }
 
         const assignee = convo?.assignee || convo?.owner || null;
-
         const assigneeName =
           assignee?.name ||
           [assignee?.firstName, assignee?.lastName].filter(Boolean).join(' ').trim() ||
           [assignee?.first, assignee?.last].filter(Boolean).join(' ').trim() ||
           assignee?.email ||
           'Unassigned';
+
+        if (!ASSIGNEE_FILTERS.has(assigneeName)) continue;
 
         counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
       }
