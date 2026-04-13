@@ -448,50 +448,52 @@ export async function fetchAllMetrics() {
 
 export async function fetchWeekAssignees(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const allConversations = [];
+  const start = new Date(`${startStr}T00:00:00Z`);
+  const end = new Date(`${endStr}T23:59:59Z`);
+
+  const counts = new Map();
   let page = 1;
-  let totalPages = 1;
+  let done = false;
 
   try {
-    do {
+    while (!done) {
       const data = await hsGet('/conversations', {
         mailbox: mailboxId,
         status: 'closed',
         page,
-        sortField: 'closedAt',
+        sortField: 'modifiedAt',
         sortOrder: 'desc',
-        query: `(closedAt:[${startStr}T00:00:00Z TO ${endStr}T23:59:59Z])`,
       }).catch(() => null);
 
       const rows = data?._embedded?.conversations || [];
-      allConversations.push(...rows);
+      if (!rows.length) break;
 
-      totalPages = data?.page?.totalPages || 1;
+      for (const convo of rows) {
+        const closedAt = convo?.closedAt ? new Date(convo.closedAt) : null;
+        if (!closedAt) continue;
+
+        if (closedAt > end) {
+          continue;
+        }
+
+        if (closedAt < start) {
+          done = true;
+          break;
+        }
+
+        const assignee = convo?.assignee || null;
+
+        const assigneeName =
+          assignee
+            ? [assignee.first, assignee.last].filter(Boolean).join(' ').trim() || assignee.email || 'Assigned'
+            : 'Unassigned';
+
+        counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
+      }
+
+      const totalPages = data?.page?.totalPages || 1;
+      if (page >= totalPages) break;
       page += 1;
-    } while (page <= totalPages);
-
-    const start = new Date(`${startStr}T00:00:00Z`);
-    const end = new Date(`${endStr}T23:59:59Z`);
-    const counts = new Map();
-
-    for (const convo of allConversations) {
-      const closedAt = convo?.closedAt ? new Date(convo.closedAt) : null;
-      if (!closedAt) continue;
-      if (closedAt < start || closedAt > end) continue;
-
-      const assignee =
-        convo?.assignee ||
-        convo?.owner ||
-        null;
-
-      const assigneeName =
-        assignee?.name ||
-        [assignee?.firstName, assignee?.lastName].filter(Boolean).join(' ').trim() ||
-        assignee?.email ||
-        convo?.assignedName ||
-        'Unassigned';
-
-      counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
     }
 
     return Array.from(counts.entries())
@@ -502,7 +504,6 @@ export async function fetchWeekAssignees(startStr, endStr) {
     return [];
   }
 }
-
 export async function fetchCurrentWeekSnapshot() {
   const weeks = getWeekRanges(1);
   const week = weeks[0];
