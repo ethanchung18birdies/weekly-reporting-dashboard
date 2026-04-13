@@ -458,7 +458,6 @@ export async function fetchWeekAssignees(startStr, endStr) {
   const startMs = Date.parse(`${startStr}T00:00:00Z`);
   const endMs = Date.parse(`${endStr}T23:59:59Z`);
 
-  // Stable Help Scout user IDs from mailbox users list
   const ASSIGNEES = [
     { id: 905541, name: 'Jane Matienzo' },
     { id: 905525, name: 'Jhird Verano' },
@@ -476,57 +475,52 @@ export async function fetchWeekAssignees(startStr, endStr) {
     { id: 905518, name: 'Mickael De Guzman' },
   ];
 
-  const allowedIds = new Set(ASSIGNEES.map(a => a.id));
-  const idToName = new Map(ASSIGNEES.map(a => [a.id, a.name]));
-  const counts = new Map(ASSIGNEES.map(a => [a.name, 0]));
-
-  let page = 1;
-  let done = false;
-
   try {
-    while (!done) {
-      const data = await hsGet('/conversations', {
-        mailbox: mailboxId,
-        status: 'closed',
-        page,
-        pageSize: 100,
-        sortField: 'modifiedAt',
-        sortOrder: 'desc',
-      });
+    const results = await Promise.all(
+      ASSIGNEES.map(async ({ id, name }) => {
+        let count = 0;
+        let page = 1;
+        let done = false;
 
-      const rows = data?._embedded?.conversations || [];
-      if (!rows.length) break;
+        while (!done) {
+          const data = await hsGet('/conversations', {
+            mailbox: mailboxId,
+            status: 'closed',
+            assigned_to: id,
+            page,
+            pageSize: 100,
+            sortField: 'modifiedAt',
+            sortOrder: 'desc',
+          });
 
-      for (const convo of rows) {
-        const closedAtRaw = convo?.closedAt;
-        const closedAtMs = closedAtRaw ? Date.parse(closedAtRaw) : NaN;
+          const rows = data?._embedded?.conversations || [];
+          if (!rows.length) break;
 
-        if (!Number.isFinite(closedAtMs)) continue;
-        if (closedAtMs > endMs) continue;
+          for (const convo of rows) {
+            const closedAtRaw = convo?.closedAt;
+            const closedAtMs = closedAtRaw ? Date.parse(closedAtRaw) : NaN;
 
-        if (closedAtMs < startMs) {
-          done = true;
-          break;
+            if (!Number.isFinite(closedAtMs)) continue;
+            if (closedAtMs > endMs) continue;
+
+            if (closedAtMs < startMs) {
+              done = true;
+              break;
+            }
+
+            count += 1;
+          }
+
+          const totalPages = data?.page?.totalPages || 1;
+          if (done || page >= totalPages) break;
+          page += 1;
         }
 
-        const assigneeObj = convo?.assignee || convo?.owner || null;
-        const assigneeId = Number(assigneeObj?.id);
+        return { name, count };
+      })
+    );
 
-        if (!Number.isFinite(assigneeId)) continue;
-        if (!allowedIds.has(assigneeId)) continue;
-
-        const assigneeName = idToName.get(assigneeId);
-        counts.set(assigneeName, (counts.get(assigneeName) || 0) + 1);
-      }
-
-      const totalPages = data?.page?.totalPages || 1;
-      if (done || page >= totalPages) break;
-      page += 1;
-    }
-
-    const result = Array.from(counts.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const result = results.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
     _assigneeWeekCache.set(cacheKey, {
       data: result,
