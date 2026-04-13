@@ -480,9 +480,9 @@ export async function fetchWeekAssignees(startStr, endStr) {
       ASSIGNEES.map(async ({ id, name }) => {
         let count = 0;
         let page = 1;
-        let done = false;
+        let totalPages = 1;
 
-        while (!done) {
+        do {
           const data = await hsGet('/conversations', {
             mailbox: mailboxId,
             status: 'closed',
@@ -491,30 +491,24 @@ export async function fetchWeekAssignees(startStr, endStr) {
             pageSize: 100,
             sortField: 'modifiedAt',
             sortOrder: 'desc',
+            query: `(modifiedAt:[${startStr}T00:00:00Z TO ${endStr}T23:59:59Z])`,
           });
 
           const rows = data?._embedded?.conversations || [];
-          if (!rows.length) break;
 
           for (const convo of rows) {
             const closedAtRaw = convo?.closedAt;
             const closedAtMs = closedAtRaw ? Date.parse(closedAtRaw) : NaN;
 
             if (!Number.isFinite(closedAtMs)) continue;
-            if (closedAtMs > endMs) continue;
-
-            if (closedAtMs < startMs) {
-              done = true;
-              break;
-            }
+            if (closedAtMs < startMs || closedAtMs > endMs) continue;
 
             count += 1;
           }
 
-          const totalPages = data?.page?.totalPages || 1;
-          if (done || page >= totalPages) break;
+          totalPages = data?.page?.totalPages || 1;
           page += 1;
-        }
+        } while (page <= totalPages);
 
         return { name, count };
       })
@@ -533,6 +527,7 @@ export async function fetchWeekAssignees(startStr, endStr) {
     throw e;
   }
 }
+
 export async function fetchCurrentWeekSnapshot() {
   const weeks = getWeekRanges(1);
   const week = weeks[0];
