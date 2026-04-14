@@ -627,7 +627,7 @@ export async function fetchCurrentWeekSnapshot() {
     backlog: backlogData.total,
     opened: report.opened,
     closed: report.closed,
-    burnRate: report.closed - report.opened,
+    burnRate: report.totalClosed - report.opened,
     resolutionTime: report.resolutionTime,
     firstResponseTime: report.firstResponseTime,
     resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,

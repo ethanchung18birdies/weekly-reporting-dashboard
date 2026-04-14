@@ -730,9 +730,17 @@
       <div class="card">
         <div class="card-title">
           <span id="assigneeCardTitle">Closed tickets by assignee — selected week</span>
-          <select id="assigneeSelect" class="inline-select" onchange="handleAssigneeSelectChange()">
-            <option value="all">All assignees</option>
-          </select>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="teamSelect" class="inline-select" onchange="handleTeamSelectChange()">
+              <option value="all">All Teams</option>
+              <option value="general">General Customer Support</option>
+              <option value="rendell">Course Entry Team - Rendell</option>
+              <option value="jane">Course Entry Team - Jane</option>
+            </select>
+            <select id="assigneeSelect" class="inline-select" onchange="handleAssigneeSelectChange()">
+              <option value="all">All assignees</option>
+            </select>
+          </div>
         </div>
         <div class="bucket-list" id="assigneeBars"></div>
       </div>
@@ -753,7 +761,7 @@
 
         <div class="two-col" style="margin-top:12px">
           <div class="card">
-            <div class="card-title">Weekly burn rate (closed w/ reply − opened)</div>
+            <div class="card-title">Weekly burn rate (closed total − opened)</div>
             <div class="chart-wrap" style="height:160px"><canvas id="burnRateChart"></canvas></div>
           </div>
           <div class="card">
@@ -788,12 +796,42 @@
     let selWeek = null;
     let bucketView = 'category';
     let closureMode = 'both';
+    let selectedTeam = 'all';
     let selectedAssignee = 'all';
 
     const charts = {};
     const bucketCache = {};
     const assigneeCache = {};
     const assigneeSubcategoryCache = {};
+    const TEAM_OPTIONS = {
+      all: 'All Teams',
+      general: 'General Customer Support',
+      rendell: 'Course Entry Team - Rendell',
+      jane: 'Course Entry Team - Jane',
+    };
+    const TEAM_MEMBERS = {
+      all: null,
+      general: new Set([
+        'Ben Atienza',
+        'Mickael De Guzman',
+        'Jennifer Moron',
+        'Cjay Baetiong',
+        'Czarina Cruz',
+      ]),
+      rendell: new Set([
+        'Rendell Severino',
+        'Nestor Cortez',
+        'John Espuerta',
+        'Mary Shen',
+        'Baetiong John',
+      ]),
+      jane: new Set([
+        'Jane Matienzo',
+        'Marianne Figueroa',
+        'Jhird Verano',
+        'Nico Delos Reyes',
+      ]),
+    };
 
     const BUCKET_COLORS = [
       '#1a3a1a', '#1e40af', '#92400e', '#6b21a8', '#be123c', '#0f766e',
@@ -902,6 +940,21 @@
       return Math.min(5, Math.max(1, daysElapsed));
     }
 
+    function getFilteredAssigneeRows(startStr) {
+      const rows = assigneeCache[startStr] || [];
+      if (selectedTeam === 'all') return rows;
+
+      const members = TEAM_MEMBERS[selectedTeam];
+      return rows.filter(row => members?.has(row.name));
+    }
+
+    function syncTeamSelect() {
+      const select = document.getElementById('teamSelect');
+      if (!select) return;
+      select.value = TEAM_OPTIONS[selectedTeam] ? selectedTeam : 'all';
+      selectedTeam = select.value;
+    }
+
     function renderAll() {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
@@ -915,24 +968,24 @@
 
       const elapsed = elapsedDays(w.startStr, w.endStr);
       const paceClosed = w.totalClosed ?? w.closed;
-      const cpd = (paceClosed / elapsed).toFixed(0);
+      const dailyPace = paceClosed / elapsed;
+      const cpd = dailyPace.toFixed(0);
       const cpdNote = elapsed < 5 ? ` (${elapsed} day${elapsed > 1 ? 's' : ''} elapsed)` : '';
-      document.getElementById('paceVal').textContent = `${paceClosed}/${TARGET_DAILY}${cpdNote}`;
+      document.getElementById('paceVal').textContent = `${cpd}/day · target ${TARGET_DAILY}/day${cpdNote}`;
 
       const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
-      const avgBurn = recentWeeks.reduce((a, x) => a + (x.closed - x.opened), 0) / recentWeeks.length;
+      const avgBurn = recentWeeks.reduce((a, x) => a + ((x.totalClosed ?? x.closed) - x.opened), 0) / recentWeeks.length;
       const weeksToZero = avgBurn > 0 ? Math.ceil(w.backlog / avgBurn) : null;
       document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
 
-      const elapsedTarget = TARGET_DAILY * elapsed;
-      const pctTarget = elapsedTarget > 0 ? Math.round((paceClosed / elapsedTarget) * 100) : 0;
-      const onTrack = paceClosed >= elapsedTarget;
+      const pctTarget = TARGET_DAILY > 0 ? Math.round((dailyPace / TARGET_DAILY) * 100) : 0;
+      const onTrack = dailyPace >= TARGET_DAILY;
 
       const pill = document.getElementById('pacePill');
       pill.textContent = onTrack ? `${pctTarget}% of pace ✓` : `${pctTarget}% of pace`;
       pill.className = `pace-pill ${onTrack ? 'on-track' : 'off-track'}`;
 
-      renderCallout(w, weeksToZero, onTrack, elapsed);
+      renderCallout(w, weeksToZero, onTrack, elapsed, dailyPace);
 
       const baselineBacklog = allData.baselineBacklog || allData.weeks[0].backlog;
       const baselineDate = allData.baselineDate || 'start';
@@ -953,6 +1006,7 @@
       renderBucketTable(w, prev);
       syncBucketControls();
 
+      syncTeamSelect();
       populateAssigneeSelect();
       renderAssigneeCardForSelection();
 
@@ -966,21 +1020,21 @@
         `Live data · 18Birdies HelpScout · Updated ${fetchedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     }
 
-    function renderCallout(w, weeksToZero, onTrack, elapsed) {
+    function renderCallout(w, weeksToZero, onTrack, elapsed, dailyPace) {
       const callout = document.getElementById('paceCallout');
-      const burnRate = w.closed - w.opened;
+      const burnRate = (w.totalClosed ?? w.closed) - w.opened;
       const paceClosed = w.totalClosed ?? w.closed;
-      const gap = (TARGET_DAILY - parseFloat((paceClosed / elapsed).toFixed(0))).toFixed(0);
+      const gap = Math.max(0, TARGET_DAILY - Math.round(dailyPace));
 
       callout.className = `callout ${onTrack ? 'good' : 'warn'}`;
       document.getElementById('paceIcon').textContent = onTrack ? '📈' : '⚠️';
       document.getElementById('paceTitle').textContent = onTrack
-        ? `Ahead of pace — ${paceClosed}/${TARGET_DAILY} through day ${elapsed} of 5`
-        : `Behind pace — ${paceClosed}/${TARGET_DAILY} through day ${elapsed} of 5`;
+        ? `Ahead of pace — ${Math.round(dailyPace)}/day vs ${TARGET_DAILY}/day`
+        : `Behind pace — ${Math.round(dailyPace)}/day vs ${TARGET_DAILY}/day`;
 
       document.getElementById('paceText').textContent = onTrack
-        ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${(paceClosed / elapsed).toFixed(0)}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
-        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${(paceClosed / elapsed).toFixed(0)}/day vs. 360/day target). Need ${gap} more tickets/day to hit the July target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
+        ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
+        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. 360/day target). Need ${gap} more tickets/day to hit the July target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
     }
 
     function renderWeekNav() {
@@ -1156,7 +1210,7 @@
       const currentWeek = allData?.weeks?.[selWeek];
       if (!currentWeek) return;
 
-      const rows = assigneeCache[currentWeek.startStr] || [];
+      const rows = getFilteredAssigneeRows(currentWeek.startStr);
       const currentValue = selectedAssignee;
 
       select.innerHTML =
@@ -1173,12 +1227,21 @@
       if (!title) return;
 
       const currentWeek = allData?.weeks?.[selWeek];
-      const rows = currentWeek ? (assigneeCache[currentWeek.startStr] || []) : [];
+      const rows = currentWeek ? getFilteredAssigneeRows(currentWeek.startStr) : [];
       const selectedRow = rows.find(r => String(r.id) === String(selectedAssignee));
 
       title.textContent = selectedAssignee === 'all'
-        ? 'Closed tickets by assignee — selected week'
+        ? (selectedTeam === 'all'
+            ? 'Closed tickets by assignee — selected week'
+            : `Closed tickets by assignee — ${TEAM_OPTIONS[selectedTeam]}`)
         : `Closed tickets by subcategory — ${selectedRow?.name || 'selected assignee'}`;
+    }
+
+    function handleTeamSelectChange() {
+      const select = document.getElementById('teamSelect');
+      selectedTeam = select?.value || 'all';
+      populateAssigneeSelect();
+      renderAssigneeCardForSelection();
     }
 
     function handleAssigneeSelectChange() {
@@ -1195,7 +1258,7 @@
 
       if (selectedAssignee === 'all') {
         if (assigneeCache[w.startStr]) {
-          renderAssigneeBars(assigneeCache[w.startStr]);
+          renderAssigneeBars(getFilteredAssigneeRows(w.startStr));
         } else {
           renderAssigneeLoading();
           loadAssignees(selWeek);
@@ -1451,7 +1514,7 @@
       const data = allData.weeks.map(w => w.backlog);
 
       const recentWeeks = allData.weeks.slice(-4);
-      const avgBurn = recentWeeks.reduce((a, x) => a + (x.closed - x.opened), 0) / recentWeeks.length;
+      const avgBurn = recentWeeks.reduce((a, x) => a + ((x.totalClosed ?? x.closed) - x.opened), 0) / recentWeeks.length;
       const projLabels = [...labels];
       const projData = [...Array(labels.length).fill(null)];
       const actual = [...data];
@@ -1568,7 +1631,7 @@
 
     function renderBurnRateChart() {
       destroyChart('br');
-      const rates = allData.weeks.map(w => w.closed - w.opened);
+      const rates = allData.weeks.map(w => (w.totalClosed ?? w.closed) - w.opened);
 
       charts.br = new Chart(document.getElementById('burnRateChart'), {
         type: 'bar',
