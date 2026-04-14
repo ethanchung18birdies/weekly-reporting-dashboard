@@ -710,6 +710,39 @@
 
         <div class="card">
           <div class="card-title">
+            <span id="assigneeCardTitle">Closed tickets by assignee — selected week</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <select id="teamSelect" class="inline-select" onchange="handleTeamSelectChange()">
+                <option value="all">All Teams</option>
+                <option value="general">General Customer Support</option>
+                <option value="rendell">Course Entry Team - Rendell</option>
+                <option value="jane">Course Entry Team - Jane</option>
+              </select>
+              <select id="assigneeSelect" class="inline-select" onchange="handleAssigneeSelectChange()">
+                <option value="all">All assignees</option>
+              </select>
+            </div>
+          </div>
+          <div class="bucket-list" id="assigneeBars"></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">
+            <span id="incomingBucketCardTitle">Incoming tickets by category</span>
+            <div class="bucket-controls">
+              <div class="seg">
+                <button class="seg-btn active" id="incomingToggleCategory" onclick="setIncomingBucketView('category')">Category</button>
+                <button class="seg-btn" id="incomingToggleSubcategory" onclick="setIncomingBucketView('subcategory')">Subcategory</button>
+              </div>
+            </div>
+          </div>
+          <div class="bucket-list" id="incomingBucketBars"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
             <span id="bucketCardTitle">Closed tickets by category — both</span>
             <div class="bucket-controls">
               <div class="seg">
@@ -725,24 +758,6 @@
           </div>
           <div class="bucket-list" id="bucketBars"></div>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">
-          <span id="assigneeCardTitle">Closed tickets by assignee — selected week</span>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <select id="teamSelect" class="inline-select" onchange="handleTeamSelectChange()">
-              <option value="all">All Teams</option>
-              <option value="general">General Customer Support</option>
-              <option value="rendell">Course Entry Team - Rendell</option>
-              <option value="jane">Course Entry Team - Jane</option>
-            </select>
-            <select id="assigneeSelect" class="inline-select" onchange="handleAssigneeSelectChange()">
-              <option value="all">All assignees</option>
-            </select>
-          </div>
-        </div>
-        <div class="bucket-list" id="assigneeBars"></div>
       </div>
 
       <div>
@@ -795,6 +810,7 @@
     let allData = null;
     let selWeek = null;
     let bucketView = 'category';
+    let incomingBucketView = 'category';
     let closureMode = 'both';
     let selectedTeam = 'all';
     let selectedAssignee = 'all';
@@ -1002,8 +1018,15 @@
 
       renderWeekNav();
       renderKPIs(w, prev, weeksToZero, cpd, cpdNote);
-      renderBucketBars(w);
-      renderBucketTable(w, prev);
+      if (bucketCache[w.startStr]) {
+        renderIncomingBucketBars(w);
+        renderBucketBars(w);
+        renderBucketTable(w, prev);
+      } else {
+        renderIncomingBucketLoading();
+        renderBucketLoading();
+      }
+      syncIncomingBucketControls();
       syncBucketControls();
 
       syncTeamSelect();
@@ -1056,15 +1079,37 @@
       bucketView = view;
       const w = getWeekWithBuckets(selWeek);
       const prev = getPrevWeekWithBuckets(selWeek);
+      if (!w?.buckets) {
+        renderBucketLoading();
+        syncBucketControls();
+        return;
+      }
       renderBucketBars(w);
       renderBucketTable(w, prev);
       syncBucketControls();
+    }
+
+    function setIncomingBucketView(view) {
+      incomingBucketView = view;
+      const w = getWeekWithBuckets(selWeek);
+      if (!w?.buckets) {
+        renderIncomingBucketLoading();
+        syncIncomingBucketControls();
+        return;
+      }
+      renderIncomingBucketBars(w);
+      syncIncomingBucketControls();
     }
 
     function setClosureMode(mode) {
       closureMode = mode;
       const w = getWeekWithBuckets(selWeek);
       const prev = getPrevWeekWithBuckets(selWeek);
+      if (!w?.buckets) {
+        renderBucketLoading();
+        syncBucketControls();
+        return;
+      }
       renderBucketBars(w);
       renderBucketTable(w, prev);
       syncBucketControls();
@@ -1084,19 +1129,40 @@
       document.getElementById('bucketSectionLabel').textContent = `Breakdown by ${bucketView} — ${modeLabel}`;
     }
 
+    function syncIncomingBucketControls() {
+      const isCategory = incomingBucketView === 'category';
+      document.getElementById('incomingToggleCategory').classList.toggle('active', isCategory);
+      document.getElementById('incomingToggleSubcategory').classList.toggle('active', !isCategory);
+      document.getElementById('incomingBucketCardTitle').textContent =
+        `Incoming tickets by ${incomingBucketView}`;
+    }
+
     function renderBucketLoading() {
-      document.getElementById('bucketBars').innerHTML = `
+      const bucketBars = document.getElementById('bucketBars');
+      const bucketTable = document.getElementById('bucketTable');
+      if (bucketBars) bucketBars.innerHTML = `
         <div class="bucket-loading">
           <div class="bucket-spinner"></div>
           <span>Loading tag data...</span>
         </div>
       `;
-      document.getElementById('bucketTable').innerHTML = `
+      if (bucketTable) bucketTable.innerHTML = `
         <tbody>
           <tr>
             <td style="padding:12px;color:var(--muted)">Loading tag data...</td>
           </tr>
         </tbody>
+      `;
+    }
+
+    function renderIncomingBucketLoading() {
+      const incomingBars = document.getElementById('incomingBucketBars');
+      if (!incomingBars) return;
+      incomingBars.innerHTML = `
+        <div class="bucket-loading">
+          <div class="bucket-spinner"></div>
+          <span>Loading incoming tag data...</span>
+        </div>
       `;
     }
 
@@ -1119,6 +1185,7 @@
         return;
       }
 
+      renderIncomingBucketLoading();
       renderBucketLoading();
 
       try {
@@ -1127,14 +1194,21 @@
         if (!res.ok) throw new Error(data.error || 'Failed to load buckets');
 
         bucketCache[w.startStr] = data.buckets || {
-          category: { withReply: [], noReply: [], both: [] },
-          subcategory: { withReply: [], noReply: [], both: [] },
+          closed: {
+            category: { withReply: [], noReply: [], both: [] },
+            subcategory: { withReply: [], noReply: [], both: [] },
+          },
+          incoming: {
+            category: [],
+            subcategory: [],
+          },
         };
 
         if (selWeek === weekIdx) renderAll();
       } catch (e) {
         console.error('Failed to load buckets:', e);
         document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
+        document.getElementById('incomingBucketBars').innerHTML = '<div class="empty-state">Failed to load incoming tag data.</div>';
         document.getElementById('bucketTable').innerHTML = '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
       }
     }
@@ -1368,9 +1442,24 @@
       document.getElementById('kpiGrid').innerHTML = backlogCard + otherCards;
     }
 
-    function getBuckets(w) {
-      const raw = Array.isArray(w?.buckets?.[bucketView]?.[closureMode])
-        ? w.buckets[bucketView][closureMode]
+    function getClosedBuckets(w) {
+      const raw = Array.isArray(w?.buckets?.closed?.[bucketView]?.[closureMode])
+        ? w.buckets.closed[bucketView][closureMode]
+        : [];
+
+      const total = raw.reduce((s, item) => s + (item.count || 0), 0) || 1;
+
+      return raw.map((item, i) => ({
+        name: item.name,
+        count: item.count || 0,
+        pct: Math.round(((item.count || 0) / total) * 100),
+        color: BUCKET_COLORS[i % BUCKET_COLORS.length],
+      }));
+    }
+
+    function getIncomingBuckets(w) {
+      const raw = Array.isArray(w?.buckets?.incoming?.[incomingBucketView])
+        ? w.buckets.incoming[incomingBucketView]
         : [];
 
       const total = raw.reduce((s, item) => s + (item.count || 0), 0) || 1;
@@ -1384,7 +1473,7 @@
     }
 
     function renderBucketBars(w) {
-      const buckets = getBuckets(w);
+      const buckets = getClosedBuckets(w);
 
       if (!buckets.length) {
         document.getElementById('bucketBars').innerHTML = '<div class="empty-state">No tag data for this week yet.</div>';
@@ -1402,9 +1491,31 @@
       `).join('');
     }
 
+    function renderIncomingBucketBars(w) {
+      const container = document.getElementById('incomingBucketBars');
+      if (!container) return;
+
+      const buckets = getIncomingBuckets(w);
+
+      if (!buckets.length) {
+        container.innerHTML = '<div class="empty-state">No incoming tag data for this week yet.</div>';
+        return;
+      }
+
+      container.innerHTML = buckets.map(b => `
+        <div class="bucket-row">
+          <div class="bucket-row-top">
+            <div class="bucket-name"><span class="bdot" style="background:${b.color}"></span><span class="bucket-name-text">${b.name}</span></div>
+            <div class="bucket-count">${b.count} · ${b.pct}%</div>
+          </div>
+          <div class="prog-bg"><div class="prog-fill" style="width:${b.pct}%;background:${b.color}"></div></div>
+        </div>
+      `).join('');
+    }
+
     function renderBucketTable(w, prev) {
-      const buckets = getBuckets(w);
-      const prevBuckets = prev ? getBuckets(prev) : [];
+      const buckets = getClosedBuckets(w);
+      const prevBuckets = prev ? getClosedBuckets(prev) : [];
       const prevMap = new Map(prevBuckets.map(item => [item.name, item.count]));
       const label = bucketView === 'category' ? 'Category' : 'Subcategory';
 

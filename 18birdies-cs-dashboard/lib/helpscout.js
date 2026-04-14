@@ -167,6 +167,57 @@ const SUBCATEGORY_TAGS = [
   { name: 'Watch Features', hsName: 'subcategory: watch features' },
 ];
 
+const CATEGORY_BY_SUBCATEGORY = new Map([
+  ['App Crash/Feature Break Fix', 'Unresolved Bugs'],
+  ['Course Profile Info', 'Course Data'],
+  ['Scorecard Data', 'Course Data'],
+  ['Course Setup', 'Course Data'],
+  ['GPS Data Incorrect', 'Course Data'],
+  ['Facility Missing', 'Course Data'],
+  ['Course Layout Missing', 'Course Data'],
+  ['Course Closed', 'Course Data'],
+  ['More Course Info Needed', 'Course Data'],
+  ['Apple Watch', 'Watch'],
+  ['Account Recovery', 'Account'],
+  ['Account Setup & Deletion', 'Account'],
+  ['Cancel Premium', 'Billing'],
+  ['Subscription Access Error', 'Billing'],
+  ['Refund Premium', 'Billing'],
+  ['Core Round Functionality', 'Usability'],
+  ['Scoring - Classic', 'Usability'],
+  ['Scoring - Smart Tracking', 'Usability'],
+  ['Scoring - Team Modes', 'Usability'],
+  ['Tournaments', 'Tournaments'],
+  ['Swing Analysis', 'Golf School'],
+  ['Friend Requests', 'Community'],
+  ['Side Games', 'Community'],
+  ['Feed & Sharing', 'Community'],
+  ['Device Compatibility', 'Usability'],
+  ['Drills', 'Golf School'],
+  ['Notifications', 'Messaging'],
+  ['Newsletter Unsub', 'Messaging'],
+  ['Android Watch', 'Watch'],
+  ['Handicap Calculation', 'Stats'],
+  ['Golf Bag & Club Management', 'Stats'],
+  ['Missing Golf Clubs for Bag Management', 'Stats'],
+  ['Watch Features', 'Watch'],
+  ['Shot Tracking', 'Feature Request'],
+  ['Advanced Stats', 'Feature Request'],
+  ['Community', 'Feature Request'],
+  ['Betting/Games', 'Feature Request'],
+  ['Content & Educational', 'Feature Request'],
+  ['Other Feature Requests', 'Feature Request'],
+  ['UI / UX Improvements', 'Feature Request'],
+  ['Third Party Integrations', 'Feature Request'],
+  ['Partnership Requests', 'Partnerships'],
+  ['Too Complicated', 'Usability'],
+  ['Ad Experience', 'Usability'],
+  ['Other', 'Other'],
+  ['Compliments', 'Non-actionable Feedback'],
+  ['Non-actionable Feedback', 'Non-actionable Feedback'],
+  ['Spam', 'Spam'],
+]);
+
 // ── REPORTS API ───────────────────────────────────────────────────────────
 
 async function listAllTags() {
@@ -222,6 +273,26 @@ function sortMetricBreakdown(items, total, metricKey) {
     });
 }
 
+function sortCountBreakdown(items, total) {
+  const taggedTotal = items.reduce((sum, item) => sum + (item.count || 0), 0);
+  const notTagged = Math.max(0, total - taggedTotal);
+
+  return [
+    ...items.map((item) => ({
+      name: item.name,
+      count: item.count || 0,
+    })),
+    { name: 'Not tagged', count: notTagged },
+  ]
+    .filter((item) => item.count > 0 || item.name === 'Not tagged')
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      if (a.name === 'Not tagged') return 1;
+      if (b.name === 'Not tagged') return -1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
 async function fetchTaggedClosureMetrics(baseParams, config) {
   const resolvedConfig = await resolveTagConfig(config);
 
@@ -258,6 +329,58 @@ async function fetchTaggedClosureMetrics(baseParams, config) {
   );
 
   return results;
+}
+
+async function fetchTaggedIncomingMetrics(baseParams, config) {
+  const resolvedConfig = await resolveTagConfig(config);
+
+  const results = await Promise.all(
+    resolvedConfig.map(async (item) => {
+      if (!item.tagId) {
+        return {
+          name: item.name,
+          hsName: item.hsName,
+          tagId: null,
+          count: 0,
+        };
+      }
+
+      const report = await hsGet('/reports/email', {
+        ...baseParams,
+        tags: String(item.tagId),
+      }).catch(() => null);
+
+      return {
+        name: item.name,
+        hsName: item.hsName,
+        tagId: item.tagId,
+        count: report?.current?.volume?.emailConversations ?? 0,
+      };
+    })
+  );
+
+  return results;
+}
+
+function buildIncomingCategoryBreakdown(categoryMetrics, subcategoryMetrics, totalOpened) {
+  const mappedSubcategoryTotals = new Map();
+
+  for (const item of subcategoryMetrics) {
+    const mappedCategory = CATEGORY_BY_SUBCATEGORY.get(item.name);
+    if (!mappedCategory) continue;
+
+    mappedSubcategoryTotals.set(
+      mappedCategory,
+      (mappedSubcategoryTotals.get(mappedCategory) || 0) + (item.count || 0)
+    );
+  }
+
+  const items = categoryMetrics.map((item) => ({
+    name: item.name,
+    count: Math.max(item.count || 0, mappedSubcategoryTotals.get(item.name) || 0),
+  }));
+
+  return sortCountBreakdown(items, totalOpened);
 }
 
 // Fast report — overall metrics only, no per-tag breakdown
@@ -320,20 +443,23 @@ export async function fetchWeekBuckets(startStr, endStr) {
 
   try {
     const emailReport = await hsGet('/reports/email', baseParams).catch(() => null);
+    const opened = emailReport?.current?.volume?.emailConversations ?? 0;
     const resolved = emailReport?.current?.resolutions?.resolved ?? 0;
     const closed = emailReport?.current?.resolutions?.closed ?? 0;
     const noReply = Math.max(0, closed - resolved);
 
-    const [categoryMetrics, subcategoryMetrics] = await Promise.all([
+    const [closedCategoryMetrics, closedSubcategoryMetrics, incomingCategoryMetrics, incomingSubcategoryMetrics] = await Promise.all([
       fetchTaggedClosureMetrics(baseParams, CATEGORY_TAGS),
       fetchTaggedClosureMetrics(baseParams, SUBCATEGORY_TAGS),
+      fetchTaggedIncomingMetrics(baseParams, CATEGORY_TAGS),
+      fetchTaggedIncomingMetrics(baseParams, SUBCATEGORY_TAGS),
     ]);
 
-    const unresolvedSubcategoryTags = subcategoryMetrics
+    const unresolvedSubcategoryTags = closedSubcategoryMetrics
       .filter(x => !x.tagId)
       .map(x => x.hsName);
 
-    const resolvedSubcategoryTags = subcategoryMetrics
+    const resolvedSubcategoryTags = closedSubcategoryMetrics
       .filter(x => x.tagId)
       .map(x => ({
         hsName: x.hsName,
@@ -345,15 +471,25 @@ export async function fetchWeekBuckets(startStr, endStr) {
       .sort((a, b) => b.both - a.both);
 
     return {
-      category: {
-        withReply: sortMetricBreakdown(categoryMetrics, resolved, 'withReply'),
-        noReply: sortMetricBreakdown(categoryMetrics, noReply, 'noReply'),
-        both: sortMetricBreakdown(categoryMetrics, closed, 'both'),
+      closed: {
+        category: {
+          withReply: sortMetricBreakdown(closedCategoryMetrics, resolved, 'withReply'),
+          noReply: sortMetricBreakdown(closedCategoryMetrics, noReply, 'noReply'),
+          both: sortMetricBreakdown(closedCategoryMetrics, closed, 'both'),
+        },
+        subcategory: {
+          withReply: sortMetricBreakdown(closedSubcategoryMetrics, resolved, 'withReply'),
+          noReply: sortMetricBreakdown(closedSubcategoryMetrics, noReply, 'noReply'),
+          both: sortMetricBreakdown(closedSubcategoryMetrics, closed, 'both'),
+        },
       },
-      subcategory: {
-        withReply: sortMetricBreakdown(subcategoryMetrics, resolved, 'withReply'),
-        noReply: sortMetricBreakdown(subcategoryMetrics, noReply, 'noReply'),
-        both: sortMetricBreakdown(subcategoryMetrics, closed, 'both'),
+      incoming: {
+        category: buildIncomingCategoryBreakdown(
+          incomingCategoryMetrics,
+          incomingSubcategoryMetrics,
+          opened
+        ),
+        subcategory: sortCountBreakdown(incomingSubcategoryMetrics, opened),
       },
       debug: {
         unresolvedSubcategoryTags,
@@ -363,8 +499,14 @@ export async function fetchWeekBuckets(startStr, endStr) {
   } catch (e) {
     console.error(`Error fetching buckets ${startStr}-${endStr}:`, e.message);
     return {
-      category: { withReply: [], noReply: [], both: [] },
-      subcategory: { withReply: [], noReply: [], both: [] },
+      closed: {
+        category: { withReply: [], noReply: [], both: [] },
+        subcategory: { withReply: [], noReply: [], both: [] },
+      },
+      incoming: {
+        category: [],
+        subcategory: [],
+      },
       debug: {
         unresolvedSubcategoryTags: [],
         resolvedSubcategoryTags: [],
