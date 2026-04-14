@@ -1222,7 +1222,7 @@
         return { txt: `${up ? '↑' : '↓'} ${pct}% vs prior week`, cls: good ? 'up' : 'down' };
       }
 
-      const burnRate = w.closed - w.opened;
+      const burnRate = (w.totalClosed ?? w.closed) - w.opened;
       const vsBaseline = w.pctVsBaseline ?? 0;
       const vsBaseCls = vsBaseline <= 0 ? 'up' : 'down';
       const vsBaseLabel = vsBaseline === 0
@@ -1283,7 +1283,7 @@
           color: burnRate >= 0 ? '#1a6b3a' : '#991b1b',
           txt: burnRate > 0 ? '↓ Backlog shrinking' : burnRate < 0 ? '↑ Backlog growing' : '→ Flat this week',
           cls: burnRate > 0 ? 'up' : burnRate < 0 ? 'down' : 'neutral',
-          note: 'Resolved minus opened'
+          note: 'Closed total minus opened'
         },
         {
           label: 'Resolved on first reply',
