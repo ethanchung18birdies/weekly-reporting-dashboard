@@ -419,7 +419,7 @@ export async function fetchAllMetrics() {
   let runningBacklog = currentBacklog;
   for (let i = weeklyMetrics.length - 1; i >= 0; i--) {
     weeklyMetrics[i].backlog = Math.max(0, runningBacklog);
-    runningBacklog = runningBacklog + weeklyMetrics[i].opened - weeklyMetrics[i].closed;
+    runningBacklog = runningBacklog + weeklyMetrics[i].opened - weeklyMetrics[i].totalClosed;
     if (runningBacklog < 0) runningBacklog = 0;
   }
 

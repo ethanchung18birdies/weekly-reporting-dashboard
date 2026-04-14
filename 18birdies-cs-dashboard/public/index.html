@@ -971,7 +971,7 @@
       const dailyPace = paceClosed / elapsed;
       const cpd = dailyPace.toFixed(0);
       const cpdNote = elapsed < 5 ? ` (${elapsed} day${elapsed > 1 ? 's' : ''} elapsed)` : '';
-      document.getElementById('paceVal').textContent = `${cpd}/day · target ${TARGET_DAILY}/day${cpdNote}`;
+      document.getElementById('paceVal').textContent = `${cpd}/day${cpdNote}`;
 
       const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
       const avgBurn = recentWeeks.reduce((a, x) => a + ((x.totalClosed ?? x.closed) - x.opened), 0) / recentWeeks.length;
@@ -1462,7 +1462,7 @@
       const total = displayRows.reduce((sum, r) => sum + r.count, 0) || 1;
 
       container.innerHTML = displayRows.map((r, i) => {
-        const pct = Math.max(2, Math.round((r.count / total) * 100));
+        const pct = r.count > 0 ? Math.max(2, Math.round((r.count / total) * 100)) : 0;
         const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
 
         return `
@@ -1491,7 +1491,7 @@
       const total = rows.reduce((sum, r) => sum + (r.count || 0), 0) || 1;
 
       container.innerHTML = rows.map((r, i) => {
-        const pct = Math.max(2, Math.round((r.count / total) * 100));
+        const pct = (r.count || 0) > 0 ? Math.max(2, Math.round((r.count / total) * 100)) : 0;
         const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
 
         return `
