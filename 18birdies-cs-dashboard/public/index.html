@@ -440,7 +440,6 @@
       flex: 1;
     }
 
-    .bucket-name span:last-child,
     .bucket-name-text {
       white-space: nowrap;
       overflow: hidden;
@@ -729,18 +728,13 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Closed tickets by assignee — selected week</div>
-        <div class="bucket-list" id="assigneeBars"></div>
-      </div>
-
-      <div class="card">
         <div class="card-title">
-          <span id="assigneeSubcategoryTitle">Closed tickets by subcategory — all assignees</span>
+          <span id="assigneeCardTitle">Closed tickets by assignee — selected week</span>
           <select id="assigneeSelect" class="inline-select" onchange="handleAssigneeSelectChange()">
             <option value="all">All assignees</option>
           </select>
         </div>
-        <div class="bucket-list" id="assigneeSubcategoryBars"></div>
+        <div class="bucket-list" id="assigneeBars"></div>
       </div>
 
       <div>
@@ -867,7 +861,7 @@
         setTimeout(() => {
           loadBuckets(selWeek);
           loadAssignees(selWeek);
-          loadAssigneeSubcategories(selWeek, selectedAssignee);
+          renderAssigneeCardForSelection();
         }, 0);
 
         setStatus('ok');
@@ -959,21 +953,8 @@
       renderBucketTable(w, prev);
       syncBucketControls();
 
-      if (assigneeCache[w.startStr]) {
-        renderAssigneeBars(assigneeCache[w.startStr]);
-      } else {
-        renderAssigneeLoading();
-      }
-
       populateAssigneeSelect();
-      updateAssigneeSubcategoryTitle();
-
-      const assigneeSubcategoryKey = `${w.startStr}_${selectedAssignee}`;
-      if (assigneeSubcategoryCache[assigneeSubcategoryKey]) {
-        renderAssigneeSubcategoryBars(assigneeSubcategoryCache[assigneeSubcategoryKey]);
-      } else {
-        renderAssigneeSubcategoryLoading();
-      }
+      renderAssigneeCardForSelection();
 
       renderBurnChart();
       renderOCChart();
@@ -1013,7 +994,7 @@
       renderAll();
       loadBuckets(i);
       loadAssignees(i);
-      loadAssigneeSubcategories(i, selectedAssignee);
+      renderAssigneeCardForSelection();
     }
 
     function setBucketView(view) {
@@ -1070,18 +1051,7 @@
       el.innerHTML = `
         <div class="bucket-loading">
           <div class="bucket-spinner"></div>
-          <span>Loading assignee data...</span>
-        </div>
-      `;
-    }
-
-    function renderAssigneeSubcategoryLoading() {
-      const el = document.getElementById('assigneeSubcategoryBars');
-      if (!el) return;
-      el.innerHTML = `
-        <div class="bucket-loading">
-          <div class="bucket-spinner"></div>
-          <span>Loading subcategory data...</span>
+          <span>Loading data...</span>
         </div>
       `;
     }
@@ -1121,9 +1091,8 @@
 
       if (assigneeCache[w.startStr]) {
         if (selWeek === weekIdx) {
-          renderAssigneeBars(assigneeCache[w.startStr]);
           populateAssigneeSelect();
-          updateAssigneeSubcategoryTitle();
+          renderAssigneeCardForSelection();
         }
         return;
       }
@@ -1138,9 +1107,8 @@
         assigneeCache[w.startStr] = data.assignees || [];
 
         if (selWeek === weekIdx) {
-          renderAssigneeBars(assigneeCache[w.startStr]);
           populateAssigneeSelect();
-          updateAssigneeSubcategoryTitle();
+          renderAssigneeCardForSelection();
         }
       } catch (e) {
         console.error('Failed to load assignees:', e);
@@ -1153,15 +1121,15 @@
       const cacheKey = `${w.startStr}_${assignee}`;
 
       if (assigneeSubcategoryCache[cacheKey]) {
-        if (selWeek === weekIdx) {
+        if (selWeek === weekIdx && String(selectedAssignee) === String(assignee)) {
           renderAssigneeSubcategoryBars(assigneeSubcategoryCache[cacheKey]);
-          updateAssigneeSubcategoryTitle();
+          updateAssigneeCardTitle();
         }
         return;
       }
 
-      renderAssigneeSubcategoryLoading();
-      updateAssigneeSubcategoryTitle();
+      renderAssigneeLoading();
+      updateAssigneeCardTitle();
 
       try {
         const res = await fetch(`/api/assignee-subcategories?start=${w.startStr}&end=${w.endStr}&assignee=${assignee}`);
@@ -1172,12 +1140,75 @@
 
         if (selWeek === weekIdx && String(selectedAssignee) === String(assignee)) {
           renderAssigneeSubcategoryBars(assigneeSubcategoryCache[cacheKey]);
-          updateAssigneeSubcategoryTitle();
+          updateAssigneeCardTitle();
         }
       } catch (e) {
         console.error('Failed to load assignee subcategories:', e);
-        const el = document.getElementById('assigneeSubcategoryBars');
+        const el = document.getElementById('assigneeBars');
         if (el) el.innerHTML = '<div class="empty-state">Failed to load subcategory data.</div>';
+      }
+    }
+
+    function populateAssigneeSelect() {
+      const select = document.getElementById('assigneeSelect');
+      if (!select) return;
+
+      const currentWeek = allData?.weeks?.[selWeek];
+      if (!currentWeek) return;
+
+      const rows = assigneeCache[currentWeek.startStr] || [];
+      const currentValue = selectedAssignee;
+
+      select.innerHTML =
+        `<option value="all">All assignees</option>` +
+        rows.map(row => `<option value="${row.id}">${row.name}</option>`).join('');
+
+      const exists = Array.from(select.options).some(opt => String(opt.value) === String(currentValue));
+      select.value = exists ? currentValue : 'all';
+      selectedAssignee = select.value;
+    }
+
+    function updateAssigneeCardTitle() {
+      const title = document.getElementById('assigneeCardTitle');
+      if (!title) return;
+
+      const currentWeek = allData?.weeks?.[selWeek];
+      const rows = currentWeek ? (assigneeCache[currentWeek.startStr] || []) : [];
+      const selectedRow = rows.find(r => String(r.id) === String(selectedAssignee));
+
+      title.textContent = selectedAssignee === 'all'
+        ? 'Closed tickets by assignee — selected week'
+        : `Closed tickets by subcategory — ${selectedRow?.name || 'selected assignee'}`;
+    }
+
+    function handleAssigneeSelectChange() {
+      const select = document.getElementById('assigneeSelect');
+      selectedAssignee = select?.value || 'all';
+      renderAssigneeCardForSelection();
+    }
+
+    function renderAssigneeCardForSelection() {
+      const w = allData?.weeks?.[selWeek];
+      if (!w) return;
+
+      updateAssigneeCardTitle();
+
+      if (selectedAssignee === 'all') {
+        if (assigneeCache[w.startStr]) {
+          renderAssigneeBars(assigneeCache[w.startStr]);
+        } else {
+          renderAssigneeLoading();
+          loadAssignees(selWeek);
+        }
+        return;
+      }
+
+      const cacheKey = `${w.startStr}_${selectedAssignee}`;
+      if (assigneeSubcategoryCache[cacheKey]) {
+        renderAssigneeSubcategoryBars(assigneeSubcategoryCache[cacheKey]);
+      } else {
+        renderAssigneeLoading();
+        loadAssigneeSubcategories(selWeek, selectedAssignee);
       }
     }
 
@@ -1386,7 +1417,7 @@
     }
 
     function renderAssigneeSubcategoryBars(rows) {
-      const container = document.getElementById('assigneeSubcategoryBars');
+      const container = document.getElementById('assigneeBars');
       if (!container) return;
 
       if (!Array.isArray(rows) || !rows.length) {
@@ -1412,44 +1443,6 @@
           </div>
         `;
       }).join('');
-    }
-
-    function populateAssigneeSelect() {
-      const select = document.getElementById('assigneeSelect');
-      if (!select) return;
-
-      const currentWeek = allData?.weeks?.[selWeek];
-      if (!currentWeek) return;
-
-      const rows = assigneeCache[currentWeek.startStr] || [];
-      const currentValue = selectedAssignee;
-
-      select.innerHTML = `<option value="all">All assignees</option>` +
-        rows.map(row => `<option value="${row.id}">${row.name}</option>`).join('');
-
-      const exists = Array.from(select.options).some(opt => String(opt.value) === String(currentValue));
-      select.value = exists ? currentValue : 'all';
-      selectedAssignee = select.value;
-    }
-
-    function updateAssigneeSubcategoryTitle() {
-      const title = document.getElementById('assigneeSubcategoryTitle');
-      if (!title) return;
-
-      const currentWeek = allData?.weeks?.[selWeek];
-      const rows = currentWeek ? (assigneeCache[currentWeek.startStr] || []) : [];
-      const selectedRow = rows.find(r => String(r.id) === String(selectedAssignee));
-
-      title.textContent = selectedAssignee === 'all'
-        ? 'Closed tickets by subcategory — all assignees'
-        : `Closed tickets by subcategory — ${selectedRow?.name || 'selected assignee'}`;
-    }
-
-    function handleAssigneeSelectChange() {
-      const select = document.getElementById('assigneeSelect');
-      selectedAssignee = select?.value || 'all';
-      updateAssigneeSubcategoryTitle();
-      loadAssigneeSubcategories(selWeek, selectedAssignee);
     }
 
     function renderBurnChart() {
