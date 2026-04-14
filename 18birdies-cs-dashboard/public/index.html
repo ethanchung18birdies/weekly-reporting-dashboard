@@ -1025,12 +1025,13 @@
       const burnRate = (w.totalClosed ?? w.closed) - w.opened;
       const paceClosed = w.totalClosed ?? w.closed;
       const gap = Math.max(0, TARGET_DAILY - Math.round(dailyPace));
+      const pctTarget = TARGET_DAILY > 0 ? Math.round((dailyPace / TARGET_DAILY) * 100) : 0;
+      const statusLabel = onTrack ? 'Ahead of pace' : 'Behind pace';
 
       callout.className = `callout ${onTrack ? 'good' : 'warn'}`;
       document.getElementById('paceIcon').textContent = onTrack ? '📈' : '⚠️';
-      document.getElementById('paceTitle').textContent = onTrack
-        ? `Ahead of pace — ${Math.round(dailyPace)}/day vs ${TARGET_DAILY}/day`
-        : `Behind pace — ${Math.round(dailyPace)}/day vs ${TARGET_DAILY}/day`;
+      document.getElementById('paceTitle').textContent =
+        `${statusLabel} — ${Math.round(dailyPace)}/${TARGET_DAILY} daily tickets closed (${pctTarget}% of target)`;
 
       document.getElementById('paceText').textContent = onTrack
         ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
