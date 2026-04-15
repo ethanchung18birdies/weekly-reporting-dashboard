@@ -529,6 +529,51 @@
       animation: spin 0.8s linear infinite;
     }
 
+    .debug-box {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+    }
+
+    .debug-title {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .debug-text {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .debug-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .debug-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--text);
+      font-family: var(--mono);
+    }
+
+    .debug-item span:first-child {
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 12px;
+    }
+
     .btable {
       width: 100%;
       border-collapse: collapse;
@@ -739,6 +784,7 @@
             </div>
           </div>
           <div class="bucket-list" id="incomingBucketBars"></div>
+          <div id="incomingBucketDebug"></div>
         </div>
 
         <div class="card">
@@ -1157,6 +1203,7 @@
 
     function renderIncomingBucketLoading() {
       const incomingBars = document.getElementById('incomingBucketBars');
+      const incomingDebug = document.getElementById('incomingBucketDebug');
       if (!incomingBars) return;
       incomingBars.innerHTML = `
         <div class="bucket-loading">
@@ -1164,6 +1211,7 @@
           <span>Loading incoming tag data...</span>
         </div>
       `;
+      if (incomingDebug) incomingDebug.innerHTML = '';
     }
 
     function renderAssigneeLoading() {
@@ -1209,6 +1257,7 @@
         console.error('Failed to load buckets:', e);
         document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
         document.getElementById('incomingBucketBars').innerHTML = '<div class="empty-state">Failed to load incoming tag data.</div>';
+        document.getElementById('incomingBucketDebug').innerHTML = '';
         document.getElementById('bucketTable').innerHTML = '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
       }
     }
@@ -1493,12 +1542,14 @@
 
     function renderIncomingBucketBars(w) {
       const container = document.getElementById('incomingBucketBars');
+      const debugContainer = document.getElementById('incomingBucketDebug');
       if (!container) return;
 
       const buckets = getIncomingBuckets(w);
 
       if (!buckets.length) {
         container.innerHTML = '<div class="empty-state">No incoming tag data for this week yet.</div>';
+        if (debugContainer) debugContainer.innerHTML = '';
         return;
       }
 
@@ -1511,6 +1562,69 @@
           <div class="prog-bg"><div class="prog-fill" style="width:${b.pct}%;background:${b.color}"></div></div>
         </div>
       `).join('');
+
+      renderIncomingBucketDebug(w);
+    }
+
+    function renderIncomingBucketDebug(w) {
+      const container = document.getElementById('incomingBucketDebug');
+      if (!container) return;
+
+      if (incomingBucketView !== 'category') {
+        container.innerHTML = '';
+        return;
+      }
+
+      const debug = w?.buckets?.debug?.incoming;
+      if (!debug) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const unmapped = (debug.unmappedRecognizedSubcategories || []).slice(0, 6);
+      const comparisons = (debug.categoryComparisons || []).slice(0, 6);
+
+      const unmappedHtml = unmapped.length
+        ? `
+          <div class="debug-title" style="margin-top:10px">Recognized Unmapped Subcategories</div>
+          <div class="debug-list">
+            ${unmapped.map(item => `
+              <div class="debug-item">
+                <span>${item.name}</span>
+                <strong>${item.count}</strong>
+              </div>
+            `).join('')}
+          </div>
+        `
+        : '';
+
+      const comparisonHtml = comparisons.length
+        ? `
+          <div class="debug-title" style="margin-top:10px">Category Rollup Diagnostics</div>
+          <div class="debug-list">
+            ${comparisons.map(item => `
+              <div class="debug-item">
+                <span>${item.name}</span>
+                <strong>d:${item.directCategoryCount} · m:${item.mappedSubcategoryCount} · used:${item.usedCount}</strong>
+              </div>
+            `).join('')}
+          </div>
+        `
+        : '';
+
+      container.innerHTML = `
+        <div class="debug-box">
+          <div class="debug-title">Incoming "Not Tagged" Diagnostics</div>
+          <div class="debug-text">
+            Opened total ${debug.totalOpened}. Current category coverage ${debug.categoryCoverageTotal}. Residual now shown as not tagged ${debug.currentNotTagged}.
+          </div>
+          <div class="debug-text" style="margin-top:6px">
+            The category rollup currently uses the larger of direct category-tag volume and mapped subcategory volume for each category, so this diagnostic helps show where residual volume may be coming from.
+          </div>
+          ${unmappedHtml}
+          ${comparisonHtml}
+        </div>
+      `;
     }
 
     function renderBucketTable(w, prev) {

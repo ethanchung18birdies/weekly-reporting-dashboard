@@ -383,6 +383,55 @@ function buildIncomingCategoryBreakdown(categoryMetrics, subcategoryMetrics, tot
   return sortCountBreakdown(items, totalOpened);
 }
 
+function buildIncomingDebug(categoryMetrics, subcategoryMetrics, totalOpened) {
+  const mappedCategoryTotals = new Map();
+
+  for (const item of subcategoryMetrics) {
+    const mappedCategory = CATEGORY_BY_SUBCATEGORY.get(item.name);
+    if (!mappedCategory) continue;
+
+    mappedCategoryTotals.set(
+      mappedCategory,
+      (mappedCategoryTotals.get(mappedCategory) || 0) + (item.count || 0)
+    );
+  }
+
+  const categoryComparisons = categoryMetrics
+    .map((item) => {
+      const directCategoryCount = item.count || 0;
+      const mappedSubcategoryCount = mappedCategoryTotals.get(item.name) || 0;
+      const usedCount = Math.max(directCategoryCount, mappedSubcategoryCount);
+
+      return {
+        name: item.name,
+        directCategoryCount,
+        mappedSubcategoryCount,
+        usedCount,
+      };
+    })
+    .filter((item) => item.directCategoryCount > 0 || item.mappedSubcategoryCount > 0)
+    .sort((a, b) => b.usedCount - a.usedCount || a.name.localeCompare(b.name));
+
+  const unmappedRecognizedSubcategories = subcategoryMetrics
+    .filter((item) => (item.count || 0) > 0 && !CATEGORY_BY_SUBCATEGORY.has(item.name))
+    .map((item) => ({
+      name: item.name,
+      count: item.count || 0,
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  const categoryCoverageTotal = categoryComparisons.reduce((sum, item) => sum + item.usedCount, 0);
+
+  return {
+    totalOpened,
+    categoryCoverageTotal,
+    currentNotTagged: Math.max(0, totalOpened - categoryCoverageTotal),
+    unmappedRecognizedTotal: unmappedRecognizedSubcategories.reduce((sum, item) => sum + item.count, 0),
+    unmappedRecognizedSubcategories,
+    categoryComparisons,
+  };
+}
+
 // Fast report — overall metrics only, no per-tag breakdown
 async function getWeekReport(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
@@ -470,6 +519,12 @@ export async function fetchWeekBuckets(startStr, endStr) {
       }))
       .sort((a, b) => b.both - a.both);
 
+    const incomingDebug = buildIncomingDebug(
+      incomingCategoryMetrics,
+      incomingSubcategoryMetrics,
+      opened
+    );
+
     return {
       closed: {
         category: {
@@ -492,6 +547,7 @@ export async function fetchWeekBuckets(startStr, endStr) {
         subcategory: sortCountBreakdown(incomingSubcategoryMetrics, opened),
       },
       debug: {
+        incoming: incomingDebug,
         unresolvedSubcategoryTags,
         resolvedSubcategoryTags,
       },
@@ -508,6 +564,14 @@ export async function fetchWeekBuckets(startStr, endStr) {
         subcategory: [],
       },
       debug: {
+        incoming: {
+          totalOpened: 0,
+          categoryCoverageTotal: 0,
+          currentNotTagged: 0,
+          unmappedRecognizedTotal: 0,
+          unmappedRecognizedSubcategories: [],
+          categoryComparisons: [],
+        },
         unresolvedSubcategoryTags: [],
         resolvedSubcategoryTags: [],
       },
