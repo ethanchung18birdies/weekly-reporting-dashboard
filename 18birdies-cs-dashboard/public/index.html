@@ -833,6 +833,7 @@
         'Jennifer Moron',
         'Cjay Baetiong',
         'Czarina Cruz',
+        'Margie Ativo',
       ]),
       rendell: new Set([
         'Rendell Severino',
@@ -840,12 +841,17 @@
         'John Espuerta',
         'Mary Shen',
         'Baetiong John',
+        'Michael Decena',
+        'Fernan Gomez',
       ]),
       jane: new Set([
         'Jane Matienzo',
         'Marianne Figueroa',
         'Jhird Verano',
         'Nico Delos Reyes',
+        'Laila Elaine Gelle',
+        'Julius Lubitos',
+        'Vincent Joel Santos',
       ]),
     };
 
@@ -1571,17 +1577,20 @@
         return;
       }
 
+      const currentWeek = allData?.weeks?.[selWeek];
+      const daysElapsed = currentWeek ? elapsedDays(currentWeek.startStr, currentWeek.endStr) : 5;
       const total = displayRows.reduce((sum, r) => sum + r.count, 0) || 1;
 
       container.innerHTML = displayRows.map((r, i) => {
         const pct = r.count > 0 ? Math.max(2, Math.round((r.count / total) * 100)) : 0;
         const color = BUCKET_COLORS[i % BUCKET_COLORS.length];
+        const perDay = Math.round(r.count / Math.max(daysElapsed, 1));
 
         return `
           <div class="bucket-row">
             <div class="bucket-row-top">
               <div class="bucket-name"><span class="bdot" style="background:${color}"></span><span class="bucket-name-text">${r.name}</span></div>
-              <div class="bucket-count">${r.count} · ${pct}%</div>
+              <div class="bucket-count">${r.count} closed · ${perDay}/day · ${pct}%</div>
             </div>
             <div class="prog-bg">
               <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
