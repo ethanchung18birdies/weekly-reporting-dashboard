@@ -661,7 +661,7 @@
   </div>
 
   <div class="goal-bar">
-    <div class="goal-item"><span class="goal-label">Target</span><span class="goal-val">360 tickets/day by July</span></div>
+    <div class="goal-item"><span class="goal-label">Target</span><span class="goal-val">650 tickets/day</span></div>
     <div class="goal-sep"></div>
     <div class="goal-item"><span class="goal-label">Ultimate goal</span><span class="goal-val">Backlog → 0</span></div>
     <div class="goal-sep"></div>
@@ -780,7 +780,7 @@
             <div class="chart-wrap" style="height:160px"><canvas id="burnRateChart"></canvas></div>
           </div>
           <div class="card">
-            <div class="card-title">Throughput vs 360/day target</div>
+            <div class="card-title">Throughput vs 650/day target</div>
             <div class="chart-wrap" style="height:160px"><canvas id="throughputChart"></canvas></div>
           </div>
         </div>
@@ -805,7 +805,7 @@
   </div>
 
   <script>
-    const TARGET_DAILY = 360;
+    const TARGET_DAILY = 650;
 
     let allData = null;
     let selWeek = null;
@@ -1063,8 +1063,8 @@
         `${statusLabel} — ${Math.round(dailyPace)}/${TARGET_DAILY} daily tickets closed (${pctTarget}% of target)`;
 
       document.getElementById('paceText').textContent = onTrack
-        ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. 360/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
-        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. 360/day target). Need ${gap} more tickets/day to hit the July target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
+        ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
+        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). Need ${gap} more tickets/day to hit the target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
     }
 
     function renderWeekNav() {
@@ -1800,7 +1800,7 @@
               borderWidth: 2,
             },
             {
-              label: 'Target (360)',
+              label: `Target (${TARGET_DAILY})`,
               data: Array(allData.weeks.length).fill(TARGET_DAILY),
               borderColor: '#dc2626',
               borderDash: [6, 4],
