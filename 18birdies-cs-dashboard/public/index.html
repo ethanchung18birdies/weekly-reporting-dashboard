@@ -757,6 +757,9 @@
                 <button class="seg-btn" id="toggleNoReply" onclick="setClosureMode('noReply')">No reply</button>
                 <button class="seg-btn active" id="toggleBoth" onclick="setClosureMode('both')">Both</button>
               </div>
+              <select id="closedCategorySelect" class="inline-select" onchange="handleClosedCategoryChange()">
+                <option value="all">All categories</option>
+              </select>
             </div>
           </div>
           <div class="bucket-list" id="bucketBars"></div>
@@ -815,6 +818,7 @@
     let bucketView = 'category';
     let incomingBucketView = 'category';
     let selectedIncomingCategory = 'all';
+    let selectedClosedCategory = 'all';
     let closureMode = 'both';
     let selectedTeam = 'all';
     let selectedAssignee = 'all';
@@ -1039,6 +1043,13 @@
         .map(row => row.name);
     }
 
+    function getClosedCategoryOptions(startStr) {
+      const rows = bucketCache[startStr]?.closed?.category?.[closureMode] || [];
+      return rows
+        .filter(row => row?.name && row.name !== 'Not tagged')
+        .map(row => row.name);
+    }
+
     function populateIncomingCategorySelect() {
       const select = document.getElementById('incomingCategorySelect');
       const currentWeek = allData?.weeks?.[selWeek];
@@ -1052,6 +1063,21 @@
       const exists = Array.from(select.options).some(opt => opt.value === selectedIncomingCategory);
       select.value = exists ? selectedIncomingCategory : 'all';
       selectedIncomingCategory = select.value;
+    }
+
+    function populateClosedCategorySelect() {
+      const select = document.getElementById('closedCategorySelect');
+      const currentWeek = allData?.weeks?.[selWeek];
+      if (!select || !currentWeek) return;
+
+      const categories = getClosedCategoryOptions(currentWeek.startStr);
+      select.innerHTML =
+        `<option value="all">All categories</option>` +
+        categories.map(name => `<option value="${name}">${name}</option>`).join('');
+
+      const exists = Array.from(select.options).some(opt => opt.value === selectedClosedCategory);
+      select.value = exists ? selectedClosedCategory : 'all';
+      selectedClosedCategory = select.value;
     }
 
     function renderAll() {
@@ -1112,6 +1138,7 @@
       syncIncomingBucketControls();
       syncBucketControls();
       populateIncomingCategorySelect();
+      populateClosedCategorySelect();
 
       syncTeamSelect();
       populateAssigneeSelect();
@@ -1161,6 +1188,9 @@
 
     function setBucketView(view) {
       bucketView = view;
+      if (view === 'category') {
+        selectedClosedCategory = 'all';
+      }
       const w = getWeekWithBuckets(selWeek);
       const prev = getPrevWeekWithBuckets(selWeek);
       if (!w?.buckets) {
@@ -1171,6 +1201,7 @@
       renderBucketBars(w);
       renderBucketTable(w, prev);
       syncBucketControls();
+      populateClosedCategorySelect();
     }
 
     function setIncomingBucketView(view) {
@@ -1232,6 +1263,42 @@
       renderBucketBars(w);
       renderBucketTable(w, prev);
       syncBucketControls();
+      populateClosedCategorySelect();
+    }
+
+    function handleClosedCategoryChange() {
+      const select = document.getElementById('closedCategorySelect');
+      selectedClosedCategory = select?.value || 'all';
+      const w = getWeekWithBuckets(selWeek);
+      const prev = getPrevWeekWithBuckets(selWeek);
+      if (!w?.buckets) {
+        renderBucketLoading();
+        syncBucketControls();
+        return;
+      }
+      if (selectedClosedCategory !== 'all') {
+        bucketView = 'subcategory';
+      }
+      renderBucketBars(w);
+      renderBucketTable(w, prev);
+      syncBucketControls();
+      populateClosedCategorySelect();
+    }
+
+    function handleClosedCategoryBarClick(categoryName) {
+      selectedClosedCategory = categoryName;
+      bucketView = 'subcategory';
+      const w = getWeekWithBuckets(selWeek);
+      const prev = getPrevWeekWithBuckets(selWeek);
+      if (!w?.buckets) {
+        renderBucketLoading();
+        syncBucketControls();
+        return;
+      }
+      renderBucketBars(w);
+      renderBucketTable(w, prev);
+      syncBucketControls();
+      populateClosedCategorySelect();
     }
 
     function syncBucketControls() {
@@ -1244,8 +1311,16 @@
       document.getElementById('toggleBoth').classList.toggle('active', closureMode === 'both');
 
       const modeLabel = closureMode === 'withReply' ? 'with reply' : closureMode === 'noReply' ? 'no reply' : 'both';
-      document.getElementById('bucketCardTitle').textContent = `Closed tickets by ${bucketView} — ${modeLabel}`;
-      document.getElementById('bucketSectionLabel').textContent = `Breakdown by ${bucketView} — ${modeLabel}`;
+      document.getElementById('bucketCardTitle').textContent = bucketView === 'category'
+        ? `Closed tickets by category — ${modeLabel}`
+        : selectedClosedCategory === 'all'
+          ? `Closed tickets by subcategory — ${modeLabel}`
+          : `Closed tickets by subcategory — ${selectedClosedCategory}`;
+      document.getElementById('bucketSectionLabel').textContent = bucketView === 'category'
+        ? `Breakdown by category — ${modeLabel}`
+        : selectedClosedCategory === 'all'
+          ? `Breakdown by subcategory — ${modeLabel}`
+          : `Breakdown by subcategory — ${selectedClosedCategory} — ${modeLabel}`;
     }
 
     function syncIncomingBucketControls() {
@@ -1565,9 +1640,16 @@
     }
 
     function getClosedBuckets(w) {
-      const raw = Array.isArray(w?.buckets?.closed?.[bucketView]?.[closureMode])
+      const source = Array.isArray(w?.buckets?.closed?.[bucketView]?.[closureMode])
         ? w.buckets.closed[bucketView][closureMode]
         : [];
+
+      const raw = bucketView === 'subcategory' && selectedClosedCategory !== 'all'
+        ? source.filter((item) =>
+            item?.name !== 'Not tagged' &&
+            INCOMING_CATEGORY_BY_SUBCATEGORY.get(item?.name) === selectedClosedCategory
+          )
+        : source;
 
       const total = raw.reduce((s, item) => s + (item.count || 0), 0) || 1;
 
@@ -1610,7 +1692,7 @@
       }
 
       document.getElementById('bucketBars').innerHTML = buckets.map(b => `
-        <div class="bucket-row">
+        <div class="bucket-row"${bucketView === 'category' && b.name !== 'Not tagged' ? ` role="button" tabindex="0" onclick="handleClosedCategoryBarClick('${String(b.name).replace(/'/g, "\\'")}')" onkeypress="if(event.key==='Enter'||event.key===' '){event.preventDefault();handleClosedCategoryBarClick('${String(b.name).replace(/'/g, "\\'")}')}" style="cursor:pointer"` : ''}>
           <div class="bucket-row-top">
             <div class="bucket-name"><span class="bdot" style="background:${b.color}"></span><span class="bucket-name-text">${b.name}</span></div>
             <div class="bucket-count">${b.count} · ${b.pct}%</div>
