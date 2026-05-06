@@ -736,6 +736,9 @@
                 <button class="seg-btn active" id="incomingToggleCategory" onclick="setIncomingBucketView('category')">Category</button>
                 <button class="seg-btn" id="incomingToggleSubcategory" onclick="setIncomingBucketView('subcategory')">Subcategory</button>
               </div>
+              <select id="incomingCategorySelect" class="inline-select" onchange="handleIncomingCategoryChange()">
+                <option value="all">All categories</option>
+              </select>
             </div>
           </div>
           <div class="bucket-list" id="incomingBucketBars"></div>
@@ -811,6 +814,7 @@
     let selWeek = null;
     let bucketView = 'category';
     let incomingBucketView = 'category';
+    let selectedIncomingCategory = 'all';
     let closureMode = 'both';
     let selectedTeam = 'all';
     let selectedAssignee = 'all';
@@ -860,6 +864,57 @@
       '#c2410c', '#1d4ed8', '#7c3aed', '#0d9488', '#b45309', '#475569',
       '#4f46e5', '#b91c1c', '#166534', '#7c2d12', '#0369a1', '#6d28d9'
     ];
+
+    const INCOMING_CATEGORY_BY_SUBCATEGORY = new Map([
+      ['App Crash/Feature Break Fix', 'Unresolved Bugs'],
+      ['Course Profile Info', 'Course Data'],
+      ['Scorecard Data', 'Course Data'],
+      ['Course Setup', 'Course Data'],
+      ['GPS Data Incorrect', 'Course Data'],
+      ['Facility Missing', 'Course Data'],
+      ['Course Layout Missing', 'Course Data'],
+      ['Course Closed', 'Course Data'],
+      ['More Course Info Needed', 'Course Data'],
+      ['Apple Watch', 'Watch'],
+      ['Account Recovery', 'Account'],
+      ['Account Setup & Deletion', 'Account'],
+      ['Cancel Premium', 'Billing'],
+      ['Subscription Access Error', 'Billing'],
+      ['Refund Premium', 'Billing'],
+      ['Core Round Functionality', 'Usability'],
+      ['Scoring - Classic', 'Usability'],
+      ['Scoring - Smart Tracking', 'Usability'],
+      ['Scoring - Team Modes', 'Usability'],
+      ['Tournaments', 'Tournaments'],
+      ['Swing Analysis', 'Golf School'],
+      ['Friend Requests', 'Community'],
+      ['Side Games', 'Community'],
+      ['Feed & Sharing', 'Community'],
+      ['Device Compatibility', 'Usability'],
+      ['Drills', 'Golf School'],
+      ['Notifications', 'Messaging'],
+      ['Newsletter Unsub', 'Messaging'],
+      ['Android Watch', 'Watch'],
+      ['Handicap Calculation', 'Stats'],
+      ['Golf Bag & Club Management', 'Stats'],
+      ['Missing Golf Clubs for Bag Management', 'Stats'],
+      ['Watch Features', 'Watch'],
+      ['Shot Tracking', 'Feature Request'],
+      ['Advanced Stats', 'Feature Request'],
+      ['Community', 'Feature Request'],
+      ['Betting/Games', 'Feature Request'],
+      ['Content & Educational', 'Feature Request'],
+      ['Other Feature Requests', 'Feature Request'],
+      ['UI / UX Improvements', 'Feature Request'],
+      ['Third Party Integrations', 'Feature Request'],
+      ['Partnership Requests', 'Partnerships'],
+      ['Too Complicated', 'Usability'],
+      ['Ad Experience', 'Usability'],
+      ['Other', 'Other'],
+      ['Compliments', 'Non-actionable Feedback'],
+      ['Non-actionable Feedback', 'Non-actionable Feedback'],
+      ['Spam', 'Spam'],
+    ]);
 
     const gridColor = 'rgba(0,0,0,0.05)';
     const tickStyle = { color: '#a09e96', font: { family: 'DM Mono', size: 10 } };
@@ -977,6 +1032,28 @@
       selectedTeam = select.value;
     }
 
+    function getIncomingCategoryOptions(startStr) {
+      const rows = bucketCache[startStr]?.incoming?.category || [];
+      return rows
+        .filter(row => row?.name && row.name !== 'Not tagged')
+        .map(row => row.name);
+    }
+
+    function populateIncomingCategorySelect() {
+      const select = document.getElementById('incomingCategorySelect');
+      const currentWeek = allData?.weeks?.[selWeek];
+      if (!select || !currentWeek) return;
+
+      const categories = getIncomingCategoryOptions(currentWeek.startStr);
+      select.innerHTML =
+        `<option value="all">All categories</option>` +
+        categories.map(name => `<option value="${name}">${name}</option>`).join('');
+
+      const exists = Array.from(select.options).some(opt => opt.value === selectedIncomingCategory);
+      select.value = exists ? selectedIncomingCategory : 'all';
+      selectedIncomingCategory = select.value;
+    }
+
     function renderAll() {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
@@ -1034,6 +1111,7 @@
       }
       syncIncomingBucketControls();
       syncBucketControls();
+      populateIncomingCategorySelect();
 
       syncTeamSelect();
       populateAssigneeSelect();
@@ -1097,6 +1175,9 @@
 
     function setIncomingBucketView(view) {
       incomingBucketView = view;
+      if (view === 'category') {
+        selectedIncomingCategory = 'all';
+      }
       const w = getWeekWithBuckets(selWeek);
       if (!w?.buckets) {
         renderIncomingBucketLoading();
@@ -1105,6 +1186,38 @@
       }
       renderIncomingBucketBars(w);
       syncIncomingBucketControls();
+      populateIncomingCategorySelect();
+    }
+
+    function handleIncomingCategoryChange() {
+      const select = document.getElementById('incomingCategorySelect');
+      selectedIncomingCategory = select?.value || 'all';
+      const w = getWeekWithBuckets(selWeek);
+      if (!w?.buckets) {
+        renderIncomingBucketLoading();
+        syncIncomingBucketControls();
+        return;
+      }
+      if (selectedIncomingCategory !== 'all') {
+        incomingBucketView = 'subcategory';
+      }
+      renderIncomingBucketBars(w);
+      syncIncomingBucketControls();
+      populateIncomingCategorySelect();
+    }
+
+    function handleIncomingCategoryBarClick(categoryName) {
+      selectedIncomingCategory = categoryName;
+      incomingBucketView = 'subcategory';
+      const w = getWeekWithBuckets(selWeek);
+      if (!w?.buckets) {
+        renderIncomingBucketLoading();
+        syncIncomingBucketControls();
+        return;
+      }
+      renderIncomingBucketBars(w);
+      syncIncomingBucketControls();
+      populateIncomingCategorySelect();
     }
 
     function setClosureMode(mode) {
@@ -1139,8 +1252,11 @@
       const isCategory = incomingBucketView === 'category';
       document.getElementById('incomingToggleCategory').classList.toggle('active', isCategory);
       document.getElementById('incomingToggleSubcategory').classList.toggle('active', !isCategory);
-      document.getElementById('incomingBucketCardTitle').textContent =
-        `Incoming tickets by ${incomingBucketView}`;
+      document.getElementById('incomingBucketCardTitle').textContent = incomingBucketView === 'category'
+        ? 'Incoming tickets by category'
+        : selectedIncomingCategory === 'all'
+          ? 'Incoming tickets by subcategory'
+          : `Incoming tickets by subcategory — ${selectedIncomingCategory}`;
     }
 
     function renderBucketLoading() {
@@ -1464,9 +1580,16 @@
     }
 
     function getIncomingBuckets(w) {
-      const raw = Array.isArray(w?.buckets?.incoming?.[incomingBucketView])
+      const source = Array.isArray(w?.buckets?.incoming?.[incomingBucketView])
         ? w.buckets.incoming[incomingBucketView]
         : [];
+
+      const raw = incomingBucketView === 'subcategory' && selectedIncomingCategory !== 'all'
+        ? source.filter((item) =>
+            item?.name !== 'Not tagged' &&
+            INCOMING_CATEGORY_BY_SUBCATEGORY.get(item?.name) === selectedIncomingCategory
+          )
+        : source;
 
       const total = raw.reduce((s, item) => s + (item.count || 0), 0) || 1;
 
@@ -1509,7 +1632,7 @@
       }
 
       container.innerHTML = buckets.map(b => `
-        <div class="bucket-row">
+        <div class="bucket-row"${incomingBucketView === 'category' && b.name !== 'Not tagged' ? ` role="button" tabindex="0" onclick="handleIncomingCategoryBarClick('${String(b.name).replace(/'/g, "\\'")}')" onkeypress="if(event.key==='Enter'||event.key===' '){event.preventDefault();handleIncomingCategoryBarClick('${String(b.name).replace(/'/g, "\\'")}')}" style="cursor:pointer"` : ''}>
           <div class="bucket-row-top">
             <div class="bucket-name"><span class="bdot" style="background:${b.color}"></span><span class="bucket-name-text">${b.name}</span></div>
             <div class="bucket-count">${b.count} · ${b.pct}%</div>
