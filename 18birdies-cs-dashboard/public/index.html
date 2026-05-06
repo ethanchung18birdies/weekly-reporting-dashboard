@@ -629,12 +629,193 @@
       color: var(--text);
     }
 
+    .trend-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .trend-title {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }
+
+    .trend-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .trend-filter-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .trend-chip {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-family: var(--mono);
+      cursor: pointer;
+    }
+
+    .trend-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .trend-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .trend-stat {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      padding: 12px;
+    }
+
+    .trend-stat-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .trend-stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .trend-stat-note {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .trend-tree {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .trend-row {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .trend-row-main {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(90px, 1fr));
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      cursor: pointer;
+    }
+
+    .trend-row-main.static-row {
+      cursor: default;
+    }
+
+    .trend-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .trend-name-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .trend-chevron {
+      width: 10px;
+      color: var(--muted2);
+      font-family: var(--mono);
+      font-size: 11px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .trend-metric {
+      text-align: right;
+    }
+
+    .trend-metric-value {
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--mono);
+    }
+
+    .trend-metric-label {
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--muted2);
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .trend-subrows {
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .trend-subrow {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(90px, 1fr));
+      gap: 10px;
+      align-items: center;
+      padding: 10px 14px 10px 32px;
+      border-top: 1px solid rgba(0,0,0,0.04);
+    }
+
+    .trend-subrow:first-child {
+      border-top: none;
+    }
+
+    .trend-empty {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 0;
+    }
+
     @media (max-width: 768px) {
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .two-col { grid-template-columns: 1fr; }
       .hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
       .goal-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
       .pace-pill { margin-left: 0; }
+      .trend-summary { grid-template-columns: 1fr; }
+      .trend-row-main, .trend-subrow {
+        grid-template-columns: 1fr;
+      }
+      .trend-metric { text-align: left; }
     }
 
     @media print {
@@ -792,11 +973,16 @@
         </div>
       </div>
 
-      <div>
-        <div class="section-label" id="bucketSectionLabel">Breakdown by category — both</div>
-        <div class="card" style="padding:0;overflow:hidden">
-          <table class="btable" id="bucketTable"></table>
+      <div class="card">
+        <div class="trend-head">
+          <div class="trend-title" id="incomingTrendTitle">Incoming trends — trailing 4 weeks</div>
+          <div class="trend-actions">
+            <button class="btn btn-ghost" style="color:var(--accent);border-color:var(--border2);background:var(--surface2)" onclick="resetIncomingTrendsView()">Reset view</button>
+          </div>
         </div>
+        <div class="trend-filter-row" id="incomingTrendFilters"></div>
+        <div class="trend-summary" id="incomingTrendSummary"></div>
+        <div class="trend-tree" id="incomingTrendTree"></div>
       </div>
     </div>
 
@@ -822,6 +1008,9 @@
     let closureMode = 'both';
     let selectedTeam = 'all';
     let selectedAssignee = 'all';
+    let incomingTrendSelectedCategories = new Set();
+    let incomingTrendExpandedCategories = new Set();
+    let incomingTrendRequestId = 0;
 
     const charts = {};
     const bucketCache = {};
@@ -956,6 +1145,159 @@
       if (index <= 0) return null;
       const w = allData.weeks[index - 1];
       return { ...w, buckets: bucketCache[w.startStr] || null };
+    }
+
+    function getIncomingTrendWeekIndices(index) {
+      const start = Math.max(0, index - 3);
+      const indices = [];
+      for (let i = start; i <= index; i++) indices.push(i);
+      return indices;
+    }
+
+    async function ensureBucketWeekLoaded(weekIdx, showLoading = false) {
+      const w = allData?.weeks?.[weekIdx];
+      if (!w) return null;
+      if (bucketCache[w.startStr]) return bucketCache[w.startStr];
+
+      if (showLoading) {
+        renderIncomingBucketLoading();
+        renderBucketLoading();
+      }
+
+      const res = await fetch(`/api/buckets?start=${w.startStr}&end=${w.endStr}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load buckets');
+
+      bucketCache[w.startStr] = data.buckets || {
+        closed: {
+          category: { withReply: [], noReply: [], both: [] },
+          subcategory: { withReply: [], noReply: [], both: [] },
+        },
+        incoming: {
+          category: [],
+          subcategory: [],
+        },
+      };
+
+      return bucketCache[w.startStr];
+    }
+
+    function forecastNextWeek(values) {
+      const cleaned = values.filter((v) => Number.isFinite(v));
+      if (!cleaned.length) return 0;
+      if (cleaned.length === 1) return Math.round(Math.max(0, cleaned[0]));
+
+      const mean = cleaned.reduce((sum, value) => sum + value, 0) / cleaned.length;
+      const first = cleaned[0];
+      const isFlat = cleaned.every((value) => Math.abs(value - first) < 0.01);
+      if (isFlat) return Math.round(Math.max(0, mean));
+
+      const xs = cleaned.map((_, idx) => idx);
+      const xMean = xs.reduce((sum, value) => sum + value, 0) / xs.length;
+      const numerator = cleaned.reduce((sum, value, idx) => sum + ((xs[idx] - xMean) * (value - mean)), 0);
+      const denominator = xs.reduce((sum, value) => sum + ((value - xMean) ** 2), 0);
+      if (!denominator) return Math.round(Math.max(0, mean));
+
+      const slope = numerator / denominator;
+      const intercept = mean - slope * xMean;
+      const next = intercept + slope * cleaned.length;
+
+      if (!Number.isFinite(next) || Math.abs(slope) < 0.01) {
+        return Math.round(Math.max(0, mean));
+      }
+
+      return Math.round(Math.max(0, next));
+    }
+
+    function getIncomingTrendData(weekIdx) {
+      const indices = getIncomingTrendWeekIndices(weekIdx);
+      const weeks = indices
+        .map((idx) => allData.weeks[idx])
+        .filter((week) => week && bucketCache[week.startStr]);
+
+      if (!weeks.length) return null;
+
+      const totalByWeek = [];
+      const weekCategoryMaps = [];
+      const categoryTotals = new Map();
+      const subcategoryTotals = new Map();
+      let totalIncoming = 0;
+      let notTaggedTotal = 0;
+
+      for (const week of weeks) {
+        const incomingCategoryRows = bucketCache[week.startStr]?.incoming?.category || [];
+        const incomingSubcategoryRows = bucketCache[week.startStr]?.incoming?.subcategory || [];
+
+        const weekCategoryMap = new Map(incomingCategoryRows.map((row) => [row.name, row.count || 0]));
+        weekCategoryMaps.push(weekCategoryMap);
+        const weekTotal = incomingCategoryRows.reduce((sum, row) => sum + (row.count || 0), 0);
+        totalByWeek.push(weekTotal);
+        totalIncoming += weekTotal;
+        notTaggedTotal += weekCategoryMap.get('Not tagged') || 0;
+
+        for (const row of incomingCategoryRows) {
+          const count = row.count || 0;
+          categoryTotals.set(row.name, (categoryTotals.get(row.name) || 0) + count);
+        }
+
+        for (const row of incomingSubcategoryRows) {
+          const count = row.count || 0;
+          subcategoryTotals.set(row.name, (subcategoryTotals.get(row.name) || 0) + count);
+        }
+      }
+
+      const categoryRows = Array.from(categoryTotals.entries())
+        .map(([name, count], idx) => {
+          const categorySeries = weekCategoryMaps.map((weekMap) => weekMap.get(name) || 0);
+          if (name === 'Not tagged') {
+            return {
+              name,
+              count,
+              pctOfTotal: totalIncoming > 0 ? Math.round((count / totalIncoming) * 1000) / 10 : 0,
+              forecast: forecastNextWeek(categorySeries),
+              color: BUCKET_COLORS[idx % BUCKET_COLORS.length],
+              subcategories: [],
+              isStandalone: true,
+            };
+          }
+
+          const subcategories = Array.from(subcategoryTotals.entries())
+            .filter(([subName, subCount]) =>
+              subCount > 0 && CATEGORY_BY_SUBCATEGORY.get(subName) === name
+            )
+            .map(([subName, subCount]) => ({
+              name: subName,
+              count: subCount,
+              pctOfTotal: totalIncoming > 0 ? Math.round((subCount / totalIncoming) * 1000) / 10 : 0,
+              pctOfCategory: count > 0 ? Math.round((subCount / count) * 1000) / 10 : 0,
+            }))
+            .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+          return {
+            name,
+            count,
+            pctOfTotal: totalIncoming > 0 ? Math.round((count / totalIncoming) * 1000) / 10 : 0,
+            forecast: forecastNextWeek(categorySeries),
+            color: BUCKET_COLORS[idx % BUCKET_COLORS.length],
+            subcategories,
+            isStandalone: false,
+          };
+        })
+        .filter((row) => row.count > 0)
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+      const availableCategories = categoryRows
+        .filter((row) => row.name !== 'Not tagged')
+        .map((row) => row.name);
+
+      return {
+        weeks,
+        totalIncoming,
+        totalForecast: forecastNextWeek(totalByWeek),
+        categoryRows,
+        availableCategories,
+        notTaggedTotal,
+      };
     }
 
     async function loadData(force = false) {
@@ -1130,7 +1472,6 @@
       if (bucketCache[w.startStr]) {
         renderIncomingBucketBars(w);
         renderBucketBars(w);
-        renderBucketTable(w, prev);
       } else {
         renderIncomingBucketLoading();
         renderBucketLoading();
@@ -1139,6 +1480,7 @@
       syncBucketControls();
       populateIncomingCategorySelect();
       populateClosedCategorySelect();
+      loadIncomingTrendsSection(selWeek);
 
       syncTeamSelect();
       populateAssigneeSelect();
@@ -1199,7 +1541,6 @@
         return;
       }
       renderBucketBars(w);
-      renderBucketTable(w, prev);
       syncBucketControls();
       populateClosedCategorySelect();
     }
@@ -1261,7 +1602,6 @@
         return;
       }
       renderBucketBars(w);
-      renderBucketTable(w, prev);
       syncBucketControls();
       populateClosedCategorySelect();
     }
@@ -1280,7 +1620,6 @@
         bucketView = 'subcategory';
       }
       renderBucketBars(w);
-      renderBucketTable(w, prev);
       syncBucketControls();
       populateClosedCategorySelect();
     }
@@ -1296,7 +1635,6 @@
         return;
       }
       renderBucketBars(w);
-      renderBucketTable(w, prev);
       syncBucketControls();
       populateClosedCategorySelect();
     }
@@ -1316,11 +1654,6 @@
         : selectedClosedCategory === 'all'
           ? `Closed tickets by subcategory — ${modeLabel}`
           : `Closed tickets by subcategory — ${selectedClosedCategory}`;
-      document.getElementById('bucketSectionLabel').textContent = bucketView === 'category'
-        ? `Breakdown by category — ${modeLabel}`
-        : selectedClosedCategory === 'all'
-          ? `Breakdown by subcategory — ${modeLabel}`
-          : `Breakdown by subcategory — ${selectedClosedCategory} — ${modeLabel}`;
     }
 
     function syncIncomingBucketControls() {
@@ -1336,19 +1669,11 @@
 
     function renderBucketLoading() {
       const bucketBars = document.getElementById('bucketBars');
-      const bucketTable = document.getElementById('bucketTable');
       if (bucketBars) bucketBars.innerHTML = `
         <div class="bucket-loading">
           <div class="bucket-spinner"></div>
           <span>Loading tag data...</span>
         </div>
-      `;
-      if (bucketTable) bucketTable.innerHTML = `
-        <tbody>
-          <tr>
-            <td style="padding:12px;color:var(--muted)">Loading tag data...</td>
-          </tr>
-        </tbody>
       `;
     }
 
@@ -1386,27 +1711,12 @@
       renderBucketLoading();
 
       try {
-        const res = await fetch(`/api/buckets?start=${w.startStr}&end=${w.endStr}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to load buckets');
-
-        bucketCache[w.startStr] = data.buckets || {
-          closed: {
-            category: { withReply: [], noReply: [], both: [] },
-            subcategory: { withReply: [], noReply: [], both: [] },
-          },
-          incoming: {
-            category: [],
-            subcategory: [],
-          },
-        };
-
+        await ensureBucketWeekLoaded(weekIdx, false);
         if (selWeek === weekIdx) renderAll();
       } catch (e) {
         console.error('Failed to load buckets:', e);
         document.getElementById('bucketBars').innerHTML = '<div class="empty-state">Failed to load tag data.</div>';
         document.getElementById('incomingBucketBars').innerHTML = '<div class="empty-state">Failed to load incoming tag data.</div>';
-        document.getElementById('bucketTable').innerHTML = '<tbody><tr><td style="padding:12px">Failed to load tag data.</td></tr></tbody>';
       }
     }
 
@@ -1722,6 +2032,183 @@
           <div class="prog-bg"><div class="prog-fill" style="width:${b.pct}%;background:${b.color}"></div></div>
         </div>
       `).join('');
+    }
+
+    function renderIncomingTrendsLoading() {
+      const title = document.getElementById('incomingTrendTitle');
+      const filters = document.getElementById('incomingTrendFilters');
+      const summary = document.getElementById('incomingTrendSummary');
+      const tree = document.getElementById('incomingTrendTree');
+      if (title) title.textContent = 'Incoming trends — trailing 4 weeks';
+      if (filters) filters.innerHTML = '';
+      if (summary) summary.innerHTML = `
+        <div class="bucket-loading">
+          <div class="bucket-spinner"></div>
+          <span>Loading trailing 4-week incoming trends...</span>
+        </div>
+      `;
+      if (tree) tree.innerHTML = '';
+    }
+
+    function resetIncomingTrendsView() {
+      incomingTrendSelectedCategories = new Set();
+      incomingTrendExpandedCategories = new Set();
+      renderIncomingTrendsSection(selWeek);
+    }
+
+    function toggleIncomingTrendCategoryFilter(categoryName) {
+      const next = new Set(incomingTrendSelectedCategories);
+      if (next.has(categoryName)) next.delete(categoryName);
+      else next.add(categoryName);
+      incomingTrendSelectedCategories = next;
+      renderIncomingTrendsSection(selWeek);
+    }
+
+    function toggleIncomingTrendCategoryExpand(categoryName) {
+      const next = new Set(incomingTrendExpandedCategories);
+      if (next.has(categoryName)) next.delete(categoryName);
+      else next.add(categoryName);
+      incomingTrendExpandedCategories = next;
+      renderIncomingTrendsSection(selWeek);
+    }
+
+    async function loadIncomingTrendsSection(weekIdx) {
+      const requestId = ++incomingTrendRequestId;
+      renderIncomingTrendsLoading();
+
+      try {
+        const indices = getIncomingTrendWeekIndices(weekIdx);
+        await Promise.all(indices.map((idx) => ensureBucketWeekLoaded(idx, false)));
+        if (requestId !== incomingTrendRequestId || weekIdx !== selWeek) return;
+        renderIncomingTrendsSection(weekIdx);
+      } catch (e) {
+        console.error('Failed to load incoming trends:', e);
+        const summary = document.getElementById('incomingTrendSummary');
+        const tree = document.getElementById('incomingTrendTree');
+        if (summary) summary.innerHTML = '<div class="trend-empty">Failed to load incoming trend summary.</div>';
+        if (tree) tree.innerHTML = '<div class="trend-empty">Unable to load trailing 4-week incoming trends.</div>';
+      }
+    }
+
+    function renderIncomingTrendsSection(weekIdx) {
+      const trendData = getIncomingTrendData(weekIdx);
+      const title = document.getElementById('incomingTrendTitle');
+      const filters = document.getElementById('incomingTrendFilters');
+      const summary = document.getElementById('incomingTrendSummary');
+      const tree = document.getElementById('incomingTrendTree');
+      if (!title || !filters || !summary || !tree) return;
+
+      if (!trendData || !trendData.weeks.length) {
+        title.textContent = 'Incoming trends — trailing 4 weeks';
+        filters.innerHTML = '';
+        summary.innerHTML = '<div class="trend-empty">No incoming bucket data is available for the trailing 4-week window.</div>';
+        tree.innerHTML = '';
+        return;
+      }
+
+      const available = new Set(trendData.availableCategories);
+      incomingTrendSelectedCategories = new Set(
+        Array.from(incomingTrendSelectedCategories).filter((name) => available.has(name))
+      );
+      incomingTrendExpandedCategories = new Set(
+        Array.from(incomingTrendExpandedCategories).filter((name) => available.has(name))
+      );
+
+      const visibleRows = incomingTrendSelectedCategories.size
+        ? trendData.categoryRows.filter((row) => row.name === 'Not tagged' || incomingTrendSelectedCategories.has(row.name))
+        : trendData.categoryRows;
+
+      const categoryForecasts = visibleRows
+        .filter((row) => row.name !== 'Not tagged')
+        .sort((a, b) => b.forecast - a.forecast || a.name.localeCompare(b.name))
+        .slice(0, 3);
+
+      const weekRange = `${trendData.weeks[0].label} to ${trendData.weeks[trendData.weeks.length - 1].label}`;
+      title.textContent = `Incoming trends — trailing 4 weeks (${weekRange})`;
+
+      filters.innerHTML = trendData.availableCategories.map((name) => `
+        <button class="trend-chip ${incomingTrendSelectedCategories.has(name) ? 'active' : ''}" onclick="toggleIncomingTrendCategoryFilter('${String(name).replace(/'/g, "\\'")}')">${name}</button>
+      `).join('');
+
+      summary.innerHTML = `
+        <div class="trend-stat">
+          <div class="trend-stat-label">4-Week Incoming Total</div>
+          <div class="trend-stat-value">${trendData.totalIncoming.toLocaleString()}</div>
+          <div class="trend-stat-note">${trendData.weeks.length} week window</div>
+        </div>
+        <div class="trend-stat">
+          <div class="trend-stat-label">Forecast Next Week</div>
+          <div class="trend-stat-value">${trendData.totalForecast.toLocaleString()}</div>
+          <div class="trend-stat-note">Linear trend fallback to mean</div>
+        </div>
+        <div class="trend-stat">
+          <div class="trend-stat-label">Top Category Forecasts</div>
+          <div class="trend-stat-value">${categoryForecasts.map((row) => `${row.name}: ${row.forecast}`).join(' · ') || '—'}</div>
+          <div class="trend-stat-note">Visible categories only</div>
+        </div>
+      `;
+
+      if (!visibleRows.length) {
+        tree.innerHTML = '<div class="trend-empty">No categories match the current filter selection.</div>';
+        return;
+      }
+
+      tree.innerHTML = visibleRows.map((row) => {
+        const expanded = incomingTrendExpandedCategories.has(row.name);
+        const chevron = row.isStandalone ? '•' : expanded ? '−' : '+';
+        const subrows = !row.isStandalone && expanded
+          ? `
+            <div class="trend-subrows">
+              ${row.subcategories.length
+                ? row.subcategories.map((sub) => `
+                  <div class="trend-subrow">
+                    <div class="trend-name">
+                      <span class="trend-name-text">${sub.name}</span>
+                    </div>
+                    <div class="trend-metric">
+                      <div class="trend-metric-value">${sub.count.toLocaleString()}</div>
+                      <div class="trend-metric-label">4-week tickets</div>
+                    </div>
+                    <div class="trend-metric">
+                      <div class="trend-metric-value">${sub.pctOfTotal.toFixed(1)}%</div>
+                      <div class="trend-metric-label">of total</div>
+                    </div>
+                    <div class="trend-metric">
+                      <div class="trend-metric-value">${sub.pctOfCategory.toFixed(1)}%</div>
+                      <div class="trend-metric-label">of category</div>
+                    </div>
+                  </div>
+                `).join('')
+                : `<div class="trend-subrow"><div class="trend-empty">No mapped subcategories in this 4-week window.</div></div>`}
+            </div>
+          `
+          : '';
+
+        return `
+          <div class="trend-row">
+            <div class="trend-row-main ${row.isStandalone ? 'static-row' : ''}"${row.isStandalone ? '' : ` onclick="toggleIncomingTrendCategoryExpand('${String(row.name).replace(/'/g, "\\'")}')"`}>
+              <div class="trend-name">
+                <span class="trend-chevron">${chevron}</span>
+                <span class="bdot" style="background:${row.color}"></span>
+                <span class="trend-name-text">${row.name}</span>
+              </div>
+              <div class="trend-metric">
+                <div class="trend-metric-value">${row.count.toLocaleString()}</div>
+                <div class="trend-metric-label">4-week tickets</div>
+              </div>
+              <div class="trend-metric">
+                <div class="trend-metric-value">${row.pctOfTotal.toFixed(1)}%</div>
+                <div class="trend-metric-label">of total</div>
+              </div>
+              <div class="trend-metric">
+                <div class="trend-metric-value">${row.forecast.toLocaleString()}</div>
+                <div class="trend-metric-label">next week forecast</div>
+              </div>
+            </div>
+            ${subrows}
+          </div>
+        `;
+      }).join('');
     }
 
     function renderBucketTable(w, prev) {
