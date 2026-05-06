@@ -1014,6 +1014,7 @@
 
     const charts = {};
     const bucketCache = {};
+    const bucketLoadPromises = {};
     const assigneeCache = {};
     const assigneeSubcategoryCache = {};
     const TEAM_OPTIONS = {
@@ -1158,28 +1159,37 @@
       const w = allData?.weeks?.[weekIdx];
       if (!w) return null;
       if (bucketCache[w.startStr]) return bucketCache[w.startStr];
+      if (bucketLoadPromises[w.startStr]) return bucketLoadPromises[w.startStr];
 
       if (showLoading) {
         renderIncomingBucketLoading();
         renderBucketLoading();
       }
 
-      const res = await fetch(`/api/buckets?start=${w.startStr}&end=${w.endStr}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load buckets');
+      bucketLoadPromises[w.startStr] = (async () => {
+        const res = await fetch(`/api/buckets?start=${w.startStr}&end=${w.endStr}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load buckets');
 
-      bucketCache[w.startStr] = data.buckets || {
-        closed: {
-          category: { withReply: [], noReply: [], both: [] },
-          subcategory: { withReply: [], noReply: [], both: [] },
-        },
-        incoming: {
-          category: [],
-          subcategory: [],
-        },
-      };
+        bucketCache[w.startStr] = data.buckets || {
+          closed: {
+            category: { withReply: [], noReply: [], both: [] },
+            subcategory: { withReply: [], noReply: [], both: [] },
+          },
+          incoming: {
+            category: [],
+            subcategory: [],
+          },
+        };
 
-      return bucketCache[w.startStr];
+        return bucketCache[w.startStr];
+      })();
+
+      try {
+        return await bucketLoadPromises[w.startStr];
+      } finally {
+        delete bucketLoadPromises[w.startStr];
+      }
     }
 
     function forecastNextWeek(values) {
@@ -1263,7 +1273,7 @@
 
           const subcategories = Array.from(subcategoryTotals.entries())
             .filter(([subName, subCount]) =>
-              subCount > 0 && CATEGORY_BY_SUBCATEGORY.get(subName) === name
+              subCount > 0 && INCOMING_CATEGORY_BY_SUBCATEGORY.get(subName) === name
             )
             .map(([subName, subCount]) => ({
               name: subName,
@@ -2074,10 +2084,19 @@
 
     async function loadIncomingTrendsSection(weekIdx) {
       const requestId = ++incomingTrendRequestId;
-      renderIncomingTrendsLoading();
+      const indices = getIncomingTrendWeekIndices(weekIdx);
+      const hasMissingWeeks = indices.some((idx) => {
+        const week = allData?.weeks?.[idx];
+        return week && !bucketCache[week.startStr];
+      });
+
+      if (hasMissingWeeks) {
+        renderIncomingTrendsLoading();
+      } else {
+        renderIncomingTrendsSection(weekIdx);
+      }
 
       try {
-        const indices = getIncomingTrendWeekIndices(weekIdx);
         await Promise.all(indices.map((idx) => ensureBucketWeekLoaded(idx, false)));
         if (requestId !== incomingTrendRequestId || weekIdx !== selWeek) return;
         renderIncomingTrendsSection(weekIdx);
