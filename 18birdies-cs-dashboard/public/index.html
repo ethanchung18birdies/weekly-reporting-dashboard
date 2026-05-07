@@ -1163,8 +1163,8 @@
     const bucketLoadPromises = {};
     const assigneeCache = {};
     const assigneeSubcategoryCache = {};
-    const incomingTrendDebugCache = {};
-    const incomingTrendDebugLoadPromises = {};
+    const incomingTrendWindowCache = {};
+    const incomingTrendWindowLoadPromises = {};
     const TEAM_OPTIONS = {
       all: 'All Teams',
       general: 'General Customer Support',
@@ -1446,7 +1446,9 @@
 
     function getIncomingTrendData(weekIdx) {
       const trendWindow = getIncomingTrendWindow(weekIdx);
-      const weeks = trendWindow?.weeks?.filter((week) => bucketCache[week.startStr]) || [];
+      const cacheKey = trendWindow ? `${trendWindow.startStr}_${trendWindow.endStr}` : null;
+      const trendResponse = cacheKey ? incomingTrendWindowCache[cacheKey] : null;
+      const weeks = trendResponse?.weeks || [];
 
       if (!weeks.length) return null;
 
@@ -1462,8 +1464,8 @@
       let notTaggedTotal = 0;
 
       for (const week of weeks) {
-        const incomingCategoryRows = bucketCache[week.startStr]?.incoming?.category || [];
-        const incomingSubcategoryRows = bucketCache[week.startStr]?.incoming?.subcategory || [];
+        const incomingCategoryRows = week.categoryCounts || [];
+        const incomingSubcategoryRows = week.subcategoryCounts || [];
 
         const weekCategoryMap = new Map(incomingCategoryRows.map((row) => [row.name, row.count || 0]));
         const weekSubcategoryMap = new Map(incomingSubcategoryRows.map((row) => [row.name, row.count || 0]));
@@ -1576,6 +1578,7 @@
         notTaggedTotal,
         topSubcategoryForecasts,
         normalization,
+        sampleNotTaggedTickets: trendResponse?.sampleNotTaggedTickets || [],
       };
     }
 
@@ -2393,45 +2396,6 @@
       loadIncomingTrendsSection(selWeek);
     }
 
-    function getIncomingTrendDebugKey(startStr, endStr, category = 'all') {
-      return `${startStr}_${endStr}_${category || 'all'}`;
-    }
-
-    async function loadIncomingTrendDebug(weekIdx, category = 'all') {
-      const trendWindow = getIncomingTrendWindow(weekIdx);
-      if (!trendWindow) return;
-
-      const cacheKey = getIncomingTrendDebugKey(trendWindow.startStr, trendWindow.endStr, category);
-      if (incomingTrendDebugCache[cacheKey]) {
-        renderIncomingTrendsSection(weekIdx);
-        return;
-      }
-
-      if (incomingTrendDebugLoadPromises[cacheKey]) {
-        await incomingTrendDebugLoadPromises[cacheKey];
-        return;
-      }
-
-      incomingTrendDebugLoadPromises[cacheKey] = (async () => {
-        const res = await fetch(`/api/incoming-not-tagged?start=${trendWindow.startStr}&end=${trendWindow.endStr}&category=${encodeURIComponent(category)}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || data.error || 'Failed to inspect not tagged tickets');
-        incomingTrendDebugCache[cacheKey] = data;
-      })();
-
-      try {
-        await incomingTrendDebugLoadPromises[cacheKey];
-      } catch (e) {
-        incomingTrendDebugCache[cacheKey] = { error: e.message, tickets: [] };
-      } finally {
-        delete incomingTrendDebugLoadPromises[cacheKey];
-      }
-
-      if (selWeek === weekIdx && incomingTrendsGeneratedWeek === getIncomingTrendsWeekKey(weekIdx)) {
-        renderIncomingTrendsSection(weekIdx);
-      }
-    }
-
     function renderIncomingTrendDebugPanel(weekIdx, trendData) {
       const panel = document.getElementById('incomingTrendDebugPanel');
       if (!panel) return;
@@ -2440,47 +2404,8 @@
         panel.innerHTML = '';
         return;
       }
-
-      const category = 'all';
-      const cacheKey = getIncomingTrendDebugKey(trendData.startStr, trendData.endStr, category);
-      const cached = incomingTrendDebugCache[cacheKey];
       const title = 'Sample tickets currently counted as Not tagged';
-
-      if (!cached && incomingTrendDebugLoadPromises[cacheKey]) {
-        panel.innerHTML = `
-          <div class="trend-debug-panel">
-            <div class="bucket-loading">
-              <div class="bucket-spinner"></div>
-              <span>Loading ticket-level investigation...</span>
-            </div>
-          </div>
-        `;
-        return;
-      }
-
-      if (!cached) {
-        loadIncomingTrendDebug(weekIdx, category);
-        panel.innerHTML = `
-          <div class="trend-debug-panel">
-            <div class="bucket-loading">
-              <div class="bucket-spinner"></div>
-              <span>Loading sample not tagged tickets...</span>
-            </div>
-          </div>
-        `;
-        return;
-      }
-
-      if (cached.error) {
-        panel.innerHTML = `
-          <div class="trend-debug-panel">
-            <div class="trend-empty">${escapeHtml(cached.error)}</div>
-          </div>
-        `;
-        return;
-      }
-
-      const tickets = Array.isArray(cached.tickets) ? cached.tickets : [];
+      const tickets = Array.isArray(trendData.sampleNotTaggedTickets) ? trendData.sampleNotTaggedTickets : [];
       const previewTickets = tickets.slice(0, 5);
       panel.innerHTML = `
         <div class="trend-debug-panel">
@@ -2518,20 +2443,32 @@
       }
 
       const requestId = ++incomingTrendRequestId;
-      const indices = getIncomingTrendWeekIndices(weekIdx);
-      const hasMissingWeeks = indices.some((idx) => {
-        const week = allData?.weeks?.[idx];
-        return week && !bucketCache[week.startStr];
-      });
+      const trendWindow = getIncomingTrendWindow(weekIdx);
+      const cacheKey = trendWindow ? `${trendWindow.startStr}_${trendWindow.endStr}` : null;
+      const hasMissingWindow = cacheKey && !incomingTrendWindowCache[cacheKey];
 
-      if (hasMissingWeeks) {
+      if (hasMissingWindow) {
         renderIncomingTrendsLoading();
       } else {
         renderIncomingTrendsSection(weekIdx);
       }
 
       try {
-        await Promise.all(indices.map((idx) => ensureBucketWeekLoaded(idx, false)));
+        if (cacheKey && !incomingTrendWindowCache[cacheKey]) {
+          if (!incomingTrendWindowLoadPromises[cacheKey]) {
+            incomingTrendWindowLoadPromises[cacheKey] = (async () => {
+              const res = await fetch(`/api/incoming-trends?start=${trendWindow.startStr}&end=${trendWindow.endStr}`);
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.detail || data.error || 'Failed to load incoming trends');
+              incomingTrendWindowCache[cacheKey] = data;
+            })();
+          }
+          try {
+            await incomingTrendWindowLoadPromises[cacheKey];
+          } finally {
+            delete incomingTrendWindowLoadPromises[cacheKey];
+          }
+        }
         if (requestId !== incomingTrendRequestId || weekIdx !== selWeek) return;
         renderIncomingTrendsSection(weekIdx);
       } catch (e) {
