@@ -2492,16 +2492,18 @@
               ? `<div class="trend-debug-list">${previewTickets.map((ticket) => `
                   <div class="trend-debug-item">
                     <div class="trend-debug-item-head">
-                      <div class="trend-debug-subject">${escapeHtml(ticket.subject || '(No subject)')}</div>
+                      <a
+                        class="trend-debug-subject"
+                        href="https://secure.helpscout.net/conversation/${encodeURIComponent(ticket.id || '')}${ticket.number ? `/${encodeURIComponent(ticket.number)}` : ''}/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        ${escapeHtml(ticket.subject || '(No subject)')}
+                      </a>
                       <div class="trend-debug-meta">
                         <span>#${escapeHtml(ticket.number || ticket.id || '—')}</span>
-                        <span>${escapeHtml(ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('en-US') : 'Unknown date')}</span>
-                        <span>${escapeHtml(ticket.assignee || 'Unassigned')}</span>
                       </div>
                     </div>
-                    <div class="trend-debug-tags">Matched categories: ${escapeHtml((ticket.matchedCategories || []).join(', ') || 'None')}</div>
-                    <div class="trend-debug-tags">Matched subcategories: ${escapeHtml((ticket.matchedSubcategories || []).join(', ') || 'None')}</div>
-                    <div class="trend-debug-tags">All tags: ${escapeHtml((ticket.tags || []).join(', ') || 'None')}</div>
                   </div>
                 `).join('')}</div>`
               : `<div class="trend-empty">No sample tickets were returned for this window.</div>`
