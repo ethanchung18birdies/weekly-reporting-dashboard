@@ -8,7 +8,6 @@ let _tokenCache = null;
 let _tagIdCache = null;
 const _assigneeWeekCache = new Map();
 const _assigneeSubcategoryCache = new Map();
-const _incomingNotTaggedCache = new Map();
 
 async function getAccessToken() {
   if (_tokenCache && _tokenCache.expiresAt > Date.now() + 60_000) {
@@ -511,79 +510,6 @@ function buildIncomingDebug(categoryMetrics, subcategoryMetrics, totalOpened) {
     unmappedRecognizedSubcategories,
     categoryComparisons,
   };
-}
-
-export async function fetchIncomingNotTaggedTickets(startStr, endStr, category = 'all') {
-  const normalizedCategory = category && category !== 'all' ? String(category) : 'all';
-  const cacheKey = `${startStr}_${endStr}_${normalizedCategory}`;
-  const cached = _incomingNotTaggedCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
-
-  const categoryTagNames = new Map(CATEGORY_TAGS.map((item) => [normalizeName(item.hsName), item.name]));
-  const subcategoryTagNames = new Map(SUBCATEGORY_TAGS.map((item) => [normalizeName(item.hsName), item.name]));
-
-  const conversations = await listConversationsCreatedInRange(startStr, endStr);
-  const tickets = [];
-
-  for (const conversation of conversations) {
-    const tagNames = getTagNames(conversation);
-    const normalizedTags = tagNames.map(normalizeName);
-
-    const matchedCategories = Array.from(
-      new Set(normalizedTags.map((tag) => categoryTagNames.get(tag)).filter(Boolean))
-    );
-    const matchedSubcategories = Array.from(
-      new Set(normalizedTags.map((tag) => subcategoryTagNames.get(tag)).filter(Boolean))
-    );
-    const matchedMappedCategories = Array.from(
-      new Set(matchedSubcategories.map((name) => CATEGORY_BY_SUBCATEGORY.get(name)).filter(Boolean))
-    );
-
-    const isGlobalNotTagged = matchedCategories.length === 0 && matchedMappedCategories.length === 0;
-    const isCategoryResidual = normalizedCategory !== 'all'
-      ? matchedCategories.includes(normalizedCategory) &&
-        !matchedMappedCategories.includes(normalizedCategory)
-      : false;
-
-    if (!isGlobalNotTagged && !isCategoryResidual) continue;
-
-    const assignee =
-      conversation?.assignedTo?.firstName && conversation?.assignedTo?.lastName
-        ? `${conversation.assignedTo.firstName} ${conversation.assignedTo.lastName}`.trim()
-        : conversation?.assignedTo?.name ||
-          conversation?.owner?.name ||
-          conversation?.primaryCustomer?.email ||
-          null;
-
-    tickets.push({
-      id: conversation?.id,
-      number: conversation?.number ?? null,
-      subject: conversation?.subject || '(No subject)',
-      createdAt: conversation?.createdAt || conversation?.createdAtUtc || null,
-      assignee,
-      matchedCategories,
-      matchedSubcategories,
-      matchedMappedCategories,
-      tags: tagNames,
-    });
-  }
-
-  const data = {
-    startStr,
-    endStr,
-    category: normalizedCategory,
-    totalTickets: tickets.length,
-    tickets: tickets.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))),
-  };
-
-  _incomingNotTaggedCache.set(cacheKey, {
-    data,
-    expiresAt: Date.now() + 10 * 60 * 1000,
-  });
-
-  return data;
 }
 
 // Fast report — overall metrics only, no per-tag breakdown

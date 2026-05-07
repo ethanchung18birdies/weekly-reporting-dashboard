@@ -870,84 +870,6 @@
       padding: 8px 0;
     }
 
-    .trend-debug-panel {
-      margin-top: 12px;
-      border-top: 1px solid var(--border);
-      padding-top: 12px;
-    }
-
-    .trend-debug-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-
-    .trend-debug-title {
-      font-size: 11px;
-      font-family: var(--mono);
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-    }
-
-    .trend-debug-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .trend-debug-item {
-      border: 1px solid var(--border);
-      background: var(--surface2);
-      border-radius: 8px;
-      padding: 10px 12px;
-    }
-
-    .trend-debug-item-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 4px;
-    }
-
-    .trend-debug-subject {
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .trend-debug-meta {
-      font-size: 11px;
-      color: var(--muted);
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .trend-debug-tags {
-      font-size: 11px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .mini-link-btn {
-      border: none;
-      background: none;
-      color: var(--blue);
-      font-size: 11px;
-      font-family: var(--mono);
-      cursor: pointer;
-      padding: 0;
-    }
-
-    .mini-link-btn:hover {
-      text-decoration: underline;
-    }
-
     @media (max-width: 768px) {
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .two-col { grid-template-columns: 1fr; }
@@ -1127,7 +1049,6 @@
         <div class="trend-filter-row" id="incomingTrendFilters"></div>
         <div class="trend-summary" id="incomingTrendSummary"></div>
         <div class="trend-tree" id="incomingTrendTree"></div>
-        <div id="incomingTrendDebugPanel"></div>
       </div>
     </div>
 
@@ -2325,7 +2246,6 @@
       const filters = document.getElementById('incomingTrendFilters');
       const summary = document.getElementById('incomingTrendSummary');
       const tree = document.getElementById('incomingTrendTree');
-      const debugPanel = document.getElementById('incomingTrendDebugPanel');
       if (title) title.textContent = 'Incoming trends — trailing 4 weeks';
       if (filters) filters.innerHTML = '';
       if (summary) summary.innerHTML = `
@@ -2335,7 +2255,6 @@
         </div>
       `;
       if (tree) tree.innerHTML = '';
-      if (debugPanel) debugPanel.innerHTML = '';
       const generateBtn = document.getElementById('incomingTrendGenerateBtn');
       if (generateBtn) {
         generateBtn.disabled = true;
@@ -2348,14 +2267,12 @@
       const filters = document.getElementById('incomingTrendFilters');
       const summary = document.getElementById('incomingTrendSummary');
       const tree = document.getElementById('incomingTrendTree');
-      const debugPanel = document.getElementById('incomingTrendDebugPanel');
       const generateBtn = document.getElementById('incomingTrendGenerateBtn');
 
       if (title) title.textContent = 'Incoming trends — trailing 4 weeks';
       if (filters) filters.innerHTML = '';
       if (summary) summary.innerHTML = '<div class="trend-empty">Click Generate to load the trailing 4-week incoming trends.</div>';
       if (tree) tree.innerHTML = '';
-      if (debugPanel) debugPanel.innerHTML = '';
       if (generateBtn) {
         generateBtn.disabled = false;
         generateBtn.textContent = 'Generate';
@@ -2391,125 +2308,6 @@
     function generateIncomingTrends() {
       incomingTrendsGeneratedWeek = getIncomingTrendsWeekKey(selWeek);
       loadIncomingTrendsSection(selWeek);
-    }
-
-    function getIncomingTrendDebugKey(startStr, endStr, category = 'all') {
-      return `${startStr}_${endStr}_${category || 'all'}`;
-    }
-
-    async function loadIncomingTrendDebug(weekIdx, category = 'all') {
-      const trendWindow = getIncomingTrendWindow(weekIdx);
-      if (!trendWindow) return;
-
-      const cacheKey = getIncomingTrendDebugKey(trendWindow.startStr, trendWindow.endStr, category);
-      if (incomingTrendDebugCache[cacheKey]) {
-        renderIncomingTrendsSection(weekIdx);
-        return;
-      }
-
-      if (incomingTrendDebugLoadPromises[cacheKey]) {
-        await incomingTrendDebugLoadPromises[cacheKey];
-        return;
-      }
-
-      incomingTrendDebugLoadPromises[cacheKey] = (async () => {
-        const res = await fetch(`/api/incoming-not-tagged?start=${trendWindow.startStr}&end=${trendWindow.endStr}&category=${encodeURIComponent(category)}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || data.error || 'Failed to inspect not tagged tickets');
-        incomingTrendDebugCache[cacheKey] = data;
-      })();
-
-      try {
-        await incomingTrendDebugLoadPromises[cacheKey];
-      } catch (e) {
-        incomingTrendDebugCache[cacheKey] = { error: e.message, tickets: [] };
-      } finally {
-        delete incomingTrendDebugLoadPromises[cacheKey];
-      }
-
-      if (selWeek === weekIdx && incomingTrendsGeneratedWeek === getIncomingTrendsWeekKey(weekIdx)) {
-        renderIncomingTrendsSection(weekIdx);
-      }
-    }
-
-    function renderIncomingTrendDebugPanel(weekIdx, trendData) {
-      const panel = document.getElementById('incomingTrendDebugPanel');
-      if (!panel) return;
-
-      if (!trendData?.notTaggedTotal) {
-        panel.innerHTML = '';
-        return;
-      }
-
-      const category = 'all';
-      const cacheKey = getIncomingTrendDebugKey(trendData.startStr, trendData.endStr, category);
-      const cached = incomingTrendDebugCache[cacheKey];
-      const title = 'Sample tickets currently counted as Not tagged';
-
-      if (!cached && incomingTrendDebugLoadPromises[cacheKey]) {
-        panel.innerHTML = `
-          <div class="trend-debug-panel">
-            <div class="bucket-loading">
-              <div class="bucket-spinner"></div>
-              <span>Loading ticket-level investigation...</span>
-            </div>
-          </div>
-        `;
-        return;
-      }
-
-      if (!cached) {
-        loadIncomingTrendDebug(weekIdx, category);
-        panel.innerHTML = `
-          <div class="trend-debug-panel">
-            <div class="bucket-loading">
-              <div class="bucket-spinner"></div>
-              <span>Loading sample not tagged tickets...</span>
-            </div>
-          </div>
-        `;
-        return;
-      }
-
-      if (cached.error) {
-        panel.innerHTML = `
-          <div class="trend-debug-panel">
-            <div class="trend-empty">${escapeHtml(cached.error)}</div>
-          </div>
-        `;
-        return;
-      }
-
-      const tickets = Array.isArray(cached.tickets) ? cached.tickets : [];
-      const previewTickets = tickets.slice(0, 5);
-      panel.innerHTML = `
-        <div class="trend-debug-panel">
-          <div class="trend-debug-head">
-            <div class="trend-debug-title">${escapeHtml(title)} · showing ${previewTickets.length} of ${tickets.length}</div>
-          </div>
-          ${
-            previewTickets.length
-              ? `<div class="trend-debug-list">${previewTickets.map((ticket) => `
-                  <div class="trend-debug-item">
-                    <div class="trend-debug-item-head">
-                      <a
-                        class="trend-debug-subject"
-                        href="https://secure.helpscout.net/conversation/${encodeURIComponent(ticket.id || '')}${ticket.number ? `/${encodeURIComponent(ticket.number)}` : ''}/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        ${escapeHtml(ticket.subject || '(No subject)')}
-                      </a>
-                      <div class="trend-debug-meta">
-                        <span>#${escapeHtml(ticket.number || ticket.id || '—')}</span>
-                      </div>
-                    </div>
-                  </div>
-                `).join('')}</div>`
-              : `<div class="trend-empty">No sample tickets were returned for this window.</div>`
-          }
-        </div>
-      `;
     }
 
     async function loadIncomingTrendsSection(weekIdx) {
@@ -2555,7 +2353,6 @@
       const filters = document.getElementById('incomingTrendFilters');
       const summary = document.getElementById('incomingTrendSummary');
       const tree = document.getElementById('incomingTrendTree');
-      const debugPanel = document.getElementById('incomingTrendDebugPanel');
       const generateBtn = document.getElementById('incomingTrendGenerateBtn');
       if (!title || !filters || !summary || !tree) return;
       if (generateBtn) {
@@ -2568,7 +2365,6 @@
         filters.innerHTML = '';
         summary.innerHTML = '<div class="trend-empty">No incoming bucket data is available for the trailing 4-week window.</div>';
         tree.innerHTML = '';
-        if (debugPanel) debugPanel.innerHTML = '';
         return;
       }
 
@@ -2632,7 +2428,6 @@
 
       if (!visibleRows.length) {
         tree.innerHTML = '<div class="trend-empty">No categories match the current filter selection.</div>';
-        if (debugPanel) debugPanel.innerHTML = '';
         return;
       }
 
@@ -2693,7 +2488,6 @@
         `;
       }).join('');
 
-      renderIncomingTrendDebugPanel(weekIdx, trendData);
     }
 
     function renderBucketTable(w, prev) {
