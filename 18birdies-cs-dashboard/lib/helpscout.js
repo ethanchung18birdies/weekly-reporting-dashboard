@@ -9,7 +9,6 @@ let _tagIdCache = null;
 const _assigneeWeekCache = new Map();
 const _assigneeSubcategoryCache = new Map();
 const _incomingNotTaggedCache = new Map();
-const _incomingTrendCache = new Map();
 
 async function getAccessToken() {
   if (_tokenCache && _tokenCache.expiresAt > Date.now() + 60_000) {
@@ -268,10 +267,6 @@ async function resolveTagConfig(config) {
 
 function normalizeName(value) {
   return String(value || '').trim().toLowerCase();
-}
-
-function formatWeekLabel(startStr) {
-  return `W${String(startStr).slice(5).replace('-', '/')}`;
 }
 
 function getTagNames(conversation) {
@@ -584,127 +579,6 @@ export async function fetchIncomingNotTaggedTickets(startStr, endStr, category =
   };
 
   _incomingNotTaggedCache.set(cacheKey, {
-    data,
-    expiresAt: Date.now() + 10 * 60 * 1000,
-  });
-
-  return data;
-}
-
-export async function fetchIncomingTrendWindow(startStr, endStr) {
-  const cacheKey = `${startStr}_${endStr}`;
-  const cached = _incomingTrendCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
-
-  const categoryTagNames = new Map(CATEGORY_TAGS.map((item) => [normalizeName(item.hsName), item.name]));
-  const subcategoryTagNames = new Map(SUBCATEGORY_TAGS.map((item) => [normalizeName(item.hsName), item.name]));
-
-  const rangeStart = new Date(`${startStr}T00:00:00Z`);
-  const rangeEnd = new Date(`${endStr}T23:59:59Z`);
-  const weekMap = new Map();
-  const notTaggedTickets = [];
-
-  for (let cursor = new Date(rangeStart); cursor <= rangeEnd; cursor.setUTCDate(cursor.getUTCDate() + 7)) {
-    const weekStart = formatDate(cursor);
-    const weekEndDate = new Date(cursor);
-    weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
-    weekMap.set(weekStart, {
-      label: formatWeekLabel(weekStart),
-      startStr: weekStart,
-      endStr: formatDate(weekEndDate),
-      totalIncoming: 0,
-      categoryCounts: new Map(),
-      subcategoryCounts: new Map(),
-    });
-  }
-
-  const conversations = await listConversationsCreatedInRange(startStr, endStr);
-
-  for (const conversation of conversations) {
-    const createdAtRaw =
-      conversation?.createdAt ||
-      conversation?.createdAtUtc ||
-      conversation?.createdAtUTC ||
-      conversation?.createdAtDate;
-    if (!createdAtRaw) continue;
-
-    const createdAt = new Date(createdAtRaw);
-    if (Number.isNaN(createdAt.getTime())) continue;
-    const weekStart = formatDate(startOfWeek(createdAt));
-    const bucket = weekMap.get(weekStart);
-    if (!bucket) continue;
-
-    const tagNames = getTagNames(conversation);
-    const normalizedTags = tagNames.map(normalizeName);
-    const matchedCategories = Array.from(
-      new Set(normalizedTags.map((tag) => categoryTagNames.get(tag)).filter(Boolean))
-    );
-    const matchedSubcategories = Array.from(
-      new Set(normalizedTags.map((tag) => subcategoryTagNames.get(tag)).filter(Boolean))
-    );
-    const mappedCategories = Array.from(
-      new Set(matchedSubcategories.map((name) => CATEGORY_BY_SUBCATEGORY.get(name)).filter(Boolean))
-    );
-
-    const categoryCandidates = Array.from(new Set([...matchedCategories, ...mappedCategories]));
-    const assignedCategory =
-      categoryCandidates.length === 1
-        ? categoryCandidates[0]
-        : mappedCategories.length === 1
-          ? mappedCategories[0]
-          : matchedCategories.length === 1
-            ? matchedCategories[0]
-            : null;
-
-    const categorySubcategories = assignedCategory
-      ? matchedSubcategories.filter((name) => CATEGORY_BY_SUBCATEGORY.get(name) === assignedCategory)
-      : [];
-    const assignedSubcategory = categorySubcategories.length === 1 ? categorySubcategories[0] : null;
-
-    bucket.totalIncoming += 1;
-
-    if (assignedCategory) {
-      bucket.categoryCounts.set(assignedCategory, (bucket.categoryCounts.get(assignedCategory) || 0) + 1);
-      if (assignedSubcategory) {
-        bucket.subcategoryCounts.set(assignedSubcategory, (bucket.subcategoryCounts.get(assignedSubcategory) || 0) + 1);
-      }
-    } else {
-      bucket.categoryCounts.set('Not tagged', (bucket.categoryCounts.get('Not tagged') || 0) + 1);
-      if (notTaggedTickets.length < 5) {
-        notTaggedTickets.push({
-          id: conversation?.id,
-          number: conversation?.number ?? null,
-          subject: conversation?.subject || '(No subject)',
-        });
-      }
-    }
-  }
-
-  const weeks = Array.from(weekMap.values())
-    .sort((a, b) => a.startStr.localeCompare(b.startStr))
-    .map((week) => ({
-      label: week.label,
-      startStr: week.startStr,
-      endStr: week.endStr,
-      totalIncoming: week.totalIncoming,
-      categoryCounts: Array.from(week.categoryCounts.entries())
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
-      subcategoryCounts: Array.from(week.subcategoryCounts.entries())
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
-    }));
-
-  const data = {
-    startStr,
-    endStr,
-    weeks,
-    sampleNotTaggedTickets: notTaggedTickets,
-  };
-
-  _incomingTrendCache.set(cacheKey, {
     data,
     expiresAt: Date.now() + 10 * 60 * 1000,
   });
