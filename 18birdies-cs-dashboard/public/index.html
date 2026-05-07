@@ -724,6 +724,59 @@
       color: var(--muted);
     }
 
+    .forecast-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .forecast-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .forecast-item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .forecast-rank {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--accent-light);
+      color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-family: var(--mono);
+      flex-shrink: 0;
+    }
+
+    .forecast-name {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.2;
+      min-width: 0;
+    }
+
+    .forecast-value {
+      font-size: 13px;
+      font-family: var(--mono);
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
     .trend-tree {
       display: flex;
       flex-direction: column;
@@ -1103,7 +1156,6 @@
     let incomingTrendSelectedCategories = new Set();
     let incomingTrendExpandedCategories = new Set();
     let incomingTrendRequestId = 0;
-    let incomingTrendDebugSelection = null;
     let incomingTrendsGeneratedWeek = null;
 
     const charts = {};
@@ -1756,7 +1808,6 @@
       incomingTrendsGeneratedWeek = null;
       incomingTrendSelectedCategories = new Set();
       incomingTrendExpandedCategories = new Set();
-      incomingTrendDebugSelection = null;
       renderAll();
       loadBuckets(i);
       loadAssignees(i);
@@ -2314,7 +2365,6 @@
     function resetIncomingTrendsView() {
       incomingTrendSelectedCategories = new Set();
       incomingTrendExpandedCategories = new Set();
-      incomingTrendDebugSelection = null;
       if (incomingTrendsGeneratedWeek && incomingTrendsGeneratedWeek === getIncomingTrendsWeekKey(selWeek)) {
         renderIncomingTrendsSection(selWeek);
       } else {
@@ -2340,24 +2390,11 @@
 
     function generateIncomingTrends() {
       incomingTrendsGeneratedWeek = getIncomingTrendsWeekKey(selWeek);
-      incomingTrendDebugSelection = null;
       loadIncomingTrendsSection(selWeek);
     }
 
     function getIncomingTrendDebugKey(startStr, endStr, category = 'all') {
       return `${startStr}_${endStr}_${category || 'all'}`;
-    }
-
-    function toggleIncomingTrendDebug(category = 'all') {
-      if (incomingTrendDebugSelection?.category === category) {
-        incomingTrendDebugSelection = null;
-        renderIncomingTrendsSection(selWeek);
-        return;
-      }
-
-      incomingTrendDebugSelection = { category };
-      renderIncomingTrendsSection(selWeek);
-      loadIncomingTrendDebug(selWeek, category);
     }
 
     async function loadIncomingTrendDebug(weekIdx, category = 'all') {
@@ -2390,7 +2427,7 @@
         delete incomingTrendDebugLoadPromises[cacheKey];
       }
 
-      if (selWeek === weekIdx && incomingTrendDebugSelection?.category === category) {
+      if (selWeek === weekIdx && incomingTrendsGeneratedWeek === getIncomingTrendsWeekKey(weekIdx)) {
         renderIncomingTrendsSection(weekIdx);
       }
     }
@@ -2399,15 +2436,15 @@
       const panel = document.getElementById('incomingTrendDebugPanel');
       if (!panel) return;
 
-      if (!incomingTrendDebugSelection) {
+      if (!trendData?.notTaggedTotal) {
         panel.innerHTML = '';
         return;
       }
 
-      const category = incomingTrendDebugSelection.category || 'all';
+      const category = 'all';
       const cacheKey = getIncomingTrendDebugKey(trendData.startStr, trendData.endStr, category);
       const cached = incomingTrendDebugCache[cacheKey];
-      const title = category === 'all' ? 'Investigating overall Not tagged tickets' : `Investigating Not tagged within ${category}`;
+      const title = 'Sample tickets currently counted as Not tagged';
 
       if (!cached && incomingTrendDebugLoadPromises[cacheKey]) {
         panel.innerHTML = `
@@ -2422,7 +2459,15 @@
       }
 
       if (!cached) {
-        panel.innerHTML = '';
+        loadIncomingTrendDebug(weekIdx, category);
+        panel.innerHTML = `
+          <div class="trend-debug-panel">
+            <div class="bucket-loading">
+              <div class="bucket-spinner"></div>
+              <span>Loading sample not tagged tickets...</span>
+            </div>
+          </div>
+        `;
         return;
       }
 
@@ -2436,15 +2481,15 @@
       }
 
       const tickets = Array.isArray(cached.tickets) ? cached.tickets : [];
+      const previewTickets = tickets.slice(0, 5);
       panel.innerHTML = `
         <div class="trend-debug-panel">
           <div class="trend-debug-head">
-            <div class="trend-debug-title">${escapeHtml(title)} · ${tickets.length} tickets</div>
-            <button class="mini-link-btn" onclick="toggleIncomingTrendDebug('${String(category).replace(/'/g, "\\'")}')">Close</button>
+            <div class="trend-debug-title">${escapeHtml(title)} · showing ${previewTickets.length} of ${tickets.length}</div>
           </div>
           ${
-            tickets.length
-              ? `<div class="trend-debug-list">${tickets.map((ticket) => `
+            previewTickets.length
+              ? `<div class="trend-debug-list">${previewTickets.map((ticket) => `
                   <div class="trend-debug-item">
                     <div class="trend-debug-item-head">
                       <div class="trend-debug-subject">${escapeHtml(ticket.subject || '(No subject)')}</div>
@@ -2459,7 +2504,7 @@
                     <div class="trend-debug-tags">All tags: ${escapeHtml((ticket.tags || []).join(', ') || 'None')}</div>
                   </div>
                 `).join('')}</div>`
-              : `<div class="trend-empty">No tickets matched this investigation window.</div>`
+              : `<div class="trend-empty">No sample tickets were returned for this window.</div>`
           }
         </div>
       `;
@@ -2566,7 +2611,19 @@
         </div>
         <div class="trend-stat">
           <div class="trend-stat-label">Top Subcategory Forecasts</div>
-          <div class="trend-stat-value">${topSubcategoryForecasts.map((row) => `${row.name}: ${row.forecast}`).join(' · ') || '—'}</div>
+          ${
+            topSubcategoryForecasts.length
+              ? `<div class="forecast-list">${topSubcategoryForecasts.map((row, idx) => `
+                  <div class="forecast-item">
+                    <div class="forecast-item-left">
+                      <span class="forecast-rank">${idx + 1}</span>
+                      <span class="forecast-name">${escapeHtml(row.name)}</span>
+                    </div>
+                    <span class="forecast-value">${row.forecast.toLocaleString()}</span>
+                  </div>
+                `).join('')}</div>`
+              : '<div class="trend-stat-value">—</div>'
+          }
           <div class="trend-stat-note">Visible categories only · excludes Non-actionable Feedback</div>
         </div>
       `;
@@ -2588,7 +2645,6 @@
                   <div class="trend-subrow">
                     <div class="trend-name">
                       <span class="trend-name-text">${sub.name}</span>
-                      ${sub.synthetic ? `<button type="button" class="mini-link-btn" onclick="toggleIncomingTrendDebug('${String(sub.parentCategory).replace(/'/g, "\\'")}');return false;">Investigate</button>` : ''}
                     </div>
                     <div class="trend-metric">
                       <div class="trend-metric-value">${sub.count.toLocaleString()}</div>
@@ -2616,7 +2672,6 @@
                 <span class="trend-chevron">${chevron}</span>
                 <span class="bdot" style="background:${row.color}"></span>
                 <span class="trend-name-text">${row.name}</span>
-                ${row.name === 'Not tagged' ? `<button type="button" class="mini-link-btn" onclick="toggleIncomingTrendDebug('all');return false;">Investigate</button>` : ''}
               </div>
               <div class="trend-metric">
                 <div class="trend-metric-value">${row.count.toLocaleString()}</div>
