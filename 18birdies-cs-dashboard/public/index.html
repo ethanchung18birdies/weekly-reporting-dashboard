@@ -361,6 +361,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
+      align-items: stretch;
     }
 
     .card {
@@ -368,6 +369,12 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 16px;
+    }
+
+    .burndown-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 420px;
     }
 
     .card-title {
@@ -387,6 +394,11 @@
     .chart-wrap {
       position: relative;
       width: 100%;
+    }
+
+    .chart-wrap.fill {
+      flex: 1;
+      min-height: 260px;
     }
 
     .burn-stats {
@@ -961,10 +973,10 @@
       </div>
 
       <div class="two-col">
-        <div class="card">
+        <div class="card burndown-card">
           <div class="card-title">Cumulative backlog burndown</div>
           <div class="burn-stats" id="burnStats"></div>
-          <div class="chart-wrap" style="height:160px"><canvas id="burnChart"></canvas></div>
+          <div class="chart-wrap fill"><canvas id="burnChart"></canvas></div>
         </div>
 
         <div class="card">

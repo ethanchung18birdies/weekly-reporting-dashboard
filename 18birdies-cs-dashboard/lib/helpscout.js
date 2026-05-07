@@ -59,6 +59,17 @@ async function hsGet(path, params = {}) {
   return res.json();
 }
 
+function buildEmailReportParams(startStr, endStr) {
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  return {
+    start: `${startStr}T00:00:00Z`,
+    end: `${endStr}T23:59:59Z`,
+    // Keep both keys for compatibility across HelpScout report endpoints.
+    mailbox: mailboxId,
+    mailboxes: mailboxId,
+  };
+}
+
 // ── DATE HELPERS ──────────────────────────────────────────────────────────
 
 function startOfWeek(date) {
@@ -577,12 +588,7 @@ export async function fetchIncomingNotTaggedTickets(startStr, endStr, category =
 
 // Fast report — overall metrics only, no per-tag breakdown
 async function getWeekReport(startStr, endStr) {
-  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const params = {
-    start: `${startStr}T00:00:00Z`,
-    end: `${endStr}T23:59:59Z`,
-    mailbox: mailboxId,
-  };
+  const params = buildEmailReportParams(startStr, endStr);
 
   try {
     const emailReport = await hsGet('/reports/email', params).catch(() => null);
@@ -626,12 +632,7 @@ async function getWeekReport(startStr, endStr) {
 }
 
 export async function fetchWeekBuckets(startStr, endStr) {
-  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const baseParams = {
-    start: `${startStr}T00:00:00Z`,
-    end: `${endStr}T23:59:59Z`,
-    mailbox: mailboxId,
-  };
+  const baseParams = buildEmailReportParams(startStr, endStr);
 
   try {
     const emailReport = await hsGet('/reports/email', baseParams).catch(() => null);
@@ -886,11 +887,7 @@ export async function fetchAssigneeSubcategories(startStr, endStr, assignee = 'a
         mailboxes: mailboxId,
         types: 'email',
       }).catch(() => null)
-    : await hsGet('/reports/email', {
-        start: baseStart,
-        end: baseEnd,
-        mailbox: mailboxId,
-      }).catch(() => null);
+    : await hsGet('/reports/email', buildEmailReportParams(startStr, endStr)).catch(() => null);
 
   const totalClosed = assigneeId
     ? totalClosedReport?.current?.closed ?? 0
@@ -917,9 +914,7 @@ export async function fetchAssigneeSubcategories(startStr, endStr, assignee = 'a
             tags: String(item.tagId),
           }).catch(() => null)
         : await hsGet('/reports/email', {
-            start: baseStart,
-            end: baseEnd,
-            mailbox: mailboxId,
+            ...buildEmailReportParams(startStr, endStr),
             tags: String(item.tagId),
           }).catch(() => null);
 
