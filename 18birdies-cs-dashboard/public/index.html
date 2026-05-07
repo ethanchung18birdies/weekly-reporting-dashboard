@@ -1340,11 +1340,66 @@
       return trendWindow ? `${trendWindow.startStr}_${trendWindow.endStr}` : null;
     }
 
+    function getPacificNowParts() {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+
+      const parts = Object.fromEntries(
+        formatter
+          .formatToParts(new Date())
+          .filter((part) => part.type !== 'literal')
+          .map((part) => [part.type, part.value])
+      );
+
+      return {
+        year: Number(parts.year),
+        month: Number(parts.month),
+        day: Number(parts.day),
+        hour: Number(parts.hour),
+        minute: Number(parts.minute),
+        second: Number(parts.second),
+      };
+    }
+
+    function getCurrentWeekNormalization(selectedWeek) {
+      if (!selectedWeek) return null;
+
+      const now = getPacificNowParts();
+      const todayPtStr = `${String(now.year).padStart(4, '0')}-${String(now.month).padStart(2, '0')}-${String(now.day).padStart(2, '0')}`;
+      const startDate = new Date(`${selectedWeek.startStr}T00:00:00Z`);
+      const endDate = new Date(`${selectedWeek.endStr}T23:59:59Z`);
+      const todayDate = new Date(`${todayPtStr}T00:00:00Z`);
+
+      if (todayDate < startDate || todayDate > endDate) return null;
+
+      const msFromStart = todayDate - startDate;
+      const dayIndex = Math.max(0, Math.floor(msFromStart / 86400000));
+      const dayFraction = (now.hour + (now.minute / 60) + (now.second / 3600)) / 24;
+      const elapsedDays = Math.min(7, Math.max(0.01, dayIndex + dayFraction));
+      const weekFraction = Math.min(1, Math.max(0.01, elapsedDays / 7));
+
+      return {
+        elapsedDays,
+        weekFraction,
+      };
+    }
+
     function getIncomingTrendData(weekIdx) {
       const trendWindow = getIncomingTrendWindow(weekIdx);
       const weeks = trendWindow?.weeks?.filter((week) => bucketCache[week.startStr]) || [];
 
       if (!weeks.length) return null;
+
+      const currentWeek = weeks[weeks.length - 1];
+      const normalization = getCurrentWeekNormalization(currentWeek);
 
       const totalByWeek = [];
       const weekCategoryMaps = [];
@@ -1360,10 +1415,19 @@
 
         const weekCategoryMap = new Map(incomingCategoryRows.map((row) => [row.name, row.count || 0]));
         const weekSubcategoryMap = new Map(incomingSubcategoryRows.map((row) => [row.name, row.count || 0]));
+        const isCurrentInProgressWeek = normalization && week.startStr === currentWeek.startStr;
+        if (normalization && week.startStr === currentWeek.startStr) {
+          for (const [name, value] of Array.from(weekCategoryMap.entries())) {
+            weekCategoryMap.set(name, value / normalization.weekFraction);
+          }
+          for (const [name, value] of Array.from(weekSubcategoryMap.entries())) {
+            weekSubcategoryMap.set(name, value / normalization.weekFraction);
+          }
+        }
         weekCategoryMaps.push(weekCategoryMap);
         weekSubcategoryMaps.push(weekSubcategoryMap);
         const weekTotal = incomingCategoryRows.reduce((sum, row) => sum + (row.count || 0), 0);
-        totalByWeek.push(weekTotal);
+        totalByWeek.push(isCurrentInProgressWeek ? (weekTotal / normalization.weekFraction) : weekTotal);
         totalIncoming += weekTotal;
         notTaggedTotal += weekCategoryMap.get('Not tagged') || 0;
 
@@ -1459,6 +1523,7 @@
         availableCategories,
         notTaggedTotal,
         topSubcategoryForecasts,
+        normalization,
       };
     }
 
@@ -2493,7 +2558,11 @@
         <div class="trend-stat">
           <div class="trend-stat-label">Forecast Next Week</div>
           <div class="trend-stat-value">${trendData.totalForecast.toLocaleString()}</div>
-          <div class="trend-stat-note">Weighted week-over-week derivative</div>
+          <div class="trend-stat-note">${
+            trendData.normalization
+              ? `Current week normalized to full-week pace from ${trendData.normalization.elapsedDays.toFixed(1)} / 7 elapsed days`
+              : 'Weighted week-over-week derivative'
+          }</div>
         </div>
         <div class="trend-stat">
           <div class="trend-stat-label">Top Subcategory Forecasts</div>
