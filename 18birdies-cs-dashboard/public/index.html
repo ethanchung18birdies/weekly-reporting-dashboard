@@ -1055,6 +1055,7 @@
         <div class="trend-head">
           <div class="trend-title" id="incomingTrendTitle">Incoming trends — trailing 4 weeks</div>
           <div class="trend-actions">
+            <button class="btn btn-primary" id="incomingTrendGenerateBtn" onclick="generateIncomingTrends()" style="padding:6px 12px">Generate</button>
             <button class="btn btn-ghost" style="color:var(--accent);border-color:var(--border2);background:var(--surface2)" onclick="resetIncomingTrendsView()">Reset view</button>
           </div>
         </div>
@@ -1091,6 +1092,7 @@
     let incomingTrendExpandedCategories = new Set();
     let incomingTrendRequestId = 0;
     let incomingTrendDebugSelection = null;
+    let incomingTrendsGeneratedWeek = null;
 
     const charts = {};
     const bucketCache = {};
@@ -1319,6 +1321,11 @@
         startStr: weeks[0].startStr,
         endStr: weeks[weeks.length - 1].endStr,
       };
+    }
+
+    function getIncomingTrendsWeekKey(weekIdx) {
+      const trendWindow = getIncomingTrendWindow(weekIdx);
+      return trendWindow ? `${trendWindow.startStr}_${trendWindow.endStr}` : null;
     }
 
     function getIncomingTrendData(weekIdx) {
@@ -1623,7 +1630,11 @@
       syncBucketControls();
       populateIncomingCategorySelect();
       populateClosedCategorySelect();
-      loadIncomingTrendsSection(selWeek);
+      if (incomingTrendsGeneratedWeek && incomingTrendsGeneratedWeek === getIncomingTrendsWeekKey(selWeek)) {
+        renderIncomingTrendsSection(selWeek);
+      } else {
+        renderIncomingTrendsIdle();
+      }
 
       syncTeamSelect();
       populateAssigneeSelect();
@@ -1665,6 +1676,10 @@
 
     function selectWeek(i) {
       selWeek = i;
+      incomingTrendsGeneratedWeek = null;
+      incomingTrendSelectedCategories = new Set();
+      incomingTrendExpandedCategories = new Set();
+      incomingTrendDebugSelection = null;
       renderAll();
       loadBuckets(i);
       loadAssignees(i);
@@ -2193,13 +2208,41 @@
       `;
       if (tree) tree.innerHTML = '';
       if (debugPanel) debugPanel.innerHTML = '';
+      const generateBtn = document.getElementById('incomingTrendGenerateBtn');
+      if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'Generating...';
+      }
+    }
+
+    function renderIncomingTrendsIdle() {
+      const title = document.getElementById('incomingTrendTitle');
+      const filters = document.getElementById('incomingTrendFilters');
+      const summary = document.getElementById('incomingTrendSummary');
+      const tree = document.getElementById('incomingTrendTree');
+      const debugPanel = document.getElementById('incomingTrendDebugPanel');
+      const generateBtn = document.getElementById('incomingTrendGenerateBtn');
+
+      if (title) title.textContent = 'Incoming trends — trailing 4 weeks';
+      if (filters) filters.innerHTML = '';
+      if (summary) summary.innerHTML = '<div class="trend-empty">Click Generate to load the trailing 4-week incoming trends.</div>';
+      if (tree) tree.innerHTML = '';
+      if (debugPanel) debugPanel.innerHTML = '';
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generate';
+      }
     }
 
     function resetIncomingTrendsView() {
       incomingTrendSelectedCategories = new Set();
       incomingTrendExpandedCategories = new Set();
       incomingTrendDebugSelection = null;
-      renderIncomingTrendsSection(selWeek);
+      if (incomingTrendsGeneratedWeek && incomingTrendsGeneratedWeek === getIncomingTrendsWeekKey(selWeek)) {
+        renderIncomingTrendsSection(selWeek);
+      } else {
+        renderIncomingTrendsIdle();
+      }
     }
 
     function toggleIncomingTrendCategoryFilter(categoryName) {
@@ -2216,6 +2259,12 @@
       else next.add(categoryName);
       incomingTrendExpandedCategories = next;
       renderIncomingTrendsSection(selWeek);
+    }
+
+    function generateIncomingTrends() {
+      incomingTrendsGeneratedWeek = getIncomingTrendsWeekKey(selWeek);
+      incomingTrendDebugSelection = null;
+      loadIncomingTrendsSection(selWeek);
     }
 
     function getIncomingTrendDebugKey(startStr, endStr, category = 'all') {
@@ -2340,6 +2389,10 @@
     }
 
     async function loadIncomingTrendsSection(weekIdx) {
+      if (!incomingTrendsGeneratedWeek || incomingTrendsGeneratedWeek !== getIncomingTrendsWeekKey(weekIdx)) {
+        return;
+      }
+
       const requestId = ++incomingTrendRequestId;
       const indices = getIncomingTrendWeekIndices(weekIdx);
       const hasMissingWeeks = indices.some((idx) => {
@@ -2363,6 +2416,12 @@
         const tree = document.getElementById('incomingTrendTree');
         if (summary) summary.innerHTML = '<div class="trend-empty">Failed to load incoming trend summary.</div>';
         if (tree) tree.innerHTML = '<div class="trend-empty">Unable to load trailing 4-week incoming trends.</div>';
+      } finally {
+        const generateBtn = document.getElementById('incomingTrendGenerateBtn');
+        if (generateBtn) {
+          generateBtn.disabled = false;
+          generateBtn.textContent = 'Generate';
+        }
       }
     }
 
@@ -2373,7 +2432,12 @@
       const summary = document.getElementById('incomingTrendSummary');
       const tree = document.getElementById('incomingTrendTree');
       const debugPanel = document.getElementById('incomingTrendDebugPanel');
+      const generateBtn = document.getElementById('incomingTrendGenerateBtn');
       if (!title || !filters || !summary || !tree) return;
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generate';
+      }
 
       if (!trendData || !trendData.weeks.length) {
         title.textContent = 'Incoming trends — trailing 4 weeks';
@@ -2443,7 +2507,7 @@
                   <div class="trend-subrow">
                     <div class="trend-name">
                       <span class="trend-name-text">${sub.name}</span>
-                      ${sub.synthetic ? `<button class="mini-link-btn" onclick="event.stopPropagation();toggleIncomingTrendDebug('${String(sub.parentCategory).replace(/'/g, "\\'")}')">Investigate</button>` : ''}
+                      ${sub.synthetic ? `<button type="button" class="mini-link-btn" onclick="toggleIncomingTrendDebug('${String(sub.parentCategory).replace(/'/g, "\\'")}');return false;">Investigate</button>` : ''}
                     </div>
                     <div class="trend-metric">
                       <div class="trend-metric-value">${sub.count.toLocaleString()}</div>
@@ -2471,7 +2535,7 @@
                 <span class="trend-chevron">${chevron}</span>
                 <span class="bdot" style="background:${row.color}"></span>
                 <span class="trend-name-text">${row.name}</span>
-                ${row.name === 'Not tagged' ? `<button class="mini-link-btn" onclick="event.stopPropagation();toggleIncomingTrendDebug('all')">Investigate</button>` : ''}
+                ${row.name === 'Not tagged' ? `<button type="button" class="mini-link-btn" onclick="toggleIncomingTrendDebug('all');return false;">Investigate</button>` : ''}
               </div>
               <div class="trend-metric">
                 <div class="trend-metric-value">${row.count.toLocaleString()}</div>
