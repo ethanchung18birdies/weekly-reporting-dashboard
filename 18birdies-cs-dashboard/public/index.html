@@ -1084,8 +1084,6 @@
     const bucketLoadPromises = {};
     const assigneeCache = {};
     const assigneeSubcategoryCache = {};
-    const incomingTrendDebugCache = {};
-    const incomingTrendDebugLoadPromises = {};
     const TEAM_OPTIONS = {
       all: 'All Teams',
       general: 'General Customer Support',
@@ -1380,7 +1378,6 @@
       const categoryTotals = new Map();
       const subcategoryTotals = new Map();
       let totalIncoming = 0;
-      let notTaggedTotal = 0;
 
       for (const week of weeks) {
         const incomingCategoryRows = bucketCache[week.startStr]?.incoming?.category || [];
@@ -1402,7 +1399,6 @@
         const weekTotal = incomingCategoryRows.reduce((sum, row) => sum + (row.count || 0), 0);
         totalByWeek.push(isCurrentInProgressWeek ? (weekTotal / normalization.weekFraction) : weekTotal);
         totalIncoming += weekTotal;
-        notTaggedTotal += weekCategoryMap.get('Not tagged') || 0;
 
         for (const row of incomingCategoryRows) {
           const count = row.count || 0;
@@ -1481,11 +1477,6 @@
         .filter((row) => row.name !== 'Not tagged')
         .map((row) => row.name);
 
-      const topSubcategoryForecasts = categoryRows
-        .filter((row) => row.name !== 'Not tagged' && row.name !== 'Non-actionable Feedback')
-        .flatMap((row) => row.subcategories.filter((sub) => !sub.synthetic))
-        .sort((a, b) => b.forecast - a.forecast || b.count - a.count || a.name.localeCompare(b.name));
-
       return {
         weeks,
         startStr: weeks[0].startStr,
@@ -1494,8 +1485,6 @@
         totalForecast: forecastNextWeek(totalByWeek),
         categoryRows,
         availableCategories,
-        notTaggedTotal,
-        topSubcategoryForecasts,
         normalization,
       };
     }
