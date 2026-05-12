@@ -1082,6 +1082,7 @@
     const charts = {};
     const bucketCache = {};
     const bucketLoadPromises = {};
+    const incomingTrendWeekCache = {};
     const assigneeCache = {};
     const assigneeSubcategoryCache = {};
     const TEAM_OPTIONS = {
@@ -1201,7 +1202,7 @@
       return Math.round(value).toLocaleString();
     }
 
-    function createCompressedAxis(values, { symmetric = false } = {}) {
+    function createTruncatedDisplay(values, { symmetric = false } = {}) {
       const finite = values.filter((value) => Number.isFinite(value));
       const absValues = finite.map((value) => Math.abs(value)).sort((a, b) => b - a);
       const maxAbs = absValues[0] || 0;
@@ -1210,42 +1211,24 @@
       if (!maxAbs || !reference || maxAbs <= reference * 1.8) {
         const bound = symmetric ? Math.max(10, Math.ceil(maxAbs * 1.15)) : Math.max(10, Math.ceil(maxAbs * 1.1));
         return {
-          compressed: false,
-          values,
-          transform: (value) => value,
-          invert: (value) => value,
+          truncated: false,
+          values: [...values],
           min: symmetric ? -bound : 0,
           max: bound,
         };
       }
 
-      const threshold = Math.max(10, reference * 1.15);
-      const transform = (value) => {
+      const threshold = Math.max(10, reference * 1.2);
+      const displayValues = values.map((value) => {
         if (!Number.isFinite(value)) return value;
         const sign = value < 0 ? -1 : 1;
-        const abs = Math.abs(value);
-        if (abs <= threshold) return value;
-        return sign * (threshold + Math.sqrt(abs - threshold));
-      };
-      const invert = (value) => {
-        if (!Number.isFinite(value)) return value;
-        const sign = value < 0 ? -1 : 1;
-        const abs = Math.abs(value);
-        if (abs <= threshold) return value;
-        return sign * (threshold + Math.pow(abs - threshold, 2));
-      };
-      const transformedValues = values.map(transform);
-      const transformedAbs = transformedValues
-        .filter((value) => Number.isFinite(value))
-        .map((value) => Math.abs(value));
-      const maxTransformed = Math.max(...transformedAbs, threshold);
-      const bound = Math.ceil(maxTransformed * 1.08);
+        return sign * Math.min(Math.abs(value), threshold);
+      });
+      const bound = Math.ceil(threshold * 1.1);
 
       return {
-        compressed: true,
-        values: transformedValues,
-        transform,
-        invert,
+        truncated: true,
+        values: displayValues,
         min: symmetric ? -bound : 0,
         max: bound,
         threshold,
@@ -1427,7 +1410,7 @@
 
     function getIncomingTrendData(weekIdx) {
       const trendWindow = getIncomingTrendWindow(weekIdx);
-      const weeks = trendWindow?.weeks?.filter((week) => bucketCache[week.startStr]) || [];
+      const weeks = trendWindow?.weeks?.filter((week) => incomingTrendWeekCache[week.startStr]) || [];
 
       if (!weeks.length) return null;
 
@@ -1442,8 +1425,8 @@
       let totalIncoming = 0;
 
       for (const week of weeks) {
-        const incomingCategoryRows = bucketCache[week.startStr]?.incoming?.category || [];
-        const incomingSubcategoryRows = bucketCache[week.startStr]?.incoming?.subcategory || [];
+        const incomingCategoryRows = incomingTrendWeekCache[week.startStr]?.incoming?.category || [];
+        const incomingSubcategoryRows = incomingTrendWeekCache[week.startStr]?.incoming?.subcategory || [];
 
         const weekCategoryMap = new Map(incomingCategoryRows.map((row) => [row.name, row.count || 0]));
         const weekSubcategoryMap = new Map(incomingSubcategoryRows.map((row) => [row.name, row.count || 0]));
@@ -1555,6 +1538,7 @@
         allData = await res.json();
         clearObject(bucketCache);
         clearObject(bucketLoadPromises);
+        clearObject(incomingTrendWeekCache);
         clearObject(assigneeCache);
         clearObject(assigneeSubcategoryCache);
         incomingTrendsGeneratedWeek = null;
@@ -2361,7 +2345,7 @@
       const indices = getIncomingTrendWeekIndices(weekIdx);
       const hasMissingWeeks = indices.some((idx) => {
         const week = allData?.weeks?.[idx];
-        return week && !bucketCache[week.startStr];
+        return week && !incomingTrendWeekCache[week.startStr];
       });
 
       if (hasMissingWeeks) {
@@ -2371,7 +2355,24 @@
       }
 
       try {
-        await Promise.all(indices.map((idx) => ensureBucketWeekLoaded(idx, false, true)));
+        await Promise.all(indices.map(async (idx) => {
+          const week = allData?.weeks?.[idx];
+          if (!week) return null;
+          const res = await fetch(`/api/buckets?start=${week.startStr}&end=${week.endStr}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to load incoming trend week');
+          incomingTrendWeekCache[week.startStr] = data.buckets || {
+            closed: {
+              category: { withReply: [], noReply: [], both: [] },
+              subcategory: { withReply: [], noReply: [], both: [] },
+            },
+            incoming: {
+              category: [],
+              subcategory: [],
+            },
+          };
+          return incomingTrendWeekCache[week.startStr];
+        }));
         if (requestId !== incomingTrendRequestId || weekIdx !== selWeek) return;
         renderIncomingTrendsSection(weekIdx);
       } catch (e) {
@@ -2707,7 +2708,7 @@
       const closedTotalRaw = allData.weeks.map(w => w.totalClosed ?? w.closed);
       const closedReplyRaw = allData.weeks.map(w => w.closed);
       const openedRaw = allData.weeks.map(w => w.opened);
-      const ocCompression = createCompressedAxis([
+      const ocDisplay = createTruncatedDisplay([
         ...closedTotalRaw,
         ...closedReplyRaw,
         ...openedRaw,
@@ -2720,7 +2721,7 @@
           datasets: [
             {
               label: 'Closed total',
-              data: closedTotalRaw.map(ocCompression.transform),
+              data: closedTotalRaw.map((_, idx) => ocDisplay.values[idx]),
               rawData: closedTotalRaw,
               backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#14532d' : 'rgba(20,83,45,0.55)'),
               borderRadius: 3,
@@ -2728,7 +2729,7 @@
             },
             {
               label: 'Closed w/ reply',
-              data: closedReplyRaw.map(ocCompression.transform),
+              data: closedReplyRaw.map((_, idx) => ocDisplay.values[idx + closedTotalRaw.length]),
               rawData: closedReplyRaw,
               backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#22c55e' : 'rgba(34,197,94,0.45)'),
               borderRadius: 3,
@@ -2736,7 +2737,7 @@
             },
             {
               label: 'Opened',
-              data: openedRaw.map(ocCompression.transform),
+              data: openedRaw.map((_, idx) => ocDisplay.values[idx + closedTotalRaw.length + closedReplyRaw.length]),
               rawData: openedRaw,
               backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#2563eb' : 'rgba(37,99,235,0.45)'),
               borderRadius: 3,
@@ -2767,8 +2768,10 @@
                   const raw = context.dataset.rawData?.[context.dataIndex];
                   return `${context.dataset.label}: ${formatAxisNumber(raw ?? context.raw)}`;
                 },
-                afterBody() {
-                  return ocCompression.compressed ? ['3/16 outlier compressed for display'] : [];
+                afterBody(context) {
+                  const raw = context[0]?.dataset?.rawData?.[context[0]?.dataIndex];
+                  const shown = context[0]?.raw;
+                  return ocDisplay.truncated && raw !== shown ? ['Truncated for display'] : [];
                 },
               },
             },
@@ -2776,14 +2779,12 @@
           scales: {
             x: { grid: { color: gridColor }, ticks: tickStyle },
             y: {
-              min: ocCompression.min,
-              max: ocCompression.max,
+              min: ocDisplay.min,
+              max: ocDisplay.max,
               grid: { color: gridColor },
               ticks: {
                 ...tickStyle,
-                callback(value) {
-                  return formatAxisNumber(ocCompression.invert(Number(value)));
-                },
+                callback(value) { return formatAxisNumber(Number(value)); },
               },
             },
           },
@@ -2823,7 +2824,7 @@
     function renderBurnRateChart() {
       destroyChart('br');
       const rates = allData.weeks.map(w => (w.totalClosed ?? w.closed) - w.opened);
-      const burnCompression = createCompressedAxis(rates, { symmetric: true });
+      const burnDisplay = createTruncatedDisplay(rates, { symmetric: true });
 
       charts.br = new Chart(document.getElementById('burnRateChart'), {
         type: 'bar',
@@ -2831,7 +2832,7 @@
           labels: allData.weeks.map(w => w.label),
           datasets: [{
             label: 'Burn rate',
-            data: rates.map(burnCompression.transform),
+            data: burnDisplay.values,
             rawData: rates,
             backgroundColor: rates.map((r, i) =>
               i === selWeek
@@ -2854,8 +2855,10 @@
                   const raw = context.dataset.rawData?.[context.dataIndex];
                   return `${context.dataset.label}: ${raw >= 0 ? '+' : ''}${formatAxisNumber(raw ?? context.raw)}`;
                 },
-                afterBody() {
-                  return burnCompression.compressed ? ['3/16 outlier compressed for display'] : [];
+                afterBody(context) {
+                  const raw = context[0]?.dataset?.rawData?.[context[0]?.dataIndex];
+                  const shown = context[0]?.raw;
+                  return burnDisplay.truncated && raw !== shown ? ['Truncated for display'] : [];
                 },
               },
             },
@@ -2866,12 +2869,12 @@
               ticks: tickStyle,
             },
             y: {
-              min: burnCompression.min,
-              max: burnCompression.max,
+              min: burnDisplay.min,
+              max: burnDisplay.max,
               ticks: {
                 ...tickStyle,
                 callback(value) {
-                  const raw = burnCompression.invert(Number(value));
+                  const raw = Number(value);
                   return `${raw >= 0 ? '' : '-'}${formatAxisNumber(Math.abs(raw))}`;
                 },
               },
