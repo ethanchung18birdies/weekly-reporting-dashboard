@@ -1204,6 +1204,10 @@
       }
     }
 
+    function clearObject(obj) {
+      for (const key of Object.keys(obj)) delete obj[key];
+    }
+
     function getWeekWithBuckets(index) {
       const w = allData.weeks[index];
       return { ...w, buckets: bucketCache[w.startStr] || null };
@@ -1222,9 +1226,12 @@
       return indices;
     }
 
-    async function ensureBucketWeekLoaded(weekIdx, showLoading = false) {
+    async function ensureBucketWeekLoaded(weekIdx, showLoading = false, forceRefresh = false) {
       const w = allData?.weeks?.[weekIdx];
       if (!w) return null;
+      if (forceRefresh) {
+        delete bucketCache[w.startStr];
+      }
       if (bucketCache[w.startStr]) return bucketCache[w.startStr];
       if (bucketLoadPromises[w.startStr]) return bucketLoadPromises[w.startStr];
 
@@ -1505,6 +1512,11 @@
         }
 
         allData = await res.json();
+        clearObject(bucketCache);
+        clearObject(bucketLoadPromises);
+        clearObject(assigneeCache);
+        clearObject(assigneeSubcategoryCache);
+        incomingTrendsGeneratedWeek = null;
         selWeek = allData.weeks.length - 1;
         renderAll();
 
@@ -2318,7 +2330,7 @@
       }
 
       try {
-        await Promise.all(indices.map((idx) => ensureBucketWeekLoaded(idx, false)));
+        await Promise.all(indices.map((idx) => ensureBucketWeekLoaded(idx, false, true)));
         if (requestId !== incomingTrendRequestId || weekIdx !== selWeek) return;
         renderIncomingTrendsSection(weekIdx);
       } catch (e) {
