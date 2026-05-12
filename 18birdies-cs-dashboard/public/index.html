@@ -2343,16 +2343,11 @@
 
       const requestId = ++incomingTrendRequestId;
       const indices = getIncomingTrendWeekIndices(weekIdx);
-      const hasMissingWeeks = indices.some((idx) => {
+      renderIncomingTrendsLoading();
+      indices.forEach((idx) => {
         const week = allData?.weeks?.[idx];
-        return week && !incomingTrendWeekCache[week.startStr];
+        if (week) delete incomingTrendWeekCache[week.startStr];
       });
-
-      if (hasMissingWeeks) {
-        renderIncomingTrendsLoading();
-      } else {
-        renderIncomingTrendsSection(weekIdx);
-      }
 
       try {
         await Promise.all(indices.map(async (idx) => {
