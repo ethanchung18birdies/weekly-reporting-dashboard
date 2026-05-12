@@ -1064,6 +1064,7 @@
 
   <script>
     const TARGET_DAILY = 650;
+    const ESTIMATED_BACKLOG_ANCHOR = 8306;
 
     let allData = null;
     let selWeek = null;
@@ -1266,7 +1267,7 @@
 
     function getEstimatedBacklogSeries() {
       const series = Array(allData?.weeks?.length || 0).fill(0);
-      let runningBacklog = allData?.currentBacklog ?? 0;
+      let runningBacklog = ESTIMATED_BACKLOG_ANCHOR;
 
       for (let i = series.length - 1; i >= 0; i--) {
         series[i] = Math.max(0, runningBacklog);
@@ -1682,7 +1683,7 @@
 
       const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
       const avgBurn = recentWeeks.reduce((a, x) => a + ((x.totalClosed ?? x.closed) - x.opened), 0) / recentWeeks.length;
-      const currentBacklog = allData.currentBacklog ?? 0;
+      const currentBacklog = ESTIMATED_BACKLOG_ANCHOR;
       const weeksToZero = avgBurn > 0 ? Math.ceil(currentBacklog / avgBurn) : null;
       document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
 
@@ -1696,17 +1697,13 @@
       renderCallout(w, weeksToZero, onTrack, elapsed, dailyPace);
 
       const estimatedBacklogSeries = getEstimatedBacklogSeries();
-      const selectedEstimatedBacklog = estimatedBacklogSeries[selWeek] ?? 0;
       const firstEstimatedBacklog = estimatedBacklogSeries[0] ?? currentBacklog;
       const estimatedChange = firstEstimatedBacklog - currentBacklog;
-      const positiveBurnWeeks = allData.weeks.filter((week) => ((week.totalClosed ?? week.closed) - week.opened) > 0).length;
 
       document.getElementById('burnStats').innerHTML = `
-        <div class="bstat"><div class="bstat-val">${currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Current backlog</div></div>
-        <div class="bstat"><div class="bstat-val">${selectedEstimatedBacklog.toLocaleString()}</div><div class="bstat-lbl">Estimated backlog for ${w.label}</div></div>
+        <div class="bstat"><div class="bstat-val">${currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Most recent backlog anchor</div></div>
         <div class="bstat"><div class="bstat-val" style="color:${estimatedChange >= 0 ? 'var(--green)' : 'var(--red)'}">${estimatedChange >= 0 ? '−' : '+'}${Math.abs(estimatedChange).toLocaleString()}</div><div class="bstat-lbl">Estimated change since first visible week</div></div>
         <div class="bstat"><div class="bstat-val" style="color:${avgBurn >= 0 ? 'var(--green)' : 'var(--red)'}">${avgBurn >= 0 ? '+' : '−'}${Math.abs(Math.round(avgBurn)).toLocaleString()}</div><div class="bstat-lbl">Avg weekly net burn</div></div>
-        <div class="bstat"><div class="bstat-val">${positiveBurnWeeks}/${allData.weeks.length}</div><div class="bstat-lbl">Positive burn weeks</div></div>
         <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
       `;
 
@@ -2121,7 +2118,7 @@
       const backlogCard = `
         <div class="kpi" style="--kc:#92400e">
           <div class="kpi-label">Current backlog</div>
-          <div class="kpi-value">${(allData.currentBacklog ?? 0).toLocaleString()}</div>
+          <div class="kpi-value">${ESTIMATED_BACKLOG_ANCHOR.toLocaleString()}</div>
           <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
             <span class="kpi-delta neutral" style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:3px">Live HelpScout snapshot</span>
             <span class="kpi-delta ${burnRate >= 0 ? 'up' : 'down'}" style="font-size:10px;background:${burnRate >= 0 ? 'var(--green-bg)' : 'var(--red-bg)'};padding:2px 7px;border-radius:3px">${burnRate >= 0 ? '+' : '−'}${Math.abs(burnRate)} net this week</span>
