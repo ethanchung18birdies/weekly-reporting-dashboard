@@ -2657,16 +2657,23 @@
           labels: allData.weeks.map(w => w.label),
           datasets: [
             {
+              label: 'Closed total',
+              data: allData.weeks.map(w => w.totalClosed ?? w.closed),
+              backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#14532d' : 'rgba(20,83,45,0.55)'),
+              borderRadius: 3,
+              borderSkipped: false,
+            },
+            {
               label: 'Closed w/ reply',
               data: allData.weeks.map(w => w.closed),
-              backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#1a3a1a' : 'rgba(26,58,26,0.4)'),
+              backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#22c55e' : 'rgba(34,197,94,0.45)'),
               borderRadius: 3,
               borderSkipped: false,
             },
             {
               label: 'Opened',
               data: allData.weeks.map(w => w.opened),
-              backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#9ca3af' : 'rgba(156,163,175,0.4)'),
+              backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#2563eb' : 'rgba(37,99,235,0.45)'),
               borderRadius: 3,
               borderSkipped: false,
             },
@@ -2675,7 +2682,21 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: tooltipStyle },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'start',
+              labels: {
+                boxWidth: 10,
+                boxHeight: 10,
+                color: '#44515b',
+                font: { family: 'DM Mono', size: 10 },
+                padding: 12,
+              },
+            },
+            tooltip: tooltipStyle,
+          },
           scales: baseScales(0),
           barPercentage: 0.7,
           categoryPercentage: 0.8,
@@ -2713,6 +2734,8 @@
     function renderBurnRateChart() {
       destroyChart('br');
       const rates = allData.weeks.map(w => (w.totalClosed ?? w.closed) - w.opened);
+      const maxAbsRate = Math.max(...rates.map((r) => Math.abs(r || 0)), 0);
+      const axisLimit = Math.max(25, Math.ceil(maxAbsRate * 1.15));
 
       charts.br = new Chart(document.getElementById('burnRateChart'), {
         type: 'bar',
@@ -2734,7 +2757,21 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: tooltipStyle },
-          scales: baseScales(),
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: tickStyle,
+            },
+            y: {
+              min: -axisLimit,
+              max: axisLimit,
+              ticks: tickStyle,
+              grid: {
+                color: (ctx) => (ctx.tick?.value === 0 ? 'rgba(68,81,91,0.35)' : gridColor),
+                lineWidth: (ctx) => (ctx.tick?.value === 0 ? 1.5 : 1),
+              },
+            },
+          },
         },
       });
     }
