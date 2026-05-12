@@ -1197,6 +1197,61 @@
       };
     }
 
+    function formatAxisNumber(value) {
+      return Math.round(value).toLocaleString();
+    }
+
+    function createCompressedAxis(values, { symmetric = false } = {}) {
+      const finite = values.filter((value) => Number.isFinite(value));
+      const absValues = finite.map((value) => Math.abs(value)).sort((a, b) => b - a);
+      const maxAbs = absValues[0] || 0;
+      const reference = absValues[1] || absValues[0] || 0;
+
+      if (!maxAbs || !reference || maxAbs <= reference * 1.8) {
+        const bound = symmetric ? Math.max(10, Math.ceil(maxAbs * 1.15)) : Math.max(10, Math.ceil(maxAbs * 1.1));
+        return {
+          compressed: false,
+          values,
+          transform: (value) => value,
+          invert: (value) => value,
+          min: symmetric ? -bound : 0,
+          max: bound,
+        };
+      }
+
+      const threshold = Math.max(10, reference * 1.15);
+      const transform = (value) => {
+        if (!Number.isFinite(value)) return value;
+        const sign = value < 0 ? -1 : 1;
+        const abs = Math.abs(value);
+        if (abs <= threshold) return value;
+        return sign * (threshold + Math.sqrt(abs - threshold));
+      };
+      const invert = (value) => {
+        if (!Number.isFinite(value)) return value;
+        const sign = value < 0 ? -1 : 1;
+        const abs = Math.abs(value);
+        if (abs <= threshold) return value;
+        return sign * (threshold + Math.pow(abs - threshold, 2));
+      };
+      const transformedValues = values.map(transform);
+      const transformedAbs = transformedValues
+        .filter((value) => Number.isFinite(value))
+        .map((value) => Math.abs(value));
+      const maxTransformed = Math.max(...transformedAbs, threshold);
+      const bound = Math.ceil(maxTransformed * 1.08);
+
+      return {
+        compressed: true,
+        values: transformedValues,
+        transform,
+        invert,
+        min: symmetric ? -bound : 0,
+        max: bound,
+        threshold,
+      };
+    }
+
     function destroyChart(id) {
       if (charts[id]) {
         charts[id].destroy();
@@ -1450,20 +1505,6 @@
               };
             })
             .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-
-          const mappedSubcategoryTotal = subcategories.reduce((sum, sub) => sum + sub.count, 0);
-          const syntheticCount = Math.max(0, count - mappedSubcategoryTotal);
-          if (syntheticCount > 0) {
-            subcategories.push({
-              name: `Not tagged within ${name}`,
-              count: syntheticCount,
-              pctOfTotal: totalIncoming > 0 ? Math.round((syntheticCount / totalIncoming) * 1000) / 10 : 0,
-              pctOfCategory: count > 0 ? Math.round((syntheticCount / count) * 1000) / 10 : 0,
-              forecast: Math.max(0, forecastNextWeek(categorySeries) - subcategories.reduce((sum, sub) => sum + sub.forecast, 0)),
-              parentCategory: name,
-              synthetic: true,
-            });
-          }
 
           subcategories.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
@@ -2663,6 +2704,15 @@
 
     function renderOCChart() {
       destroyChart('oc');
+      const closedTotalRaw = allData.weeks.map(w => w.totalClosed ?? w.closed);
+      const closedReplyRaw = allData.weeks.map(w => w.closed);
+      const openedRaw = allData.weeks.map(w => w.opened);
+      const ocCompression = createCompressedAxis([
+        ...closedTotalRaw,
+        ...closedReplyRaw,
+        ...openedRaw,
+      ]);
+
       charts.oc = new Chart(document.getElementById('ocChart'), {
         type: 'bar',
         data: {
@@ -2670,21 +2720,24 @@
           datasets: [
             {
               label: 'Closed total',
-              data: allData.weeks.map(w => w.totalClosed ?? w.closed),
+              data: closedTotalRaw.map(ocCompression.transform),
+              rawData: closedTotalRaw,
               backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#14532d' : 'rgba(20,83,45,0.55)'),
               borderRadius: 3,
               borderSkipped: false,
             },
             {
               label: 'Closed w/ reply',
-              data: allData.weeks.map(w => w.closed),
+              data: closedReplyRaw.map(ocCompression.transform),
+              rawData: closedReplyRaw,
               backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#22c55e' : 'rgba(34,197,94,0.45)'),
               borderRadius: 3,
               borderSkipped: false,
             },
             {
               label: 'Opened',
-              data: allData.weeks.map(w => w.opened),
+              data: openedRaw.map(ocCompression.transform),
+              rawData: openedRaw,
               backgroundColor: allData.weeks.map((_, i) => i === selWeek ? '#2563eb' : 'rgba(37,99,235,0.45)'),
               borderRadius: 3,
               borderSkipped: false,
@@ -2707,9 +2760,33 @@
                 padding: 12,
               },
             },
-            tooltip: tooltipStyle,
+            tooltip: {
+              ...tooltipStyle,
+              callbacks: {
+                label(context) {
+                  const raw = context.dataset.rawData?.[context.dataIndex];
+                  return `${context.dataset.label}: ${formatAxisNumber(raw ?? context.raw)}`;
+                },
+                afterBody() {
+                  return ocCompression.compressed ? ['3/16 outlier compressed for display'] : [];
+                },
+              },
+            },
           },
-          scales: baseScales(0),
+          scales: {
+            x: { grid: { color: gridColor }, ticks: tickStyle },
+            y: {
+              min: ocCompression.min,
+              max: ocCompression.max,
+              grid: { color: gridColor },
+              ticks: {
+                ...tickStyle,
+                callback(value) {
+                  return formatAxisNumber(ocCompression.invert(Number(value)));
+                },
+              },
+            },
+          },
           barPercentage: 0.7,
           categoryPercentage: 0.8,
         },
@@ -2746,8 +2823,7 @@
     function renderBurnRateChart() {
       destroyChart('br');
       const rates = allData.weeks.map(w => (w.totalClosed ?? w.closed) - w.opened);
-      const maxAbsRate = Math.max(...rates.map((r) => Math.abs(r || 0)), 0);
-      const axisLimit = Math.max(25, Math.ceil(maxAbsRate * 1.15));
+      const burnCompression = createCompressedAxis(rates, { symmetric: true });
 
       charts.br = new Chart(document.getElementById('burnRateChart'), {
         type: 'bar',
@@ -2755,7 +2831,8 @@
           labels: allData.weeks.map(w => w.label),
           datasets: [{
             label: 'Burn rate',
-            data: rates,
+            data: rates.map(burnCompression.transform),
+            rawData: rates,
             backgroundColor: rates.map((r, i) =>
               i === selWeek
                 ? (r >= 0 ? '#1a6b3a' : '#991b1b')
@@ -2768,16 +2845,36 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: tooltipStyle },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              ...tooltipStyle,
+              callbacks: {
+                label(context) {
+                  const raw = context.dataset.rawData?.[context.dataIndex];
+                  return `${context.dataset.label}: ${raw >= 0 ? '+' : ''}${formatAxisNumber(raw ?? context.raw)}`;
+                },
+                afterBody() {
+                  return burnCompression.compressed ? ['3/16 outlier compressed for display'] : [];
+                },
+              },
+            },
+          },
           scales: {
             x: {
               grid: { color: gridColor },
               ticks: tickStyle,
             },
             y: {
-              min: -axisLimit,
-              max: axisLimit,
-              ticks: tickStyle,
+              min: burnCompression.min,
+              max: burnCompression.max,
+              ticks: {
+                ...tickStyle,
+                callback(value) {
+                  const raw = burnCompression.invert(Number(value));
+                  return `${raw >= 0 ? '' : '-'}${formatAxisNumber(Math.abs(raw))}`;
+                },
+              },
               grid: {
                 color: (ctx) => (ctx.tick?.value === 0 ? 'rgba(68,81,91,0.35)' : gridColor),
                 lineWidth: (ctx) => (ctx.tick?.value === 0 ? 1.5 : 1),
