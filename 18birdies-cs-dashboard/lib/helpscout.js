@@ -586,8 +586,6 @@ export async function fetchAllMetrics() {
   const backlogData = await getCurrentBacklog();
   const currentBacklog = backlogData.total;
 
-  const baselineDate = 'March 16, 2026';
-
   const weeklyMetrics = await Promise.all(
   weeks.map(async (week) => {
     const report = await getWeekReport(week.startStr, week.endStr);
@@ -605,34 +603,10 @@ export async function fetchAllMetrics() {
   })
 );
 
-  let runningBacklog = currentBacklog;
-  for (let i = weeklyMetrics.length - 1; i >= 0; i--) {
-    weeklyMetrics[i].backlog = Math.max(0, runningBacklog);
-    runningBacklog = runningBacklog + weeklyMetrics[i].opened - weeklyMetrics[i].totalClosed;
-    if (runningBacklog < 0) runningBacklog = 0;
-  }
-
-  const baselineBacklog = 16431;
-
-  for (let i = 0; i < weeklyMetrics.length; i++) {
-    const w = weeklyMetrics[i];
-    const prev = i > 0 ? weeklyMetrics[i - 1] : null;
-
-    w.pctVsBaseline = baselineBacklog > 0
-      ? Math.round(((w.backlog - baselineBacklog) / baselineBacklog) * 10000) / 100
-      : 0;
-
-    w.pctVsPriorWeek = (prev && prev.backlog > 0)
-      ? Math.round(((w.backlog - prev.backlog) / prev.backlog) * 10000) / 100
-      : null;
-  }
-
   return {
     fetchedAt: new Date().toISOString(),
     currentBacklog,
     backlogBreakdown: backlogData,
-    baselineBacklog,
-    baselineDate,
     weeks: weeklyMetrics,
   };
 }
