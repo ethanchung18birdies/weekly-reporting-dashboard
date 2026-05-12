@@ -949,7 +949,7 @@
 
       <div class="two-col">
         <div class="card burndown-card">
-          <div class="card-title">Cumulative net burn</div>
+          <div class="card-title">Estimated backlog volume</div>
           <div class="burn-stats" id="burnStats"></div>
           <div class="chart-wrap fill"><canvas id="burnChart"></canvas></div>
         </div>
@@ -1057,7 +1057,7 @@
       <div class="legend">
         <div class="legend-item"><div class="legend-sq" style="background:#1a3a1a"></div>Closed w/ reply</div>
         <div class="legend-item"><div class="legend-sq" style="background:#d1d5db"></div>Opened</div>
-        <div class="legend-item"><div class="legend-sq" style="background:#92400e"></div>Cumulative net burn</div>
+        <div class="legend-item"><div class="legend-sq" style="background:#92400e"></div>Estimated backlog</div>
       </div>
     </div>
   </div>
@@ -1262,6 +1262,20 @@
       const indices = [];
       for (let i = start; i <= index; i++) indices.push(i);
       return indices;
+    }
+
+    function getEstimatedBacklogSeries() {
+      const series = Array(allData?.weeks?.length || 0).fill(0);
+      let runningBacklog = allData?.currentBacklog ?? 0;
+
+      for (let i = series.length - 1; i >= 0; i--) {
+        series[i] = Math.max(0, runningBacklog);
+        const week = allData.weeks[i];
+        runningBacklog += (week.opened ?? 0) - (week.totalClosed ?? week.closed ?? 0);
+        if (runningBacklog < 0) runningBacklog = 0;
+      }
+
+      return series;
     }
 
     async function ensureBucketWeekLoaded(weekIdx, showLoading = false, forceRefresh = false) {
@@ -1681,18 +1695,16 @@
 
       renderCallout(w, weeksToZero, onTrack, elapsed, dailyPace);
 
-      const cumulativeBurnSeries = [];
-      let runningNetBurn = 0;
-      for (const week of allData.weeks) {
-        runningNetBurn += (week.totalClosed ?? week.closed) - week.opened;
-        cumulativeBurnSeries.push(runningNetBurn);
-      }
-      const currentCumulativeBurn = cumulativeBurnSeries[selWeek] ?? 0;
+      const estimatedBacklogSeries = getEstimatedBacklogSeries();
+      const selectedEstimatedBacklog = estimatedBacklogSeries[selWeek] ?? 0;
+      const firstEstimatedBacklog = estimatedBacklogSeries[0] ?? currentBacklog;
+      const estimatedChange = firstEstimatedBacklog - currentBacklog;
       const positiveBurnWeeks = allData.weeks.filter((week) => ((week.totalClosed ?? week.closed) - week.opened) > 0).length;
 
       document.getElementById('burnStats').innerHTML = `
         <div class="bstat"><div class="bstat-val">${currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Current backlog</div></div>
-        <div class="bstat"><div class="bstat-val" style="color:${currentCumulativeBurn >= 0 ? 'var(--green)' : 'var(--red)'}">${currentCumulativeBurn >= 0 ? '+' : '−'}${Math.abs(currentCumulativeBurn).toLocaleString()}</div><div class="bstat-lbl">Cumulative net burn</div></div>
+        <div class="bstat"><div class="bstat-val">${selectedEstimatedBacklog.toLocaleString()}</div><div class="bstat-lbl">Estimated backlog for ${w.label}</div></div>
+        <div class="bstat"><div class="bstat-val" style="color:${estimatedChange >= 0 ? 'var(--green)' : 'var(--red)'}">${estimatedChange >= 0 ? '−' : '+'}${Math.abs(estimatedChange).toLocaleString()}</div><div class="bstat-lbl">Estimated change since first visible week</div></div>
         <div class="bstat"><div class="bstat-val" style="color:${avgBurn >= 0 ? 'var(--green)' : 'var(--red)'}">${avgBurn >= 0 ? '+' : '−'}${Math.abs(Math.round(avgBurn)).toLocaleString()}</div><div class="bstat-lbl">Avg weekly net burn</div></div>
         <div class="bstat"><div class="bstat-val">${positiveBurnWeeks}/${allData.weeks.length}</div><div class="bstat-lbl">Positive burn weeks</div></div>
         <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
@@ -2634,12 +2646,7 @@
     function renderBurnChart() {
       destroyChart('burn');
       const labels = allData.weeks.map(w => w.label);
-      const cumulativeData = [];
-      let running = 0;
-      for (const week of allData.weeks) {
-        running += (week.totalClosed ?? week.closed) - week.opened;
-        cumulativeData.push(running);
-      }
+      const estimatedBacklogData = getEstimatedBacklogSeries();
 
       charts.burn = new Chart(document.getElementById('burnChart'), {
         type: 'line',
@@ -2647,8 +2654,8 @@
           labels,
           datasets: [
             {
-              label: 'Cumulative net burn',
-              data: cumulativeData,
+              label: 'Estimated backlog',
+              data: estimatedBacklogData,
               borderColor: '#92400e',
               backgroundColor: 'rgba(146,64,14,0.08)',
               fill: true,
@@ -2662,8 +2669,21 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: tooltipStyle },
-          scales: baseScales(),
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              ...tooltipStyle,
+              callbacks: {
+                label(context) {
+                  return `Estimated backlog: ${formatAxisNumber(context.raw)}`;
+                },
+                afterBody() {
+                  return ['Estimated from current backlog plus weekly opened/closed flow'];
+                },
+              },
+            },
+          },
+          scales: baseScales(0),
         },
       });
     }
