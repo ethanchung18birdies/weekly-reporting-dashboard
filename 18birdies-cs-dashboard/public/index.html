@@ -1272,7 +1272,7 @@
       for (let i = series.length - 1; i >= 0; i--) {
         series[i] = Math.max(0, runningBacklog);
         const week = allData.weeks[i];
-        runningBacklog += (week.opened ?? 0) - (week.totalClosed ?? week.closed ?? 0);
+        runningBacklog += ((week.totalClosed ?? week.closed ?? 0) - (week.opened ?? 0));
         if (runningBacklog < 0) runningBacklog = 0;
       }
 
