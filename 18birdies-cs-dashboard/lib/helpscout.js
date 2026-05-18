@@ -638,7 +638,7 @@ export async function fetchWeekAssignees(startStr, endStr) {
     { id: 929227, name: 'Michael Decena' },
     { id: 929229, name: 'Fernan Gomez' },
     { id: 929231, name: 'Laila Elaine Gelle' },
-    { id: 929232, name: 'Julius Lubitos' },
+    { id: 935563, name: 'Juan Caluma' },
     { id: 929233, name: 'Vincent Joel Santos' },
     { id: 929234, name: 'Margie Ativo' },
   ];
