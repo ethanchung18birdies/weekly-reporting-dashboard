@@ -724,6 +724,55 @@
       color: var(--muted);
     }
 
+    .trend-progress {
+      grid-column: 1 / -1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      padding: 14px;
+    }
+
+    .trend-progress-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .trend-progress-title {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .trend-progress-meta {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+
+    .trend-progress-track {
+      height: 8px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .trend-progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: var(--accent);
+      transition: width 180ms ease;
+    }
+
+    .trend-progress-foot {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
     .forecast-list {
       margin-top: 8px;
       display: flex;
@@ -1104,7 +1153,7 @@
       ]),
       rendell: new Set([
         'Rendell Severino',
-        'Nestor Cortez',
+        'Jerlene Geliang',
         'John Espuerta',
         'Mary Shen',
         'Baetiong John',
@@ -2269,17 +2318,44 @@
       `).join('');
     }
 
-    function renderIncomingTrendsLoading() {
+    function formatDuration(seconds) {
+      if (!Number.isFinite(seconds) || seconds <= 0) return 'calculating';
+      const rounded = Math.max(1, Math.round(seconds));
+      if (rounded < 60) return `${rounded}s`;
+      const minutes = Math.floor(rounded / 60);
+      const remainder = rounded % 60;
+      return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
+    }
+
+    function renderIncomingTrendsLoading(progress = {}) {
       const title = document.getElementById('incomingTrendTitle');
       const filters = document.getElementById('incomingTrendFilters');
       const summary = document.getElementById('incomingTrendSummary');
       const tree = document.getElementById('incomingTrendTree');
+      const completed = progress.completed || 0;
+      const total = progress.total || 4;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const currentLabel = progress.currentLabel || 'Preparing weekly requests';
+      const remaining = total - completed;
+      const waitText = completed > 0
+        ? `${formatDuration(progress.estimatedRemainingSeconds)} remaining`
+        : 'estimating wait time';
+
       if (title) title.textContent = 'Incoming trends — trailing 4 weeks';
       if (filters) filters.innerHTML = '';
       if (summary) summary.innerHTML = `
-        <div class="bucket-loading">
-          <div class="bucket-spinner"></div>
-          <span>Loading trailing 4-week incoming trends...</span>
+        <div class="trend-progress">
+          <div class="trend-progress-head">
+            <div>
+              <div class="trend-progress-title">Processing incoming trends</div>
+              <div class="trend-progress-foot">${currentLabel}</div>
+            </div>
+            <div class="trend-progress-meta">${completed}/${total} weeks · ${waitText}</div>
+          </div>
+          <div class="trend-progress-track">
+            <div class="trend-progress-fill" style="width:${pct}%"></div>
+          </div>
+          <div class="trend-progress-foot">${remaining > 0 ? `${remaining} week${remaining === 1 ? '' : 's'} left to process` : 'Finalizing results'}</div>
         </div>
       `;
       if (tree) tree.innerHTML = '';
@@ -2345,17 +2421,28 @@
 
       const requestId = ++incomingTrendRequestId;
       const indices = getIncomingTrendWeekIndices(weekIdx);
-      renderIncomingTrendsLoading();
+      const totalWeeks = indices.length;
+      const startedAt = performance.now();
+      renderIncomingTrendsLoading({ completed: 0, total: totalWeeks });
       indices.forEach((idx) => {
         const week = allData?.weeks?.[idx];
         if (week) delete incomingTrendWeekCache[week.startStr];
       });
 
       try {
-        await Promise.all(indices.map(async (idx) => {
+        let completed = 0;
+        for (const idx of indices) {
           const week = allData?.weeks?.[idx];
-          if (!week) return null;
-          const res = await fetch(`/api/buckets?start=${week.startStr}&end=${week.endStr}`);
+          if (!week) continue;
+          renderIncomingTrendsLoading({
+            completed,
+            total: totalWeeks,
+            currentLabel: `Fetching ${week.label}`,
+            estimatedRemainingSeconds: completed > 0
+              ? ((performance.now() - startedAt) / completed / 1000) * (totalWeeks - completed)
+              : null,
+          });
+          const res = await fetch(`/api/buckets?start=${week.startStr}&end=${week.endStr}&scope=incoming`);
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to load incoming trend week');
           incomingTrendWeekCache[week.startStr] = data.buckets || {
@@ -2368,8 +2455,16 @@
               subcategory: [],
             },
           };
-          return incomingTrendWeekCache[week.startStr];
-        }));
+          completed += 1;
+          renderIncomingTrendsLoading({
+            completed,
+            total: totalWeeks,
+            currentLabel: `Finished ${week.label}`,
+            estimatedRemainingSeconds: completed > 0
+              ? ((performance.now() - startedAt) / completed / 1000) * (totalWeeks - completed)
+              : null,
+          });
+        }
         if (requestId !== incomingTrendRequestId || weekIdx !== selWeek) return;
         renderIncomingTrendsSection(weekIdx);
       } catch (e) {

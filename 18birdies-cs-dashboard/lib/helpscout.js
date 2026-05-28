@@ -8,6 +8,11 @@ let _tokenCache = null;
 let _tagIdCache = null;
 const _assigneeWeekCache = new Map();
 const _assigneeSubcategoryCache = new Map();
+const REPORT_TAG_CONCURRENCY = 4;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function getAccessToken() {
   if (_tokenCache && _tokenCache.expiresAt > Date.now() + 60_000) {
@@ -56,6 +61,43 @@ async function hsGet(path, params = {}) {
   }
 
   return res.json();
+}
+
+async function hsGetWithRetry(path, params = {}, attempts = 3) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await hsGet(path, params);
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
+      await sleep(250 * attempt);
+    }
+  }
+
+  throw lastError;
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+
+  return results;
 }
 
 function buildEmailReportParams(startStr, endStr) {
@@ -376,8 +418,10 @@ function sortCountBreakdown(items, total) {
 async function fetchTaggedClosureMetrics(baseParams, config) {
   const resolvedConfig = await resolveTagConfig(config);
 
-  const results = await Promise.all(
-    resolvedConfig.map(async (item) => {
+  const results = await mapWithConcurrency(
+    resolvedConfig,
+    REPORT_TAG_CONCURRENCY,
+    async (item) => {
       if (!item.tagId) {
         return {
           name: item.name,
@@ -389,10 +433,10 @@ async function fetchTaggedClosureMetrics(baseParams, config) {
         };
       }
 
-      const report = await hsGet('/reports/email', {
+      const report = await hsGetWithRetry('/reports/email', {
         ...baseParams,
         tags: String(item.tagId),
-      }).catch(() => null);
+      });
 
       const resolved = report?.current?.resolutions?.resolved ?? 0;
       const closed = report?.current?.resolutions?.closed ?? 0;
@@ -405,7 +449,7 @@ async function fetchTaggedClosureMetrics(baseParams, config) {
         noReply: Math.max(0, closed - resolved),
         both: closed,
       };
-    })
+    }
   );
 
   return results;
@@ -414,8 +458,10 @@ async function fetchTaggedClosureMetrics(baseParams, config) {
 async function fetchTaggedIncomingMetrics(baseParams, config) {
   const resolvedConfig = await resolveTagConfig(config);
 
-  const results = await Promise.all(
-    resolvedConfig.map(async (item) => {
+  const results = await mapWithConcurrency(
+    resolvedConfig,
+    REPORT_TAG_CONCURRENCY,
+    async (item) => {
       if (!item.tagId) {
         return {
           name: item.name,
@@ -425,10 +471,10 @@ async function fetchTaggedIncomingMetrics(baseParams, config) {
         };
       }
 
-      const report = await hsGet('/reports/email', {
+      const report = await hsGetWithRetry('/reports/email', {
         ...baseParams,
         tags: String(item.tagId),
-      }).catch(() => null);
+      });
 
       return {
         name: item.name,
@@ -436,7 +482,7 @@ async function fetchTaggedIncomingMetrics(baseParams, config) {
         tagId: item.tagId,
         count: report?.current?.volume?.emailConversations ?? 0,
       };
-    })
+    }
   );
 
   return results;
@@ -508,21 +554,41 @@ async function getWeekReport(startStr, endStr) {
   }
 }
 
-export async function fetchWeekBuckets(startStr, endStr) {
+export async function fetchWeekBuckets(startStr, endStr, scope = 'all') {
   const baseParams = buildEmailReportParams(startStr, endStr);
 
   try {
-    const emailReport = await hsGet('/reports/email', baseParams).catch(() => null);
+    const emailReport = await hsGetWithRetry('/reports/email', baseParams);
     const opened = emailReport?.current?.volume?.emailConversations ?? 0;
     const resolved = emailReport?.current?.resolutions?.resolved ?? 0;
     const closed = emailReport?.current?.resolutions?.closed ?? 0;
     const noReply = Math.max(0, closed - resolved);
 
-    const [closedCategoryMetrics, closedSubcategoryMetrics, incomingCategoryMetrics, incomingSubcategoryMetrics] = await Promise.all([
-      fetchTaggedClosureMetrics(baseParams, CATEGORY_TAGS),
-      fetchTaggedClosureMetrics(baseParams, SUBCATEGORY_TAGS),
+    const [incomingCategoryMetrics, incomingSubcategoryMetrics] = await Promise.all([
       fetchTaggedIncomingMetrics(baseParams, CATEGORY_TAGS),
       fetchTaggedIncomingMetrics(baseParams, SUBCATEGORY_TAGS),
+    ]);
+
+    if (scope === 'incoming') {
+      return {
+        closed: {
+          category: { withReply: [], noReply: [], both: [] },
+          subcategory: { withReply: [], noReply: [], both: [] },
+        },
+        incoming: {
+          category: buildIncomingCategoryBreakdown(
+            incomingCategoryMetrics,
+            incomingSubcategoryMetrics,
+            opened
+          ),
+          subcategory: sortCountBreakdown(incomingSubcategoryMetrics, opened),
+        },
+      };
+    }
+
+    const [closedCategoryMetrics, closedSubcategoryMetrics] = await Promise.all([
+      fetchTaggedClosureMetrics(baseParams, CATEGORY_TAGS),
+      fetchTaggedClosureMetrics(baseParams, SUBCATEGORY_TAGS),
     ]);
 
     return {
@@ -549,16 +615,7 @@ export async function fetchWeekBuckets(startStr, endStr) {
     };
   } catch (e) {
     console.error(`Error fetching buckets ${startStr}-${endStr}:`, e.message);
-    return {
-      closed: {
-        category: { withReply: [], noReply: [], both: [] },
-        subcategory: { withReply: [], noReply: [], both: [] },
-      },
-      incoming: {
-        category: [],
-        subcategory: [],
-      },
-    };
+    throw e;
   }
 }
 
@@ -626,7 +683,7 @@ export async function fetchWeekAssignees(startStr, endStr) {
     { id: 905514, name: 'Baetiong John' },
     { id: 905526, name: 'John Espuerta' },
     { id: 905521, name: 'Marianne Figueroa' },
-    { id: 905519, name: 'Nestor Cortez' },
+    { id: 938176, name: 'Jerlene Geliang' },
     { id: 905515, name: 'Nico Delos Reyes' },
     { id: 905523, name: 'Rendell Severino' },
     { id: 905524, name: 'Mary Shen' },

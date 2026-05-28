@@ -7,13 +7,13 @@ import { fetchWeekBuckets } from '../lib/helpscout.js';
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { start, end } = req.query;
+  const { start, end, scope } = req.query;
   if (!start || !end) {
     return res.status(400).json({ error: 'Missing start or end query params' });
   }
 
   try {
-    const buckets = await fetchWeekBuckets(start, end);
+    const buckets = await fetchWeekBuckets(start, end, scope === 'incoming' ? 'incoming' : 'all');
     return res.status(200).json({ start, end, buckets });
   } catch (err) {
     console.error('Buckets error:', err);
