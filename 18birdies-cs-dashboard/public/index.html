@@ -41,6 +41,11 @@
       min-height: 100vh;
     }
 
+    #dashboard {
+      min-height: calc(100vh - 132px);
+      flex-direction: column;
+    }
+
     .hdr {
       background: var(--accent);
       color: #fff;
@@ -259,6 +264,18 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+    }
+
+    #ticketExplorerView {
+      flex: 1;
+      min-height: calc(100vh - 214px);
+    }
+
+    .ticket-preview-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 260px;
     }
 
     .callout {
@@ -922,7 +939,7 @@
     .ticket-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px 12px;
+      gap: 12px;
       margin-top: 2px;
     }
 
@@ -937,12 +954,20 @@
       grid-column: span 2;
     }
 
-    .ticket-field.span-3 {
-      grid-column: span 3;
+    .ticket-field.span-all {
+      grid-column: 1 / -1;
     }
 
     .ticket-field.full {
       grid-column: 1 / -1;
+    }
+
+    .ticket-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 13px;
     }
 
     .ticket-label {
@@ -971,57 +996,28 @@
     }
 
     .ticket-inline-check {
-      min-height: 36px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 9px 10px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--surface);
-      font-size: 12px;
-      color: var(--text);
+      gap: 5px;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: none;
+      letter-spacing: 0;
+      white-space: nowrap;
     }
 
     .ticket-inline-check input {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       accent-color: var(--accent);
       flex-shrink: 0;
     }
 
-    .ticket-selector-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    .ticket-panel {
-      min-width: 0;
-    }
-
-    .ticket-panel-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 6px;
-    }
-
-    .ticket-assignee-box,
-    .ticket-column-box,
-    .ticket-filter-box {
+    .ticket-column-box {
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--surface2);
       padding: 10px;
-      max-height: 190px;
-      overflow: auto;
-    }
-
-    .ticket-filter-box {
-      max-height: 128px;
     }
 
     .ticket-multiselect {
@@ -1097,9 +1093,10 @@
 
     .ticket-column-box {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0 12px;
-      max-height: 126px;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 0 14px;
+      max-height: none;
+      overflow: visible;
     }
 
     .ticket-check-row {
@@ -1228,6 +1225,7 @@
 
     .ticket-table-wrap {
       overflow-x: auto;
+      flex: 1;
     }
 
     .ticket-table {
@@ -1255,10 +1253,9 @@
       .two-col { grid-template-columns: 1fr; }
       .ticket-grid { grid-template-columns: 1fr; }
       .ticket-field.wide { grid-column: span 1; }
-      .ticket-field.span-3 { grid-column: span 1; }
+      .ticket-field.span-all { grid-column: span 1; }
       .ticket-field.full { grid-column: span 1; }
-      .ticket-selector-grid { grid-template-columns: 1fr; }
-      .ticket-column-box { grid-template-columns: 1fr; }
+      .ticket-column-box { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .ticket-actions { align-items: stretch; }
       .ticket-action-buttons { width: 100%; }
       .ticket-action-buttons .btn { flex: 1; }
@@ -1427,7 +1424,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card ticket-preview-card">
         <div class="trend-head">
           <div class="trend-title" id="incomingTrendTitle">Incoming trends — trailing 4 weeks</div>
           <div class="trend-actions">
@@ -1456,15 +1453,14 @@
             <input class="ticket-input" type="date" id="ticketStartDate" />
           </label>
           <label class="ticket-field">
-            <span class="ticket-label">End date</span>
+            <span class="ticket-label-row">
+              <span class="ticket-label">End date</span>
+              <span class="ticket-inline-check">
+                <input type="checkbox" id="ticketNoDateLimit" onchange="handleTicketDateScopeChange()" />
+                <span>No date limit</span>
+              </span>
+            </span>
             <input class="ticket-input" type="date" id="ticketEndDate" />
-          </label>
-          <label class="ticket-field">
-            <span class="ticket-label">Date scope</span>
-            <label class="ticket-inline-check">
-              <input type="checkbox" id="ticketNoDateLimit" onchange="handleTicketDateScopeChange()" />
-              <span>No date limit</span>
-            </label>
           </label>
           <label class="ticket-field">
             <span class="ticket-label">Status</span>
@@ -1476,6 +1472,10 @@
               <option value="closed">Closed</option>
               <option value="spam">Spam</option>
             </select>
+          </label>
+          <label class="ticket-field">
+            <span class="ticket-label">Search text</span>
+            <input class="ticket-input" type="search" id="ticketQuery" placeholder='Example: qualified round' />
           </label>
           <label class="ticket-field">
             <span class="ticket-label">Team shortcut</span>
@@ -1530,11 +1530,7 @@
               </div>
             </details>
           </div>
-          <label class="ticket-field">
-            <span class="ticket-label">Search text</span>
-            <input class="ticket-input" type="search" id="ticketQuery" placeholder='Example: qualified round' />
-          </label>
-          <div class="ticket-field span-3">
+          <div class="ticket-field span-all">
             <span class="ticket-label">Export columns</span>
             <div class="ticket-column-box" id="ticketColumnList"></div>
           </div>
@@ -2686,7 +2682,7 @@
 
     function renderAll() {
       document.getElementById('loadingState').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('dashboard').style.display = 'flex';
       showAppView(activeAppView);
 
       const w = getWeekWithBuckets(selWeek);
