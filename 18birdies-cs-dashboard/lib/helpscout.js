@@ -701,15 +701,38 @@ function escapeTicketQueryValue(value) {
   return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').trim();
 }
 
+function tokenizeTicketQuery(value) {
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .map((token) => token.replace(/[()"]/g, '').trim())
+    .filter(Boolean);
+}
+
+function buildTextSearchClause(query) {
+  const rawQuery = String(query || '').trim();
+  if (!rawQuery) return '';
+
+  const explicitlyQuoted = /^".+"$/.test(rawQuery);
+  if (explicitlyQuoted) {
+    const phrase = escapeTicketQueryValue(rawQuery.slice(1, -1));
+    return `(body:"${phrase}" OR subject:"${phrase}")`;
+  }
+
+  const tokens = tokenizeTicketQuery(rawQuery);
+  if (!tokens.length) return '';
+
+  const fieldQuery = tokens.map(escapeTicketQueryValue).join(' ');
+  return `(body:(${fieldQuery}) OR subject:(${fieldQuery}))`;
+}
+
 function buildTicketAdvancedQuery(filters) {
   const clauses = [
     `createdAt:[${toIsoStart(filters.start)} TO ${toIsoEnd(filters.end)}]`,
   ];
 
-  if (filters.query) {
-    const phrase = escapeTicketQueryValue(filters.query);
-    clauses.push(`(body:"${phrase}" OR subject:"${phrase}")`);
-  }
+  const textClause = buildTextSearchClause(filters.query);
+  if (textClause) clauses.push(textClause);
 
   return `(${clauses.join(' AND ')})`;
 }

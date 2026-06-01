@@ -1029,6 +1029,23 @@
       flex-wrap: wrap;
       margin-top: 14px;
       justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ticket-action-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 240px;
+      flex: 1;
+    }
+
+    .ticket-action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .ticket-muted {
@@ -1122,6 +1139,9 @@
       .ticket-field.full { grid-column: span 1; }
       .ticket-selector-grid { grid-template-columns: 1fr; }
       .ticket-column-box { grid-template-columns: 1fr; }
+      .ticket-actions { align-items: stretch; }
+      .ticket-action-buttons { width: 100%; }
+      .ticket-action-buttons .btn { flex: 1; }
       .hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
       .goal-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
       .pace-pill { margin-left: 0; }
@@ -1308,10 +1328,6 @@
             <div class="trend-title">Ticket Explorer</div>
             <div class="ticket-muted" style="margin-top:4px">Search Help Scout ticket bodies and subjects, preview cleaned customer messages, and export XLSX.</div>
           </div>
-          <div class="trend-actions">
-            <button class="btn btn-primary" id="ticketSearchBtn" onclick="searchTickets()">Search</button>
-            <button class="btn btn-ghost" id="ticketExportBtn" style="color:var(--accent);border-color:var(--border2);background:var(--surface2)" onclick="exportTickets()">Export XLSX</button>
-          </div>
         </div>
 
         <div class="ticket-grid">
@@ -1387,8 +1403,14 @@
         </div>
 
         <div class="ticket-actions">
-          <span class="ticket-muted">Tip: start with a short date range for faster previews.</span>
-          <span class="ticket-muted" id="ticketResultSummary"></span>
+          <div class="ticket-action-copy">
+            <span class="ticket-muted">Preview first to confirm the matching tickets, then export the XLSX.</span>
+            <span class="ticket-muted" id="ticketResultSummary">No preview run yet.</span>
+          </div>
+          <div class="ticket-action-buttons">
+            <button class="btn btn-ghost" id="ticketSearchBtn" style="color:var(--accent);border-color:var(--border2);background:var(--surface2)" onclick="searchTickets()">Preview tickets</button>
+            <button class="btn btn-primary" id="ticketExportBtn" onclick="exportTickets()">Export XLSX</button>
+          </div>
         </div>
       </div>
 
