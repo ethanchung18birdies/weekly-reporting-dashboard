@@ -919,39 +919,11 @@
       padding: 8px 0;
     }
 
-    .app-tabs {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 8px 28px 0;
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-    }
-
-    .app-tab {
-      border: 1px solid transparent;
-      border-bottom: none;
-      background: transparent;
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 11px;
-      padding: 8px 12px;
-      border-radius: 6px 6px 0 0;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .app-tab.active {
-      background: var(--bg);
-      border-color: var(--border);
-      color: var(--accent);
-      font-weight: 500;
-    }
-
     .ticket-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      gap: 10px 12px;
+      margin-top: 2px;
     }
 
     .ticket-field {
@@ -963,6 +935,10 @@
 
     .ticket-field.wide {
       grid-column: span 2;
+    }
+
+    .ticket-field.full {
+      grid-column: 1 / -1;
     }
 
     .ticket-label {
@@ -977,11 +953,30 @@
       width: 100%;
       font-family: var(--mono);
       font-size: 11px;
-      padding: 8px;
+      padding: 9px 10px;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--surface);
       color: var(--text);
+    }
+
+    .ticket-selector-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .ticket-panel {
+      min-width: 0;
+    }
+
+    .ticket-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
     }
 
     .ticket-assignee-box,
@@ -990,8 +985,14 @@
       border-radius: 8px;
       background: var(--surface2);
       padding: 10px;
-      max-height: 210px;
+      max-height: 190px;
       overflow: auto;
+    }
+
+    .ticket-column-box {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 12px;
     }
 
     .ticket-check-row {
@@ -1027,6 +1028,7 @@
       gap: 8px;
       flex-wrap: wrap;
       margin-top: 14px;
+      justify-content: space-between;
     }
 
     .ticket-muted {
@@ -1106,6 +1108,9 @@
       .two-col { grid-template-columns: 1fr; }
       .ticket-grid { grid-template-columns: 1fr; }
       .ticket-field.wide { grid-column: span 1; }
+      .ticket-field.full { grid-column: span 1; }
+      .ticket-selector-grid { grid-template-columns: 1fr; }
+      .ticket-column-box { grid-template-columns: 1fr; }
       .hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
       .goal-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
       .pace-pill { margin-left: 0; }
@@ -1117,7 +1122,7 @@
     }
 
     @media print {
-      .week-nav, .app-tabs, .hdr-actions, .btn, .inline-select { display: none !important; }
+      .week-nav, .hdr-actions, .btn, .inline-select { display: none !important; }
       body { background: white; }
       .card, .kpi { break-inside: avoid; }
     }
@@ -1135,7 +1140,7 @@
     <div class="hdr-actions">
       <div class="status-dot loading" id="statusDot"></div>
       <button class="btn btn-ghost" id="refreshBtn" onclick="refreshData()">Refresh</button>
-      <button class="btn btn-primary" onclick="window.print()">Export PDF</button>
+      <button class="btn btn-primary" id="appViewBtn" onclick="toggleTicketExplorer()">Ticket Explorer</button>
     </div>
   </div>
 
@@ -1151,10 +1156,6 @@
   </div>
 
   <div class="week-nav" id="weekNav"></div>
-  <div class="app-tabs" id="appTabs" style="display:none">
-    <button class="app-tab active" id="dashboardTab" onclick="showAppView('dashboard')">Dashboard</button>
-    <button class="app-tab" id="ticketExplorerTab" onclick="showAppView('tickets')">Ticket Explorer</button>
-  </div>
 
   <div class="state-screen" id="loadingState">
     <div class="spinner"></div>
@@ -1348,24 +1349,30 @@
             <span class="ticket-label">Search text</span>
             <input class="ticket-input" type="search" id="ticketQuery" placeholder="Subject, tags, preview, or ticket body" />
           </label>
-          <label class="ticket-field wide">
-            <span class="ticket-label">Assignee search</span>
-            <input class="ticket-input" type="search" id="ticketAssigneeSearch" placeholder="Filter assignee list" oninput="renderTicketAssigneeList()" />
-          </label>
-          <div class="ticket-field wide">
-            <span class="ticket-label">Assignees</span>
+        </div>
+
+        <div class="ticket-selector-grid">
+          <div class="ticket-panel">
+            <div class="ticket-panel-head">
+              <span class="ticket-label">Assignees</span>
+              <span class="ticket-muted" id="ticketSelectionSummary">No assignees selected means all assignees.</span>
+            </div>
+            <input class="ticket-input" type="search" id="ticketAssigneeSearch" placeholder="Filter assignee list" oninput="renderTicketAssigneeList()" style="margin-bottom:8px" />
             <div class="ticket-assignee-box" id="ticketAssigneeList">
               <div class="bucket-loading"><div class="bucket-spinner"></div><span>Open explorer to load assignees...</span></div>
             </div>
           </div>
-          <div class="ticket-field wide">
-            <span class="ticket-label">Export columns</span>
+          <div class="ticket-panel">
+            <div class="ticket-panel-head">
+              <span class="ticket-label">Export columns</span>
+              <span class="ticket-muted">XLSX fields</span>
+            </div>
             <div class="ticket-column-box" id="ticketColumnList"></div>
           </div>
         </div>
 
         <div class="ticket-actions">
-          <span class="ticket-muted" id="ticketSelectionSummary">No assignees selected means all assignees.</span>
+          <span class="ticket-muted">Tip: start with a short date range for faster previews.</span>
           <span class="ticket-muted" id="ticketResultSummary"></span>
         </div>
       </div>
@@ -1701,16 +1708,20 @@
 
     function showAppView(view) {
       activeAppView = view === 'tickets' ? 'tickets' : 'dashboard';
-      document.getElementById('dashboardTab')?.classList.toggle('active', activeAppView === 'dashboard');
-      document.getElementById('ticketExplorerTab')?.classList.toggle('active', activeAppView === 'tickets');
       const metricsView = document.getElementById('metricsView');
       const ticketView = document.getElementById('ticketExplorerView');
+      const appViewBtn = document.getElementById('appViewBtn');
       if (metricsView) metricsView.style.display = activeAppView === 'dashboard' ? 'flex' : 'none';
       if (ticketView) ticketView.style.display = activeAppView === 'tickets' ? 'flex' : 'none';
+      if (appViewBtn) appViewBtn.textContent = activeAppView === 'tickets' ? 'Dashboard' : 'Ticket Explorer';
 
       if (activeAppView === 'tickets') {
         initializeTicketExplorer();
       }
+    }
+
+    function toggleTicketExplorer() {
+      showAppView(activeAppView === 'tickets' ? 'dashboard' : 'tickets');
     }
 
     async function initializeTicketExplorer() {
@@ -2259,7 +2270,6 @@
       document.getElementById('loadingState').style.display = 'flex';
       document.getElementById('errorState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'none';
-      document.getElementById('appTabs').style.display = 'none';
 
       try {
         const url = force ? '/api/metrics?refresh=true' : '/api/metrics';
@@ -2292,7 +2302,6 @@
         document.getElementById('errorMsg').textContent = err.message;
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('errorState').style.display = 'flex';
-        document.getElementById('appTabs').style.display = 'none';
         setStatus('error');
       }
     }
@@ -2387,7 +2396,6 @@
     function renderAll() {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
-      document.getElementById('appTabs').style.display = 'flex';
       showAppView(activeAppView);
 
       const w = getWeekWithBuckets(selWeek);
