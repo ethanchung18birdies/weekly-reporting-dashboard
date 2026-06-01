@@ -31,6 +31,7 @@ export default async function handler(req, res) {
       category: req.query.category,
       subcategory: req.query.subcategory,
       query: req.query.query,
+      noDateLimit: req.query.noDateLimit === 'true',
       assigneeIds: asArray(req.query.assigneeIds),
     };
 

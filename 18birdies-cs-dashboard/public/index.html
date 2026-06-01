@@ -960,6 +960,32 @@
       color: var(--text);
     }
 
+    .ticket-input:disabled {
+      color: var(--muted);
+      background: #eeeeea;
+      cursor: not-allowed;
+    }
+
+    .ticket-inline-check {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .ticket-inline-check input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+
     .ticket-selector-grid {
       display: grid;
       grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
@@ -1340,6 +1366,13 @@
             <input class="ticket-input" type="date" id="ticketEndDate" />
           </label>
           <label class="ticket-field">
+            <span class="ticket-label">Date scope</span>
+            <label class="ticket-inline-check">
+              <input type="checkbox" id="ticketNoDateLimit" onchange="handleTicketDateScopeChange()" />
+              <span>No date limit</span>
+            </label>
+          </label>
+          <label class="ticket-field">
             <span class="ticket-label">Status</span>
             <select class="ticket-input" id="ticketStatus">
               <option value="all">All</option>
@@ -1379,7 +1412,7 @@
         </div>
 
         <div class="ticket-helper">
-          Ticket Explorer uses the date range and filters above. The dashboard week tabs are hidden here so they do not imply export scope.
+          Ticket Explorer uses the filters above. Turn on no date limit when you want the full active backlog for an assignee, category, or search term.
         </div>
 
         <div class="ticket-selector-grid">
@@ -1763,6 +1796,14 @@
       showAppView(activeAppView === 'tickets' ? 'dashboard' : 'tickets');
     }
 
+    function handleTicketDateScopeChange() {
+      const noDateLimit = Boolean(document.getElementById('ticketNoDateLimit')?.checked);
+      const startInput = document.getElementById('ticketStartDate');
+      const endInput = document.getElementById('ticketEndDate');
+      if (startInput) startInput.disabled = noDateLimit;
+      if (endInput) endInput.disabled = noDateLimit;
+    }
+
     async function initializeTicketExplorer() {
       const currentWeek = allData?.weeks?.[selWeek];
       if (currentWeek) {
@@ -1771,6 +1812,7 @@
         if (startInput && !startInput.value) startInput.value = currentWeek.startStr;
         if (endInput && !endInput.value) endInput.value = currentWeek.endStr;
       }
+      handleTicketDateScopeChange();
 
       if (ticketExplorerLoaded) return;
 
@@ -1891,9 +1933,11 @@
     }
 
     function getTicketFilters() {
+      const noDateLimit = Boolean(document.getElementById('ticketNoDateLimit')?.checked);
       return {
         start: document.getElementById('ticketStartDate')?.value || '',
         end: document.getElementById('ticketEndDate')?.value || '',
+        noDateLimit,
         status: document.getElementById('ticketStatus')?.value || 'all',
         category: document.getElementById('ticketCategory')?.value || 'all',
         subcategory: document.getElementById('ticketSubcategory')?.value || 'all',
@@ -1914,6 +1958,7 @@
         page: String(page),
         pageSize: String(ticketPreviewPageSize),
       });
+      if (filters.noDateLimit) params.set('noDateLimit', 'true');
       if (filters.assigneeIds.length) params.set('assigneeIds', filters.assigneeIds.join(','));
       return params;
     }

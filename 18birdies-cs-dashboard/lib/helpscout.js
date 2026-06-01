@@ -655,15 +655,15 @@ function isValidDateStr(value) {
 }
 
 function normalizeTicketFilters(input = {}) {
+  const noDateLimit = input.noDateLimit === true || input.noDateLimit === 'true';
   const start = String(input.start || '').slice(0, 10);
   const end = String(input.end || '').slice(0, 10);
-  if (!isValidDateStr(start) || !isValidDateStr(end)) {
+
+  if (!noDateLimit && (!isValidDateStr(start) || !isValidDateStr(end))) {
     throw new Error('Ticket search requires valid start and end dates.');
   }
 
-  const startDate = new Date(toIsoStart(start));
-  const endDate = new Date(toIsoEnd(end));
-  if (startDate > endDate) {
+  if (!noDateLimit && new Date(toIsoStart(start)) > new Date(toIsoEnd(end))) {
     throw new Error('Ticket search start date must be before end date.');
   }
 
@@ -677,6 +677,7 @@ function normalizeTicketFilters(input = {}) {
   return {
     start,
     end,
+    noDateLimit,
     status: ['active', 'all', 'closed', 'open', 'pending', 'spam'].includes(input.status)
       ? input.status
       : 'all',
@@ -727,14 +728,16 @@ function buildTextSearchClause(query) {
 }
 
 function buildTicketAdvancedQuery(filters) {
-  const clauses = [
-    `createdAt:[${toIsoStart(filters.start)} TO ${toIsoEnd(filters.end)}]`,
-  ];
+  const clauses = [];
+
+  if (!filters.noDateLimit) {
+    clauses.push(`createdAt:[${toIsoStart(filters.start)} TO ${toIsoEnd(filters.end)}]`);
+  }
 
   const textClause = buildTextSearchClause(filters.query);
   if (textClause) clauses.push(textClause);
 
-  return `(${clauses.join(' AND ')})`;
+  return clauses.length ? `(${clauses.join(' AND ')})` : '';
 }
 
 function cleanText(value) {
@@ -1021,6 +1024,7 @@ export function getTicketFilterOptions() {
 async function listConversationsForAssignee(filters, assigneeId, maxRows, onProgress) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   const tag = getTicketTagName(filters);
+  const advancedQuery = buildTicketAdvancedQuery(filters);
   const rows = [];
 
   let page = 1;
@@ -1033,7 +1037,7 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
       status: filters.status,
       assigned_to: assigneeId || undefined,
       tag: tag || undefined,
-      query: buildTicketAdvancedQuery(filters),
+      query: advancedQuery || undefined,
       page,
       pageSize: 100,
       sortField: 'createdAt',
