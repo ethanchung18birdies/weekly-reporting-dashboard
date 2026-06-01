@@ -654,6 +654,18 @@ function isValidDateStr(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
 
+function normalizeStringList(value) {
+  const raw = Array.isArray(value)
+    ? value
+    : String(value || '')
+        .split(',')
+        .map((item) => item.trim());
+
+  return [...new Set(raw
+    .map((item) => String(item || '').trim())
+    .filter((item) => item && item !== 'all'))];
+}
+
 function normalizeTicketFilters(input = {}) {
   const noDateLimit = input.noDateLimit === true || input.noDateLimit === 'true';
   const start = String(input.start || '').slice(0, 10);
@@ -682,24 +694,24 @@ function normalizeTicketFilters(input = {}) {
       ? input.status
       : 'all',
     assigneeIds: [...new Set(assigneeIds.map((id) => Number(id)).filter(Number.isFinite))],
-    category: String(input.category || 'all'),
-    subcategory: String(input.subcategory || 'all'),
+    categories: normalizeStringList(input.categories || input.category),
+    subcategories: normalizeStringList(input.subcategories || input.subcategory),
     query: String(input.query || '').trim(),
   };
 }
 
-function getTicketTagName(filters) {
-  if (filters.subcategory && filters.subcategory !== 'all') {
-    return SUBCATEGORY_TAGS.find((item) => item.name === filters.subcategory)?.hsName || null;
-  }
-  if (filters.category && filters.category !== 'all') {
-    return CATEGORY_TAGS.find((item) => item.name === filters.category)?.hsName || null;
-  }
-  return null;
-}
-
 function escapeTicketQueryValue(value) {
   return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').trim();
+}
+
+function buildTagClause(names, tagConfigs) {
+  const tagNames = names
+    .map((name) => tagConfigs.find((item) => item.name === name)?.hsName)
+    .filter(Boolean)
+    .map((tag) => `tag:"${escapeTicketQueryValue(tag)}"`);
+
+  if (!tagNames.length) return '';
+  return tagNames.length === 1 ? tagNames[0] : `(${tagNames.join(' OR ')})`;
 }
 
 function tokenizeTicketQuery(value) {
@@ -736,6 +748,12 @@ function buildTicketAdvancedQuery(filters) {
 
   const textClause = buildTextSearchClause(filters.query);
   if (textClause) clauses.push(textClause);
+
+  const categoryClause = buildTagClause(filters.categories, CATEGORY_TAGS);
+  if (categoryClause) clauses.push(categoryClause);
+
+  const subcategoryClause = buildTagClause(filters.subcategories, SUBCATEGORY_TAGS);
+  if (subcategoryClause) clauses.push(subcategoryClause);
 
   return clauses.length ? `(${clauses.join(' AND ')})` : '';
 }
@@ -1023,7 +1041,6 @@ export function getTicketFilterOptions() {
 
 async function listConversationsForAssignee(filters, assigneeId, maxRows, onProgress) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const tag = getTicketTagName(filters);
   const advancedQuery = buildTicketAdvancedQuery(filters);
   const rows = [];
 
@@ -1036,7 +1053,6 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
       mailbox: mailboxId,
       status: filters.status,
       assigned_to: assigneeId || undefined,
-      tag: tag || undefined,
       query: advancedQuery || undefined,
       page,
       pageSize: 100,

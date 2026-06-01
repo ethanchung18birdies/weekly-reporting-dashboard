@@ -937,6 +937,10 @@
       grid-column: span 2;
     }
 
+    .ticket-field.span-3 {
+      grid-column: span 3;
+    }
+
     .ticket-field.full {
       grid-column: 1 / -1;
     }
@@ -1006,7 +1010,8 @@
     }
 
     .ticket-assignee-box,
-    .ticket-column-box {
+    .ticket-column-box,
+    .ticket-filter-box {
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--surface2);
@@ -1015,10 +1020,86 @@
       overflow: auto;
     }
 
+    .ticket-filter-box {
+      max-height: 128px;
+    }
+
+    .ticket-multiselect {
+      position: relative;
+    }
+
+    .ticket-multiselect summary {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      list-style: none;
+      font-size: 12px;
+    }
+
+    .ticket-multiselect summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .ticket-multiselect summary::after {
+      content: '⌄';
+      color: var(--muted2);
+      font-family: var(--mono);
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .ticket-multiselect[open] summary {
+      border-color: var(--border2);
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .ticket-multiselect-body {
+      border: 1px solid var(--border2);
+      border-top: none;
+      border-bottom-left-radius: 6px;
+      border-bottom-right-radius: 6px;
+      background: var(--surface2);
+      padding: 8px;
+    }
+
+    .ticket-multiselect-list {
+      max-height: 154px;
+      overflow: auto;
+    }
+
+    .ticket-multiselect-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 6px;
+    }
+
+    .ticket-clear-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 0;
+    }
+
+    .ticket-clear-btn:hover {
+      color: var(--accent);
+    }
+
     .ticket-column-box {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0 12px;
+      max-height: 126px;
     }
 
     .ticket-check-row {
@@ -1072,6 +1153,18 @@
       gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-end;
+    }
+
+    .ticket-export-button {
+      color: white;
+      background: #1f7a3f;
+      border-color: #1f7a3f;
+    }
+
+    .ticket-export-button:hover {
+      background: #186635;
+      border-color: #186635;
+      opacity: 1;
     }
 
     .ticket-muted {
@@ -1162,6 +1255,7 @@
       .two-col { grid-template-columns: 1fr; }
       .ticket-grid { grid-template-columns: 1fr; }
       .ticket-field.wide { grid-column: span 1; }
+      .ticket-field.span-3 { grid-column: span 1; }
       .ticket-field.full { grid-column: span 1; }
       .ticket-selector-grid { grid-template-columns: 1fr; }
       .ticket-column-box { grid-template-columns: 1fr; }
@@ -1393,46 +1487,61 @@
               <option value="jane">Course Entry Team - Jane</option>
             </select>
           </label>
-          <label class="ticket-field">
+          <div class="ticket-field">
+            <span class="ticket-label">Assignees</span>
+            <details class="ticket-multiselect">
+              <summary id="ticketAssigneeSummary">All assignees</summary>
+              <div class="ticket-multiselect-body">
+                <input class="ticket-input" type="search" id="ticketAssigneeSearch" placeholder="Filter assignees" oninput="renderTicketAssigneeList()" style="margin-bottom:8px" />
+                <div class="ticket-multiselect-list" id="ticketAssigneeList">
+                  <div class="bucket-loading"><div class="bucket-spinner"></div><span>Open explorer to load assignees...</span></div>
+                </div>
+                <div class="ticket-multiselect-actions">
+                  <button type="button" class="ticket-clear-btn" onclick="clearTicketAssignees()">Clear assignees</button>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="ticket-field">
             <span class="ticket-label">Category</span>
-            <select class="ticket-input" id="ticketCategory" onchange="populateTicketSubcategories()">
-              <option value="all">All categories</option>
-            </select>
-          </label>
-          <label class="ticket-field">
+            <details class="ticket-multiselect">
+              <summary id="ticketCategorySummary">All categories</summary>
+              <div class="ticket-multiselect-body">
+                <div class="ticket-multiselect-list" id="ticketCategoryList">
+                  <div class="bucket-loading"><div class="bucket-spinner"></div><span>Loading categories...</span></div>
+                </div>
+                <div class="ticket-multiselect-actions">
+                  <button type="button" class="ticket-clear-btn" onclick="clearTicketCategories()">Clear categories</button>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="ticket-field">
             <span class="ticket-label">Subcategory</span>
-            <select class="ticket-input" id="ticketSubcategory">
-              <option value="all">All subcategories</option>
-            </select>
-          </label>
-          <label class="ticket-field wide">
+            <details class="ticket-multiselect">
+              <summary id="ticketSubcategorySummary">All subcategories</summary>
+              <div class="ticket-multiselect-body">
+                <div class="ticket-multiselect-list" id="ticketSubcategoryList">
+                  <div class="bucket-loading"><div class="bucket-spinner"></div><span>Loading subcategories...</span></div>
+                </div>
+                <div class="ticket-multiselect-actions">
+                  <button type="button" class="ticket-clear-btn" onclick="clearTicketSubcategories()">Clear subcategories</button>
+                </div>
+              </div>
+            </details>
+          </div>
+          <label class="ticket-field">
             <span class="ticket-label">Search text</span>
             <input class="ticket-input" type="search" id="ticketQuery" placeholder='Example: qualified round' />
           </label>
+          <div class="ticket-field span-3">
+            <span class="ticket-label">Export columns</span>
+            <div class="ticket-column-box" id="ticketColumnList"></div>
+          </div>
         </div>
 
         <div class="ticket-helper">
           Ticket Explorer uses the filters above. Turn on no date limit when you want the full active backlog for an assignee, category, or search term.
-        </div>
-
-        <div class="ticket-selector-grid">
-          <div class="ticket-panel">
-            <div class="ticket-panel-head">
-              <span class="ticket-label">Assignees</span>
-              <span class="ticket-muted" id="ticketSelectionSummary">No assignees selected means all assignees.</span>
-            </div>
-            <input class="ticket-input" type="search" id="ticketAssigneeSearch" placeholder="Filter assignee list" oninput="renderTicketAssigneeList()" style="margin-bottom:8px" />
-            <div class="ticket-assignee-box" id="ticketAssigneeList">
-              <div class="bucket-loading"><div class="bucket-spinner"></div><span>Open explorer to load assignees...</span></div>
-            </div>
-          </div>
-          <div class="ticket-panel">
-            <div class="ticket-panel-head">
-              <span class="ticket-label">Export columns</span>
-              <span class="ticket-muted">XLSX fields</span>
-            </div>
-            <div class="ticket-column-box" id="ticketColumnList"></div>
-          </div>
         </div>
 
         <div class="ticket-actions">
@@ -1442,7 +1551,7 @@
           </div>
           <div class="ticket-action-buttons">
             <button class="btn btn-ghost" id="ticketSearchBtn" style="color:var(--accent);border-color:var(--border2);background:var(--surface2)" onclick="searchTickets()">Preview tickets</button>
-            <button class="btn btn-primary" id="ticketExportBtn" onclick="exportTickets()">Export XLSX</button>
+            <button class="btn ticket-export-button" id="ticketExportBtn" onclick="exportTickets()">Export XLSX</button>
           </div>
         </div>
       </div>
@@ -1519,6 +1628,8 @@
     let ticketColumns = [];
     let ticketDefaultColumns = [];
     let ticketSelectedAssignees = new Set();
+    let ticketSelectedCategories = new Set();
+    let ticketSelectedSubcategories = new Set();
     let ticketPreviewPage = 1;
     let ticketPreviewTotal = 0;
     let ticketPreviewPageSize = 25;
@@ -1827,8 +1938,8 @@
         ticketSubcategories = data.subcategories || [];
         ticketColumns = data.columns || [];
         ticketDefaultColumns = data.defaultColumns || [];
-        populateTicketCategories();
-        populateTicketSubcategories();
+        renderTicketCategoryList();
+        renderTicketSubcategoryList();
         renderTicketAssigneeList();
         renderTicketColumnList();
         updateTicketSelectionSummary();
@@ -1840,20 +1951,81 @@
       }
     }
 
-    function populateTicketCategories() {
-      const select = document.getElementById('ticketCategory');
-      if (!select) return;
-      select.innerHTML = '<option value="all">All categories</option>' +
-        ticketCategories.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    function renderTicketCategoryList() {
+      const el = document.getElementById('ticketCategoryList');
+      if (!el) return;
+      if (!ticketCategories.length) {
+        el.innerHTML = '<div class="empty-state">No categories available.</div>';
+        updateTicketFilterSummaries();
+        return;
+      }
+      el.innerHTML = ticketCategories.map((name) => `
+        <label class="ticket-check-row">
+          <input type="checkbox" value="${escapeHtml(name)}" ${ticketSelectedCategories.has(name) ? 'checked' : ''} onchange="toggleTicketCategory(this)" />
+          <span>${escapeHtml(name)}</span>
+        </label>
+      `).join('');
+      updateTicketFilterSummaries();
     }
 
-    function populateTicketSubcategories() {
-      const select = document.getElementById('ticketSubcategory');
-      const category = document.getElementById('ticketCategory')?.value || 'all';
-      if (!select) return;
-      const rows = ticketSubcategories.filter((row) => category === 'all' || row.category === category);
-      select.innerHTML = '<option value="all">All subcategories</option>' +
-        rows.map((row) => `<option value="${escapeHtml(row.name)}">${escapeHtml(row.name)}</option>`).join('');
+    function visibleTicketSubcategories() {
+      return ticketSubcategories.filter((row) => (
+        ticketSelectedCategories.size === 0 || ticketSelectedCategories.has(row.category)
+      ));
+    }
+
+    function renderTicketSubcategoryList() {
+      const el = document.getElementById('ticketSubcategoryList');
+      if (!el) return;
+      const rows = visibleTicketSubcategories();
+      if (!rows.length) {
+        el.innerHTML = '<div class="empty-state">No subcategories for selected categories.</div>';
+        updateTicketFilterSummaries();
+        return;
+      }
+      el.innerHTML = rows.map((row) => `
+        <label class="ticket-check-row">
+          <input type="checkbox" value="${escapeHtml(row.name)}" ${ticketSelectedSubcategories.has(row.name) ? 'checked' : ''} onchange="toggleTicketSubcategory(this)" />
+          <span>${escapeHtml(row.name)}</span>
+          <span class="ticket-check-sub">${escapeHtml(row.category || '')}</span>
+        </label>
+      `).join('');
+      updateTicketFilterSummaries();
+    }
+
+    function syncVisibleTicketSubcategories() {
+      if (ticketSelectedCategories.size === 0) return;
+      const visible = new Set(visibleTicketSubcategories().map((row) => row.name));
+      ticketSelectedSubcategories = new Set(
+        Array.from(ticketSelectedSubcategories).filter((name) => visible.has(name))
+      );
+    }
+
+    function toggleTicketCategory(input) {
+      const name = String(input.value);
+      if (input.checked) ticketSelectedCategories.add(name);
+      else ticketSelectedCategories.delete(name);
+      syncVisibleTicketSubcategories();
+      renderTicketCategoryList();
+      renderTicketSubcategoryList();
+    }
+
+    function toggleTicketSubcategory(input) {
+      const name = String(input.value);
+      if (input.checked) ticketSelectedSubcategories.add(name);
+      else ticketSelectedSubcategories.delete(name);
+      renderTicketSubcategoryList();
+    }
+
+    function clearTicketCategories() {
+      ticketSelectedCategories = new Set();
+      renderTicketCategoryList();
+      renderTicketSubcategoryList();
+    }
+
+    function clearTicketSubcategories() {
+      ticketSelectedSubcategories = new Set();
+      renderTicketSubcategoryList();
     }
 
     function renderTicketAssigneeList() {
@@ -1867,6 +2039,7 @@
 
       if (!rows.length) {
         el.innerHTML = '<div class="empty-state">No matching assignees.</div>';
+        updateTicketSelectionSummary();
         return;
       }
 
@@ -1877,6 +2050,7 @@
           <span class="ticket-check-sub">${escapeHtml(assignee.email || '')}</span>
         </label>
       `).join('');
+      updateTicketSelectionSummary();
     }
 
     function renderTicketColumnList() {
@@ -1896,6 +2070,14 @@
       if (input.checked) ticketSelectedAssignees.add(id);
       else ticketSelectedAssignees.delete(id);
       document.getElementById('ticketTeamSelect').value = 'custom';
+      updateTicketSelectionSummary();
+    }
+
+    function clearTicketAssignees() {
+      ticketSelectedAssignees = new Set();
+      const teamSelect = document.getElementById('ticketTeamSelect');
+      if (teamSelect) teamSelect.value = 'all';
+      renderTicketAssigneeList();
       updateTicketSelectionSummary();
     }
 
@@ -1919,12 +2101,37 @@
     }
 
     function updateTicketSelectionSummary() {
-      const el = document.getElementById('ticketSelectionSummary');
+      const el = document.getElementById('ticketAssigneeSummary');
       if (!el) return;
       const count = ticketSelectedAssignees.size;
-      el.textContent = count
-        ? `${count} assignee${count === 1 ? '' : 's'} selected.`
-        : 'No assignees selected means all assignees.';
+      if (!count) {
+        el.textContent = 'All assignees';
+        return;
+      }
+
+      const selectedNames = ticketAssignees
+        .filter((assignee) => ticketSelectedAssignees.has(String(assignee.id)))
+        .map((assignee) => assignee.name);
+      el.textContent = selectedNames.length === 1
+        ? selectedNames[0]
+        : `${count} assignees`;
+    }
+
+    function summarizeTicketChoices(values, fallback) {
+      if (!values.length) return fallback;
+      if (values.length === 1) return values[0];
+      return `${values[0]} + ${values.length - 1}`;
+    }
+
+    function updateTicketFilterSummaries() {
+      const categorySummary = document.getElementById('ticketCategorySummary');
+      const subcategorySummary = document.getElementById('ticketSubcategorySummary');
+      if (categorySummary) {
+        categorySummary.textContent = summarizeTicketChoices(Array.from(ticketSelectedCategories), 'All categories');
+      }
+      if (subcategorySummary) {
+        subcategorySummary.textContent = summarizeTicketChoices(Array.from(ticketSelectedSubcategories), 'All subcategories');
+      }
     }
 
     function getSelectedTicketColumns() {
@@ -1939,8 +2146,8 @@
         end: document.getElementById('ticketEndDate')?.value || '',
         noDateLimit,
         status: document.getElementById('ticketStatus')?.value || 'all',
-        category: document.getElementById('ticketCategory')?.value || 'all',
-        subcategory: document.getElementById('ticketSubcategory')?.value || 'all',
+        categories: Array.from(ticketSelectedCategories),
+        subcategories: Array.from(ticketSelectedSubcategories),
         query: document.getElementById('ticketQuery')?.value || '',
         assigneeIds: Array.from(ticketSelectedAssignees),
       };
@@ -1952,12 +2159,12 @@
         start: filters.start,
         end: filters.end,
         status: filters.status,
-        category: filters.category,
-        subcategory: filters.subcategory,
         query: filters.query,
         page: String(page),
         pageSize: String(ticketPreviewPageSize),
       });
+      if (filters.categories.length) params.set('categories', filters.categories.join(','));
+      if (filters.subcategories.length) params.set('subcategories', filters.subcategories.join(','));
       if (filters.noDateLimit) params.set('noDateLimit', 'true');
       if (filters.assigneeIds.length) params.set('assigneeIds', filters.assigneeIds.join(','));
       return params;
