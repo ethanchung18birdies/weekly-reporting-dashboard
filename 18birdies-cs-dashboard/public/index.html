@@ -1036,6 +1036,17 @@
       font-size: 12px;
     }
 
+    .ticket-helper {
+      margin-top: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
     .ticket-progress {
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -1295,7 +1306,7 @@
         <div class="trend-head">
           <div>
             <div class="trend-title">Ticket Explorer</div>
-            <div class="ticket-muted" style="margin-top:4px">Search Help Scout tickets, preview cleaned customer messages, and export XLSX.</div>
+            <div class="ticket-muted" style="margin-top:4px">Search Help Scout ticket bodies and subjects, preview cleaned customer messages, and export XLSX.</div>
           </div>
           <div class="trend-actions">
             <button class="btn btn-primary" id="ticketSearchBtn" onclick="searchTickets()">Search</button>
@@ -1347,8 +1358,12 @@
           </label>
           <label class="ticket-field wide">
             <span class="ticket-label">Search text</span>
-            <input class="ticket-input" type="search" id="ticketQuery" placeholder="Subject, tags, preview, or ticket body" />
+            <input class="ticket-input" type="search" id="ticketQuery" placeholder='Example: qualified round' />
           </label>
+        </div>
+
+        <div class="ticket-helper">
+          Ticket Explorer uses the date range and filters above. The dashboard week tabs are hidden here so they do not imply export scope.
         </div>
 
         <div class="ticket-selector-grid">
@@ -1711,9 +1726,11 @@
       const metricsView = document.getElementById('metricsView');
       const ticketView = document.getElementById('ticketExplorerView');
       const appViewBtn = document.getElementById('appViewBtn');
+      const weekNav = document.getElementById('weekNav');
       if (metricsView) metricsView.style.display = activeAppView === 'dashboard' ? 'flex' : 'none';
       if (ticketView) ticketView.style.display = activeAppView === 'tickets' ? 'flex' : 'none';
       if (appViewBtn) appViewBtn.textContent = activeAppView === 'tickets' ? 'Dashboard' : 'Ticket Explorer';
+      if (weekNav) weekNav.style.display = activeAppView === 'tickets' ? 'none' : 'flex';
 
       if (activeAppView === 'tickets') {
         initializeTicketExplorer();

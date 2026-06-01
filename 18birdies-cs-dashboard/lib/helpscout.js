@@ -697,6 +697,23 @@ function getTicketTagName(filters) {
   return null;
 }
 
+function escapeTicketQueryValue(value) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').trim();
+}
+
+function buildTicketAdvancedQuery(filters) {
+  const clauses = [
+    `createdAt:[${toIsoStart(filters.start)} TO ${toIsoEnd(filters.end)}]`,
+  ];
+
+  if (filters.query) {
+    const phrase = escapeTicketQueryValue(filters.query);
+    clauses.push(`(body:"${phrase}" OR subject:"${phrase}")`);
+  }
+
+  return `(${clauses.join(' AND ')})`;
+}
+
 function cleanText(value) {
   if (value === null || value === undefined) return '';
   let text = String(value);
@@ -980,8 +997,6 @@ export function getTicketFilterOptions() {
 
 async function listConversationsForAssignee(filters, assigneeId, maxRows, onProgress) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const start = new Date(toIsoStart(filters.start));
-  const end = new Date(toIsoEnd(filters.end));
   const tag = getTicketTagName(filters);
   const rows = [];
 
@@ -995,7 +1010,7 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
       status: filters.status,
       assigned_to: assigneeId || undefined,
       tag: tag || undefined,
-      query: filters.query || undefined,
+      query: buildTicketAdvancedQuery(filters),
       page,
       pageSize: 100,
       sortField: 'createdAt',
@@ -1007,16 +1022,7 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
     totalPages = data?.page?.totalPages || 1;
 
     for (const conversation of conversations) {
-      const createdAtRaw = conversation?.createdAt || conversation?.createdAtUtc || conversation?.createdAtUTC;
-      if (!createdAtRaw) continue;
-
-      const createdAt = new Date(createdAtRaw);
-      if (Number.isNaN(createdAt.getTime())) continue;
-      if (createdAt < start) {
-        shouldStop = true;
-        break;
-      }
-      if (createdAt <= end) rows.push(conversation);
+      rows.push(conversation);
       if (rows.length >= maxRows) {
         shouldStop = true;
         break;
@@ -1111,7 +1117,9 @@ export async function enrichTicketConversations(conversations, options = {}) {
   );
 
   return {
-    rows: rows.filter((row) => rowMatchesQuery(row, options.query)),
+    rows: options.applyLocalQueryFilter
+      ? rows.filter((row) => rowMatchesQuery(row, options.query))
+      : rows,
     errors,
   };
 }
