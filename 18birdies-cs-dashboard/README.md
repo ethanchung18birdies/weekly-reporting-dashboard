@@ -28,9 +28,10 @@ In Vercel → your project → **Settings → Environment Variables**, add:
 
 | Key | Value |
 |-----|-------|
-| `HELPSCOUT_APP_ID` | `LTrKhFByBzdyYRp3qRZBmcQqx4bXUXrC` |
-| `HELPSCOUT_APP_SECRET` | `CnXCKhHaMCw7AxUEsjIQoqKMYI6rfAN9` |
-| `HELPSCOUT_MAILBOX_ID` | `91a5369bcb61860e` |
+| `HELPSCOUT_APP_ID` | Your Help Scout app ID |
+| `HELPSCOUT_APP_SECRET` | Your Help Scout app secret |
+| `HELPSCOUT_MAILBOX_ID` | Your Help Scout mailbox ID |
+| `EXPORT_ACCESS_TOKEN` | Optional extra token for ticket export routes |
 | `BASE_URL` | `https://18birdies-cs-dashboard.vercel.app` |
 
 Then click **Redeploy** to pick up the new env vars.
@@ -83,6 +84,9 @@ Open `http://localhost:3000`
 | `GET /api/metrics` | Returns last 12 weeks of metrics (cached 30 min) |
 | `GET /api/metrics?refresh=true` | Forces fresh pull from HelpScout |
 | `POST /api/refresh` | Same as above (for programmatic use) |
+| `GET /api/ticket-assignees` | Returns Help Scout assignees and ticket export filter options |
+| `GET /api/ticket-search` | Returns a paginated ticket preview for selected filters |
+| `POST /api/ticket-export-stream` | Streams XLSX export progress and the final workbook |
 
 ## Files
 

@@ -6,9 +6,13 @@ const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
 
 let _tokenCache = null;
 let _tagIdCache = null;
+let _ticketAssigneeCache = null;
 const _assigneeWeekCache = new Map();
 const _assigneeSubcategoryCache = new Map();
 const REPORT_TAG_CONCURRENCY = 4;
+const TICKET_THREAD_CONCURRENCY = Number(process.env.TICKET_THREAD_CONCURRENCY || 4);
+export const TICKET_SEARCH_LIMIT = Number(process.env.TICKET_SEARCH_LIMIT || 250);
+export const TICKET_EXPORT_LIMIT = Number(process.env.TICKET_EXPORT_LIMIT || 300);
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -318,7 +322,7 @@ function getTagNames(conversation) {
   return source
     .map((tag) => {
       if (typeof tag === 'string') return tag;
-      return tag?.name || '';
+      return tag?.name || tag?.tag || '';
     })
     .map((name) => String(name || '').trim())
     .filter(Boolean);
@@ -635,6 +639,517 @@ async function getCurrentBacklog() {
     return { total: 0, active: 0, pending: 0 };
   }
 }
+
+// ── TICKET EXPLORER / EXPORT ─────────────────────────────────────────────
+
+function toIsoStart(dateStr) {
+  return `${String(dateStr || '').slice(0, 10)}T00:00:00Z`;
+}
+
+function toIsoEnd(dateStr) {
+  return `${String(dateStr || '').slice(0, 10)}T23:59:59Z`;
+}
+
+function isValidDateStr(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+function normalizeTicketFilters(input = {}) {
+  const start = String(input.start || '').slice(0, 10);
+  const end = String(input.end || '').slice(0, 10);
+  if (!isValidDateStr(start) || !isValidDateStr(end)) {
+    throw new Error('Ticket search requires valid start and end dates.');
+  }
+
+  const startDate = new Date(toIsoStart(start));
+  const endDate = new Date(toIsoEnd(end));
+  if (startDate > endDate) {
+    throw new Error('Ticket search start date must be before end date.');
+  }
+
+  const assigneeIds = Array.isArray(input.assigneeIds)
+    ? input.assigneeIds
+    : String(input.assigneeIds || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+  return {
+    start,
+    end,
+    status: ['active', 'all', 'closed', 'open', 'pending', 'spam'].includes(input.status)
+      ? input.status
+      : 'all',
+    assigneeIds: [...new Set(assigneeIds.map((id) => Number(id)).filter(Number.isFinite))],
+    category: String(input.category || 'all'),
+    subcategory: String(input.subcategory || 'all'),
+    query: String(input.query || '').trim(),
+  };
+}
+
+function getTicketTagName(filters) {
+  if (filters.subcategory && filters.subcategory !== 'all') {
+    return SUBCATEGORY_TAGS.find((item) => item.name === filters.subcategory)?.hsName || null;
+  }
+  if (filters.category && filters.category !== 'all') {
+    return CATEGORY_TAGS.find((item) => item.name === filters.category)?.hsName || null;
+  }
+  return null;
+}
+
+function cleanText(value) {
+  if (value === null || value === undefined) return '';
+  let text = String(value);
+  text = text.replace(/\r/g, '\n');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
+export function stripHelpScoutHtml(value) {
+  if (value === null || value === undefined) return '';
+  let text = String(value);
+  text = text.replace(/&nbsp;/gi, ' ');
+  text = text.replace(/&amp;/gi, '&');
+  text = text.replace(/&lt;/gi, '<');
+  text = text.replace(/&gt;/gi, '>');
+  text = text.replace(/&quot;/gi, '"');
+  text = text.replace(/&#39;/gi, "'");
+  text = text.replace(/\r/g, '\n');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/p\s*>/gi, '\n\n');
+  text = text.replace(/<\/div\s*>/gi, '\n');
+  text = text.replace(/<\/li\s*>/gi, '\n');
+  text = text.replace(/<li[^>]*>/gi, '- ');
+  text = text.replace(/<script[\s\S]*?<\/script>/gi, ' ');
+  text = text.replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  text = text.replace(/<[^>]+>/g, ' ');
+  text = text.replace(/[ \t]+\n/g, '\n');
+  text = text.replace(/\n[ \t]+/g, '\n');
+  text = text.replace(/[ \t]{2,}/g, ' ');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
+function extractFeedbackSection(text) {
+  const match = String(text || '').match(/feedback:\s*([\s\S]*)/i);
+  if (!match) return '';
+  return cleanText(
+    match[1].split(/\n+\s*(technical information|site information|beacon visitor activity|beacon history)\b/i)[0]
+  );
+}
+
+function stripMessageHeaders(text) {
+  const lines = String(text || '').split('\n').map((line) => line.trim());
+  let splitAt = 0;
+
+  for (let idx = 0; idx < Math.min(lines.length, 8); idx += 1) {
+    if (lines[idx]) continue;
+    const headerBlock = lines.slice(0, idx).filter(Boolean);
+    const headerText = headerBlock.join('\n').toLowerCase();
+    if (
+      headerBlock.length &&
+      (
+        headerText.includes('from') ||
+        headerBlock.some((line) => line.includes('@')) ||
+        headerBlock.some((line) => /^[A-Z][a-z]+ \d{1,2}, \d{1,2}:\d{2}\s*(am|pm)$/i.test(line))
+      )
+    ) {
+      splitAt = idx + 1;
+    }
+    break;
+  }
+
+  return cleanText(lines.slice(splitAt).join('\n'));
+}
+
+function stripBeaconMetadata(text) {
+  const lowered = String(text || '').toLowerCase();
+  const beaconMarkers = [
+    'beacon visitor activity',
+    'technical information',
+    'site information',
+    'beacon history',
+    'beacon id:',
+  ];
+
+  if (!beaconMarkers.some((marker) => lowered.includes(marker))) return text;
+
+  const lines = String(text || '').split('\n').map((line) => line.trim());
+  for (let idx = 0; idx < lines.length; idx += 1) {
+    if (lines[idx].toLowerCase() !== 'from') continue;
+    const emailLine = lines[idx + 1] || '';
+    if (!/^[\w.+-]+@[\w.-]+\.\w+$/.test(emailLine)) continue;
+
+    let start = Math.max(idx - 2, 0);
+    while (start > 0 && lines[start - 1]) start -= 1;
+    const candidate = lines.slice(start).join('\n').trim();
+    if (candidate) return candidate;
+  }
+
+  const feedbackMatch = String(text || '').match(/(feedback:\s*[\s\S]+)$/i);
+  return feedbackMatch ? feedbackMatch[1].trim() : text;
+}
+
+function isLowSignalTechnicalDump(text) {
+  const lowered = String(text || '').toLowerCase();
+  const markers = [
+    'technical information',
+    'site information',
+    'beacon history',
+    'beacon opened on',
+    'beacon id:',
+    'current page:',
+    'ip address:',
+    'browser/version:',
+    'authentication mode:',
+  ];
+  const markerHits = markers.filter((marker) => lowered.includes(marker)).length;
+  if (markerHits < 3) return false;
+
+  const textWithoutUrls = lowered.replace(/https?:\/\/\S+/g, ' ');
+  const colonLines = textWithoutUrls.split('\n').filter((line) => line.includes(':')).length;
+  const hasHumanSignal = /\b(i|i'm|i’ve|my|me|can i|how do i|why|please)\b/.test(textWithoutUrls) ||
+    textWithoutUrls.includes('?');
+  return colonLines >= 5 && !hasHumanSignal;
+}
+
+function threadText(thread) {
+  for (const key of ['body', 'bodyPreview', 'plaintext']) {
+    let text = stripHelpScoutHtml(thread?.[key]);
+    if (!text) continue;
+    text = stripBeaconMetadata(text);
+    text = stripMessageHeaders(text);
+    if (text) return text;
+  }
+  return '';
+}
+
+function threadPriority(thread, text) {
+  const createdByType = String(thread?.createdBy?.type || '').toLowerCase();
+  const threadType = String(thread?.type || '').toLowerCase();
+  const hasFeedbackSection = extractFeedbackSection(text) ? 1 : 0;
+  const isCustomer = createdByType === 'customer' ? 1 : 0;
+  const isCustomerMessage = ['customer', 'message'].includes(threadType) ? 1 : 0;
+  return [hasFeedbackSection, isCustomer + isCustomerMessage, text.length];
+}
+
+export function extractCustomerMessageFromThreads(threads = []) {
+  const candidates = [];
+
+  for (const thread of threads) {
+    const text = threadText(thread);
+    if (!text) continue;
+
+    const createdByType = String(thread?.createdBy?.type || '').toLowerCase();
+    const threadType = String(thread?.type || '').toLowerCase();
+    const looksCustomerAuthored =
+      createdByType === 'customer' ||
+      ['customer', 'message'].includes(threadType) ||
+      extractFeedbackSection(text);
+
+    if (!looksCustomerAuthored) continue;
+
+    const selectedText = extractFeedbackSection(text) || text;
+    if (!selectedText || isLowSignalTechnicalDump(selectedText)) continue;
+    candidates.push({ priority: threadPriority(thread, text), text: selectedText });
+  }
+
+  if (!candidates.length) return '';
+
+  candidates.sort((a, b) => {
+    for (let idx = 0; idx < a.priority.length; idx += 1) {
+      if (b.priority[idx] !== a.priority[idx]) return b.priority[idx] - a.priority[idx];
+    }
+    return 0;
+  });
+
+  return cleanText(candidates[0].text);
+}
+
+function conversationWebUrl(conversation) {
+  return conversation?._links?.web?.href || (
+    conversation?.number
+      ? `https://secure.helpscout.net/conversation/${conversation.number}`
+      : ''
+  );
+}
+
+function assigneeName(assignee) {
+  if (!assignee) return '';
+  const firstLast = [assignee.first, assignee.last].filter(Boolean).join(' ').trim();
+  return assignee.name || firstLast || assignee.email || '';
+}
+
+function baseTicketRow(conversation) {
+  const tags = getTagNames(conversation);
+  const customer = conversation?.primaryCustomer || {};
+  const assignee = conversation?.assignee || {};
+
+  return {
+    ticket_id: conversation?.id || '',
+    conversation_number: conversation?.number || '',
+    helpscout_url: conversationWebUrl(conversation),
+    feedback: '',
+    date_submitted: conversation?.createdAt || '',
+    subject: cleanText(conversation?.subject || ''),
+    status: conversation?.status || '',
+    assignee: assigneeName(assignee),
+    assignee_id: assignee?.id || '',
+    tags: tags.join(', '),
+    customer_name: [customer.firstName, customer.lastName].filter(Boolean).join(' ').trim(),
+    customer_email: customer.email || '',
+    preview: cleanText(conversation?.preview || ''),
+    thread_count: '',
+    updated_at: conversation?.modifiedAt || conversation?.updatedAt || '',
+  };
+}
+
+function rowMatchesQuery(row, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return true;
+  return [
+    row.subject,
+    row.preview,
+    row.tags,
+    row.feedback,
+    row.customer_email,
+    row.customer_name,
+    row.conversation_number,
+  ].some((value) => String(value || '').toLowerCase().includes(q));
+}
+
+async function listAllUsers() {
+  if (_ticketAssigneeCache && _ticketAssigneeCache.expiresAt > Date.now()) {
+    return _ticketAssigneeCache.data;
+  }
+
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  const users = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const data = await hsGetWithRetry('/users', {
+      mailbox: mailboxId,
+      page,
+      pageSize: 100,
+    }).catch(() => null);
+
+    const pageUsers = data?._embedded?.users || [];
+    for (const user of pageUsers) {
+      const firstLast = [user.firstName || user.first, user.lastName || user.last].filter(Boolean).join(' ').trim();
+      const name = user.name || firstLast || user.email || `User ${user.id}`;
+      if (user?.id) {
+        users.push({
+          id: user.id,
+          name,
+          email: user.email || '',
+          type: user.type || '',
+        });
+      }
+    }
+
+    totalPages = data?.page?.totalPages || 1;
+    page += 1;
+  } while (page <= totalPages);
+
+  const deduped = Array.from(new Map(users.map((user) => [String(user.id), user])).values())
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  _ticketAssigneeCache = {
+    data: deduped,
+    expiresAt: Date.now() + 12 * 60 * 60 * 1000,
+  };
+
+  return deduped;
+}
+
+export async function fetchTicketAssignees() {
+  return listAllUsers();
+}
+
+export function getTicketFilterOptions() {
+  return {
+    categories: CATEGORY_TAGS.map((item) => item.name),
+    subcategories: SUBCATEGORY_TAGS.map((item) => ({
+      name: item.name,
+      category: CATEGORY_BY_SUBCATEGORY.get(item.name) || '',
+    })),
+  };
+}
+
+async function listConversationsForAssignee(filters, assigneeId, maxRows, onProgress) {
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  const start = new Date(toIsoStart(filters.start));
+  const end = new Date(toIsoEnd(filters.end));
+  const tag = getTicketTagName(filters);
+  const rows = [];
+
+  let page = 1;
+  let totalPages = 1;
+  let shouldStop = false;
+
+  do {
+    const params = {
+      mailbox: mailboxId,
+      status: filters.status,
+      assigned_to: assigneeId || undefined,
+      tag: tag || undefined,
+      query: filters.query || undefined,
+      page,
+      pageSize: 100,
+      sortField: 'createdAt',
+      sortOrder: 'desc',
+    };
+
+    const data = await hsGetWithRetry('/conversations', params);
+    const conversations = data?._embedded?.conversations || [];
+    totalPages = data?.page?.totalPages || 1;
+
+    for (const conversation of conversations) {
+      const createdAtRaw = conversation?.createdAt || conversation?.createdAtUtc || conversation?.createdAtUTC;
+      if (!createdAtRaw) continue;
+
+      const createdAt = new Date(createdAtRaw);
+      if (Number.isNaN(createdAt.getTime())) continue;
+      if (createdAt < start) {
+        shouldStop = true;
+        break;
+      }
+      if (createdAt <= end) rows.push(conversation);
+      if (rows.length >= maxRows) {
+        shouldStop = true;
+        break;
+      }
+    }
+
+    if (onProgress) {
+      onProgress({
+        phase: 'indexing',
+        page,
+        totalPages,
+        indexed: rows.length,
+        assigneeId: assigneeId || 'all',
+      });
+    }
+
+    page += 1;
+  } while (!shouldStop && page <= totalPages);
+
+  return rows;
+}
+
+export async function listTicketConversations(rawFilters, options = {}) {
+  const filters = normalizeTicketFilters(rawFilters);
+  const maxRows = options.maxRows || TICKET_SEARCH_LIMIT;
+  const assignees = filters.assigneeIds.length ? filters.assigneeIds : [null];
+  const byId = new Map();
+  let capped = false;
+
+  for (const assigneeId of assignees) {
+    const remaining = Math.max(0, maxRows - byId.size + 1);
+    if (remaining <= 0) {
+      capped = true;
+      break;
+    }
+
+    const rows = await listConversationsForAssignee(filters, assigneeId, remaining, options.onProgress);
+    for (const row of rows) {
+      if (row?.id) byId.set(String(row.id), row);
+      if (byId.size >= maxRows) {
+        capped = true;
+        break;
+      }
+    }
+  }
+
+  const conversations = Array.from(byId.values())
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  return {
+    filters,
+    conversations: conversations.slice(0, maxRows),
+    capped,
+  };
+}
+
+async function fetchConversationThreads(conversationId) {
+  const data = await hsGetWithRetry(`/conversations/${conversationId}/threads`, { pageSize: 100 });
+  return data?._embedded?.threads || [];
+}
+
+export async function enrichTicketConversations(conversations, options = {}) {
+  const onProgress = options.onProgress;
+  let processed = 0;
+  let errors = 0;
+
+  const rows = await mapWithConcurrency(
+    conversations,
+    Math.max(1, TICKET_THREAD_CONCURRENCY),
+    async (conversation) => {
+      const row = baseTicketRow(conversation);
+      try {
+        const threads = await fetchConversationThreads(conversation.id);
+        row.feedback = extractCustomerMessageFromThreads(threads);
+        row.thread_count = threads.length;
+      } catch (error) {
+        errors += 1;
+        row.status_note = `Thread fetch failed: ${error.message}`;
+      } finally {
+        processed += 1;
+        if (onProgress) {
+          onProgress({
+            phase: 'fetching_threads',
+            processed,
+            total: conversations.length,
+            errors,
+          });
+        }
+      }
+      return row;
+    }
+  );
+
+  return {
+    rows: rows.filter((row) => rowMatchesQuery(row, options.query)),
+    errors,
+  };
+}
+
+export function ticketRowsToSheet(rows, columns) {
+  const selectedColumns = Array.isArray(columns) && columns.length
+    ? columns
+    : DEFAULT_TICKET_COLUMNS.map((column) => column.key);
+  const columnConfigByKey = new Map(ALL_TICKET_COLUMNS.map((column) => [column.key, column]));
+  const safeColumns = selectedColumns.filter((key) => columnConfigByKey.has(key));
+  const finalColumns = safeColumns.length ? safeColumns : DEFAULT_TICKET_COLUMNS.map((column) => column.key);
+
+  const header = finalColumns.map((key) => columnConfigByKey.get(key)?.label || key);
+  const body = rows.map((row) => finalColumns.map((key) => row[key] ?? ''));
+  return [header, ...body];
+}
+
+export const DEFAULT_TICKET_COLUMNS = [
+  { key: 'ticket_id', label: 'Ticket ID' },
+  { key: 'helpscout_url', label: 'Help Scout URL' },
+  { key: 'feedback', label: 'Customer Message' },
+  { key: 'date_submitted', label: 'Date Submitted' },
+  { key: 'subject', label: 'Subject' },
+  { key: 'status', label: 'Status' },
+  { key: 'assignee', label: 'Assignee' },
+  { key: 'tags', label: 'Tags' },
+];
+
+export const ALL_TICKET_COLUMNS = [
+  ...DEFAULT_TICKET_COLUMNS,
+  { key: 'conversation_number', label: 'Conversation Number' },
+  { key: 'customer_name', label: 'Customer Name' },
+  { key: 'customer_email', label: 'Customer Email' },
+  { key: 'preview', label: 'Preview' },
+  { key: 'thread_count', label: 'Thread Count' },
+  { key: 'updated_at', label: 'Updated At' },
+  { key: 'status_note', label: 'Status Note' },
+].filter((column, index, columns) => columns.findIndex((item) => item.key === column.key) === index);
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────
 

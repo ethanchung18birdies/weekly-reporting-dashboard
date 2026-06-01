@@ -919,9 +919,193 @@
       padding: 8px 0;
     }
 
+    .app-tabs {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 28px 0;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    .app-tab {
+      border: 1px solid transparent;
+      border-bottom: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 8px 12px;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .app-tab.active {
+      background: var(--bg);
+      border-color: var(--border);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .ticket-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .ticket-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .ticket-field.wide {
+      grid-column: span 2;
+    }
+
+    .ticket-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .ticket-input {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .ticket-assignee-box,
+    .ticket-column-box {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      padding: 10px;
+      max-height: 210px;
+      overflow: auto;
+    }
+
+    .ticket-check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 2px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .ticket-check-row input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .ticket-check-sub {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      margin-left: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 160px;
+    }
+
+    .ticket-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .ticket-muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .ticket-progress {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      padding: 12px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ticket-progress.active {
+      display: flex;
+    }
+
+    .ticket-progress-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .ticket-progress-meta {
+      font-family: var(--mono);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .ticket-progress-track {
+      height: 9px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .ticket-progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+      transition: width 180ms ease;
+    }
+
+    .ticket-table-wrap {
+      overflow-x: auto;
+    }
+
+    .ticket-table {
+      min-width: 920px;
+    }
+
+    .ticket-table td {
+      vertical-align: top;
+      text-align: left !important;
+      font-family: var(--font) !important;
+      max-width: 420px;
+    }
+
+    .ticket-feedback-cell {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+
     @media (max-width: 768px) {
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .two-col { grid-template-columns: 1fr; }
+      .ticket-grid { grid-template-columns: 1fr; }
+      .ticket-field.wide { grid-column: span 1; }
       .hdr { flex-direction: column; align-items: flex-start; gap: 10px; }
       .goal-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
       .pace-pill { margin-left: 0; }
@@ -933,7 +1117,7 @@
     }
 
     @media print {
-      .week-nav, .hdr-actions, .btn, .inline-select { display: none !important; }
+      .week-nav, .app-tabs, .hdr-actions, .btn, .inline-select { display: none !important; }
       body { background: white; }
       .card, .kpi { break-inside: avoid; }
     }
@@ -967,6 +1151,10 @@
   </div>
 
   <div class="week-nav" id="weekNav"></div>
+  <div class="app-tabs" id="appTabs" style="display:none">
+    <button class="app-tab active" id="dashboardTab" onclick="showAppView('dashboard')">Dashboard</button>
+    <button class="app-tab" id="ticketExplorerTab" onclick="showAppView('tickets')">Ticket Explorer</button>
+  </div>
 
   <div class="state-screen" id="loadingState">
     <div class="spinner"></div>
@@ -982,7 +1170,7 @@
   </div>
 
   <div id="dashboard" style="display:none">
-    <div class="main">
+    <div class="main" id="metricsView">
       <div class="callout" id="paceCallout">
         <div class="callout-icon" id="paceIcon">📈</div>
         <div>
@@ -1101,6 +1289,124 @@
       </div>
     </div>
 
+    <div class="main" id="ticketExplorerView" style="display:none">
+      <div class="card">
+        <div class="trend-head">
+          <div>
+            <div class="trend-title">Ticket Explorer</div>
+            <div class="ticket-muted" style="margin-top:4px">Search Help Scout tickets, preview cleaned customer messages, and export XLSX.</div>
+          </div>
+          <div class="trend-actions">
+            <button class="btn btn-primary" id="ticketSearchBtn" onclick="searchTickets()">Search</button>
+            <button class="btn btn-ghost" id="ticketExportBtn" style="color:var(--accent);border-color:var(--border2);background:var(--surface2)" onclick="exportTickets()">Export XLSX</button>
+          </div>
+        </div>
+
+        <div class="ticket-grid">
+          <label class="ticket-field">
+            <span class="ticket-label">Start date</span>
+            <input class="ticket-input" type="date" id="ticketStartDate" />
+          </label>
+          <label class="ticket-field">
+            <span class="ticket-label">End date</span>
+            <input class="ticket-input" type="date" id="ticketEndDate" />
+          </label>
+          <label class="ticket-field">
+            <span class="ticket-label">Status</span>
+            <select class="ticket-input" id="ticketStatus">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="open">Open</option>
+              <option value="pending">Pending</option>
+              <option value="closed">Closed</option>
+              <option value="spam">Spam</option>
+            </select>
+          </label>
+          <label class="ticket-field">
+            <span class="ticket-label">Team shortcut</span>
+            <select class="ticket-input" id="ticketTeamSelect" onchange="handleTicketTeamChange()">
+              <option value="all">All assignees</option>
+              <option value="custom">Custom selection</option>
+              <option value="general">General Customer Support</option>
+              <option value="rendell">Course Entry Team - Rendell</option>
+              <option value="jane">Course Entry Team - Jane</option>
+            </select>
+          </label>
+          <label class="ticket-field">
+            <span class="ticket-label">Category</span>
+            <select class="ticket-input" id="ticketCategory" onchange="populateTicketSubcategories()">
+              <option value="all">All categories</option>
+            </select>
+          </label>
+          <label class="ticket-field">
+            <span class="ticket-label">Subcategory</span>
+            <select class="ticket-input" id="ticketSubcategory">
+              <option value="all">All subcategories</option>
+            </select>
+          </label>
+          <label class="ticket-field wide">
+            <span class="ticket-label">Search text</span>
+            <input class="ticket-input" type="search" id="ticketQuery" placeholder="Subject, tags, preview, or ticket body" />
+          </label>
+          <label class="ticket-field wide">
+            <span class="ticket-label">Assignee search</span>
+            <input class="ticket-input" type="search" id="ticketAssigneeSearch" placeholder="Filter assignee list" oninput="renderTicketAssigneeList()" />
+          </label>
+          <div class="ticket-field wide">
+            <span class="ticket-label">Assignees</span>
+            <div class="ticket-assignee-box" id="ticketAssigneeList">
+              <div class="bucket-loading"><div class="bucket-spinner"></div><span>Open explorer to load assignees...</span></div>
+            </div>
+          </div>
+          <div class="ticket-field wide">
+            <span class="ticket-label">Export columns</span>
+            <div class="ticket-column-box" id="ticketColumnList"></div>
+          </div>
+        </div>
+
+        <div class="ticket-actions">
+          <span class="ticket-muted" id="ticketSelectionSummary">No assignees selected means all assignees.</span>
+          <span class="ticket-muted" id="ticketResultSummary"></span>
+        </div>
+      </div>
+
+      <div class="ticket-progress" id="ticketProgress">
+        <div class="ticket-progress-head">
+          <span id="ticketProgressLabel">Preparing export...</span>
+          <span class="ticket-progress-meta" id="ticketProgressMeta">0%</span>
+        </div>
+        <div class="ticket-progress-track"><div class="ticket-progress-fill" id="ticketProgressFill"></div></div>
+        <div class="ticket-muted" id="ticketProgressFoot">Waiting for Help Scout...</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Ticket preview</span>
+          <div class="bucket-controls">
+            <button class="seg-btn" onclick="changeTicketPage(-1)">Prev</button>
+            <button class="seg-btn" onclick="changeTicketPage(1)">Next</button>
+          </div>
+        </div>
+        <div class="ticket-table-wrap">
+          <table class="btable ticket-table">
+            <thead>
+              <tr>
+                <th>Ticket</th>
+                <th>Created</th>
+                <th>Status</th>
+                <th>Assignee</th>
+                <th>Customer Message</th>
+                <th>Tags</th>
+              </tr>
+            </thead>
+            <tbody id="ticketPreviewRows">
+              <tr><td colspan="6"><div class="empty-state">Open Ticket Explorer, set filters, then search.</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="footer">
       <div class="footer-left" id="footerLeft">Live data · 18Birdies HelpScout</div>
       <div class="legend">
@@ -1128,6 +1434,18 @@
     let incomingTrendExpandedCategories = new Set();
     let incomingTrendRequestId = 0;
     let incomingTrendsGeneratedWeek = null;
+    let activeAppView = 'dashboard';
+    let ticketExplorerLoaded = false;
+    let ticketAssignees = [];
+    let ticketCategories = [];
+    let ticketSubcategories = [];
+    let ticketColumns = [];
+    let ticketDefaultColumns = [];
+    let ticketSelectedAssignees = new Set();
+    let ticketPreviewPage = 1;
+    let ticketPreviewTotal = 0;
+    let ticketPreviewPageSize = 25;
+    let ticketExportStartedAt = null;
 
     const charts = {};
     const bucketCache = {};
@@ -1377,6 +1695,358 @@
         .replace(/'/g, '&#39;');
     }
 
+    function formatDateForInput(value) {
+      return String(value || '').slice(0, 10);
+    }
+
+    function showAppView(view) {
+      activeAppView = view === 'tickets' ? 'tickets' : 'dashboard';
+      document.getElementById('dashboardTab')?.classList.toggle('active', activeAppView === 'dashboard');
+      document.getElementById('ticketExplorerTab')?.classList.toggle('active', activeAppView === 'tickets');
+      const metricsView = document.getElementById('metricsView');
+      const ticketView = document.getElementById('ticketExplorerView');
+      if (metricsView) metricsView.style.display = activeAppView === 'dashboard' ? 'flex' : 'none';
+      if (ticketView) ticketView.style.display = activeAppView === 'tickets' ? 'flex' : 'none';
+
+      if (activeAppView === 'tickets') {
+        initializeTicketExplorer();
+      }
+    }
+
+    async function initializeTicketExplorer() {
+      const currentWeek = allData?.weeks?.[selWeek];
+      if (currentWeek) {
+        const startInput = document.getElementById('ticketStartDate');
+        const endInput = document.getElementById('ticketEndDate');
+        if (startInput && !startInput.value) startInput.value = currentWeek.startStr;
+        if (endInput && !endInput.value) endInput.value = currentWeek.endStr;
+      }
+
+      if (ticketExplorerLoaded) return;
+
+      try {
+        const res = await fetch('/api/ticket-assignees');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.error || 'Failed to load ticket explorer options');
+
+        ticketExplorerLoaded = true;
+        ticketAssignees = data.assignees || [];
+        ticketCategories = data.categories || [];
+        ticketSubcategories = data.subcategories || [];
+        ticketColumns = data.columns || [];
+        ticketDefaultColumns = data.defaultColumns || [];
+        populateTicketCategories();
+        populateTicketSubcategories();
+        renderTicketAssigneeList();
+        renderTicketColumnList();
+        updateTicketSelectionSummary();
+      } catch (err) {
+        console.error('Failed to initialize ticket explorer:', err);
+        ticketExplorerLoaded = false;
+        const el = document.getElementById('ticketAssigneeList');
+        if (el) el.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function populateTicketCategories() {
+      const select = document.getElementById('ticketCategory');
+      if (!select) return;
+      select.innerHTML = '<option value="all">All categories</option>' +
+        ticketCategories.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    }
+
+    function populateTicketSubcategories() {
+      const select = document.getElementById('ticketSubcategory');
+      const category = document.getElementById('ticketCategory')?.value || 'all';
+      if (!select) return;
+      const rows = ticketSubcategories.filter((row) => category === 'all' || row.category === category);
+      select.innerHTML = '<option value="all">All subcategories</option>' +
+        rows.map((row) => `<option value="${escapeHtml(row.name)}">${escapeHtml(row.name)}</option>`).join('');
+    }
+
+    function renderTicketAssigneeList() {
+      const el = document.getElementById('ticketAssigneeList');
+      if (!el) return;
+      const query = String(document.getElementById('ticketAssigneeSearch')?.value || '').trim().toLowerCase();
+      const rows = ticketAssignees.filter((assignee) => {
+        if (!query) return true;
+        return `${assignee.name} ${assignee.email}`.toLowerCase().includes(query);
+      });
+
+      if (!rows.length) {
+        el.innerHTML = '<div class="empty-state">No matching assignees.</div>';
+        return;
+      }
+
+      el.innerHTML = rows.map((assignee) => `
+        <label class="ticket-check-row">
+          <input type="checkbox" value="${assignee.id}" ${ticketSelectedAssignees.has(String(assignee.id)) ? 'checked' : ''} onchange="toggleTicketAssignee(this)" />
+          <span>${escapeHtml(assignee.name)}</span>
+          <span class="ticket-check-sub">${escapeHtml(assignee.email || '')}</span>
+        </label>
+      `).join('');
+    }
+
+    function renderTicketColumnList() {
+      const el = document.getElementById('ticketColumnList');
+      if (!el) return;
+      const defaults = new Set(ticketDefaultColumns);
+      el.innerHTML = ticketColumns.map((column) => `
+        <label class="ticket-check-row">
+          <input type="checkbox" value="${escapeHtml(column.key)}" ${defaults.has(column.key) ? 'checked' : ''} />
+          <span>${escapeHtml(column.label)}</span>
+        </label>
+      `).join('');
+    }
+
+    function toggleTicketAssignee(input) {
+      const id = String(input.value);
+      if (input.checked) ticketSelectedAssignees.add(id);
+      else ticketSelectedAssignees.delete(id);
+      document.getElementById('ticketTeamSelect').value = 'custom';
+      updateTicketSelectionSummary();
+    }
+
+    function handleTicketTeamChange() {
+      const team = document.getElementById('ticketTeamSelect')?.value || 'all';
+      if (team === 'custom') {
+        updateTicketSelectionSummary();
+        return;
+      }
+      ticketSelectedAssignees = new Set();
+
+      if (team !== 'all') {
+        const members = TEAM_MEMBERS[team];
+        for (const assignee of ticketAssignees) {
+          if (members?.has(assignee.name)) ticketSelectedAssignees.add(String(assignee.id));
+        }
+      }
+
+      renderTicketAssigneeList();
+      updateTicketSelectionSummary();
+    }
+
+    function updateTicketSelectionSummary() {
+      const el = document.getElementById('ticketSelectionSummary');
+      if (!el) return;
+      const count = ticketSelectedAssignees.size;
+      el.textContent = count
+        ? `${count} assignee${count === 1 ? '' : 's'} selected.`
+        : 'No assignees selected means all assignees.';
+    }
+
+    function getSelectedTicketColumns() {
+      return Array.from(document.querySelectorAll('#ticketColumnList input[type="checkbox"]:checked'))
+        .map((input) => input.value);
+    }
+
+    function getTicketFilters() {
+      return {
+        start: document.getElementById('ticketStartDate')?.value || '',
+        end: document.getElementById('ticketEndDate')?.value || '',
+        status: document.getElementById('ticketStatus')?.value || 'all',
+        category: document.getElementById('ticketCategory')?.value || 'all',
+        subcategory: document.getElementById('ticketSubcategory')?.value || 'all',
+        query: document.getElementById('ticketQuery')?.value || '',
+        assigneeIds: Array.from(ticketSelectedAssignees),
+      };
+    }
+
+    function buildTicketSearchParams(page = 1) {
+      const filters = getTicketFilters();
+      const params = new URLSearchParams({
+        start: filters.start,
+        end: filters.end,
+        status: filters.status,
+        category: filters.category,
+        subcategory: filters.subcategory,
+        query: filters.query,
+        page: String(page),
+        pageSize: String(ticketPreviewPageSize),
+      });
+      if (filters.assigneeIds.length) params.set('assigneeIds', filters.assigneeIds.join(','));
+      return params;
+    }
+
+    function renderTicketPreviewLoading() {
+      const tbody = document.getElementById('ticketPreviewRows');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="6"><div class="bucket-loading"><div class="bucket-spinner"></div><span>Searching tickets...</span></div></td></tr>';
+    }
+
+    function renderTicketPreviewRows(rows) {
+      const tbody = document.getElementById('ticketPreviewRows');
+      if (!tbody) return;
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No matching tickets found.</div></td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map((row) => `
+        <tr>
+          <td>
+            <a href="${escapeHtml(row.helpscout_url)}" target="_blank" rel="noopener">${escapeHtml(row.conversation_number || row.ticket_id)}</a>
+            <div class="ticket-muted">${escapeHtml(row.subject || '')}</div>
+          </td>
+          <td>${escapeHtml(formatDateForInput(row.date_submitted))}</td>
+          <td>${escapeHtml(row.status || '')}</td>
+          <td>${escapeHtml(row.assignee || 'Unassigned')}</td>
+          <td><div class="ticket-feedback-cell">${escapeHtml(row.feedback || row.preview || '')}</div></td>
+          <td>${escapeHtml(row.tags || '')}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function searchTickets(page = 1) {
+      await initializeTicketExplorer();
+      if (!ticketExplorerLoaded) return;
+      ticketPreviewPage = page;
+      const button = document.getElementById('ticketSearchBtn');
+      const summary = document.getElementById('ticketResultSummary');
+      if (button) button.disabled = true;
+      if (summary) summary.textContent = '';
+      renderTicketPreviewLoading();
+
+      try {
+        const params = buildTicketSearchParams(page);
+        const res = await fetch(`/api/ticket-search?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.error || 'Failed to search tickets');
+
+        ticketPreviewTotal = data.total || 0;
+        renderTicketPreviewRows(data.rows || []);
+        const first = ticketPreviewTotal ? ((data.page - 1) * data.pageSize) + 1 : 0;
+        const last = Math.min(ticketPreviewTotal, data.page * data.pageSize);
+        if (summary) {
+          summary.textContent = `${first}-${last} of ${ticketPreviewTotal}${data.capped ? ` (capped at ${data.cap})` : ''}${data.errors ? ` · ${data.errors} thread errors` : ''}`;
+        }
+      } catch (err) {
+        console.error('Ticket search failed:', err);
+        const tbody = document.getElementById('ticketPreviewRows');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">${escapeHtml(err.message)}</div></td></tr>`;
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    function changeTicketPage(delta) {
+      const nextPage = Math.max(1, ticketPreviewPage + delta);
+      const maxPage = Math.max(1, Math.ceil(ticketPreviewTotal / ticketPreviewPageSize));
+      if (nextPage > maxPage) return;
+      searchTickets(nextPage);
+    }
+
+    function setTicketProgress(event) {
+      const box = document.getElementById('ticketProgress');
+      const label = document.getElementById('ticketProgressLabel');
+      const meta = document.getElementById('ticketProgressMeta');
+      const fill = document.getElementById('ticketProgressFill');
+      const foot = document.getElementById('ticketProgressFoot');
+      if (!box || !label || !meta || !fill || !foot) return;
+
+      box.classList.add('active');
+      label.textContent = event.label || event.phase || 'Exporting tickets';
+      const processed = Number(event.processed || event.indexed || 0);
+      const total = Number(event.total || 0);
+      const pct = event.phase === 'complete'
+        ? 100
+        : total > 0
+          ? Math.min(100, Math.round((processed / total) * 100))
+          : (event.phase === 'indexing' ? 12 : 0);
+      fill.style.width = `${pct}%`;
+      meta.textContent = total > 0 ? `${pct}% · ${processed}/${total}` : `${processed} indexed`;
+
+      let eta = '';
+      if (ticketExportStartedAt && total > 0 && processed > 0 && processed < total) {
+        const elapsedSec = (Date.now() - ticketExportStartedAt) / 1000;
+        const remainingSec = Math.max(0, (elapsedSec / processed) * (total - processed));
+        eta = ` · ETA ${Math.ceil(remainingSec)}s`;
+      }
+
+      foot.textContent = `${event.phase || 'working'}${eta}${event.errors ? ` · ${event.errors} errors` : ''}${event.capped ? ` · capped at ${event.cap}` : ''}`;
+    }
+
+    function base64ToBlob(base64, mimeType) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mimeType });
+    }
+
+    function downloadTicketWorkbook(event) {
+      const blob = base64ToBlob(event.fileBase64, event.mimeType);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = event.filename || 'helpscout_tickets.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportTickets() {
+      await initializeTicketExplorer();
+      if (!ticketExplorerLoaded) return;
+      const button = document.getElementById('ticketExportBtn');
+      if (button) button.disabled = true;
+      ticketExportStartedAt = Date.now();
+      setTicketProgress({ phase: 'starting', label: 'Starting export', processed: 0, total: 0 });
+
+      try {
+        const res = await fetch('/api/ticket-export-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filters: getTicketFilters(),
+            columns: getSelectedTicketColumns(),
+          }),
+        });
+
+        if (!res.ok || !res.body) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || data.error || `Export failed with HTTP ${res.status}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let completeEvent = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line);
+            if (event.type === 'error') throw new Error(event.detail || event.error || 'Export failed');
+            if (event.type === 'complete') {
+              completeEvent = event;
+              setTicketProgress({ ...event, label: `Export complete · ${event.rowCount} rows`, processed: event.rowCount, total: event.rowCount });
+            } else {
+              setTicketProgress(event);
+            }
+          }
+        }
+
+        if (completeEvent) {
+          downloadTicketWorkbook(completeEvent);
+          const summary = document.getElementById('ticketResultSummary');
+          if (summary) summary.textContent = `Exported ${completeEvent.rowCount} rows${completeEvent.capped ? ` (capped at ${completeEvent.cap})` : ''}.`;
+        } else {
+          throw new Error('Export finished without a workbook.');
+        }
+      } catch (err) {
+        console.error('Ticket export failed:', err);
+        setTicketProgress({ phase: 'error', label: err.message, processed: 0, total: 0 });
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
     function forecastNextWeek(values) {
       const cleaned = values.filter((v) => Number.isFinite(v));
       if (!cleaned.length) return 0;
@@ -1589,6 +2259,7 @@
       document.getElementById('loadingState').style.display = 'flex';
       document.getElementById('errorState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('appTabs').style.display = 'none';
 
       try {
         const url = force ? '/api/metrics?refresh=true' : '/api/metrics';
@@ -1621,6 +2292,7 @@
         document.getElementById('errorMsg').textContent = err.message;
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('errorState').style.display = 'flex';
+        document.getElementById('appTabs').style.display = 'none';
         setStatus('error');
       }
     }
@@ -1715,6 +2387,8 @@
     function renderAll() {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('appTabs').style.display = 'flex';
+      showAppView(activeAppView);
 
       const w = getWeekWithBuckets(selWeek);
       const prev = getPrevWeekWithBuckets(selWeek);
