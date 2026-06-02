@@ -12,7 +12,6 @@ const _assigneeSubcategoryCache = new Map();
 const REPORT_TAG_CONCURRENCY = 4;
 const TICKET_THREAD_CONCURRENCY = Number(process.env.TICKET_THREAD_CONCURRENCY || 4);
 export const TICKET_SEARCH_LIMIT = Number(process.env.TICKET_SEARCH_LIMIT || 250);
-export const TICKET_EXPORT_LIMIT = Number(process.env.TICKET_EXPORT_LIMIT || 300);
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

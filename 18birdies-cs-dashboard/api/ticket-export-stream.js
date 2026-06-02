@@ -1,6 +1,5 @@
 import { assertExportAccess, readJsonBody } from '../lib/apiSecurity.js';
 import {
-  TICKET_EXPORT_LIMIT,
   enrichTicketConversations,
   listTicketConversations,
   ticketRowsToSheet,
@@ -48,7 +47,7 @@ export default async function handler(req, res) {
     });
 
     const { conversations, capped } = await listTicketConversations(filters, {
-      maxRows: TICKET_EXPORT_LIMIT,
+      maxRows: Infinity,
       onProgress(progress) {
         sendEvent(res, {
           type: 'progress',
@@ -65,7 +64,6 @@ export default async function handler(req, res) {
       processed: 0,
       total: conversations.length,
       capped,
-      cap: TICKET_EXPORT_LIMIT,
     });
 
     const { rows, errors } = await enrichTicketConversations(conversations, {
@@ -102,7 +100,6 @@ export default async function handler(req, res) {
       rowCount: rows.length,
       errors,
       capped,
-      cap: TICKET_EXPORT_LIMIT,
       fileBase64: workbook.toString('base64'),
     });
 
