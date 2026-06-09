@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     });
 
     const { conversations, capped } = await listTicketConversations(filters, {
-      maxRows: Infinity,
+      maxRows: null,
       onProgress(progress) {
         sendEvent(res, {
           type: 'progress',

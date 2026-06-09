@@ -1065,7 +1065,7 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
 
     for (const conversation of conversations) {
       rows.push(conversation);
-      if (rows.length >= maxRows) {
+      if (maxRows !== null && rows.length >= maxRows) {
         shouldStop = true;
         break;
       }
@@ -1089,14 +1089,16 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
 
 export async function listTicketConversations(rawFilters, options = {}) {
   const filters = normalizeTicketFilters(rawFilters);
-  const maxRows = options.maxRows || TICKET_SEARCH_LIMIT;
+  const maxRows = options.maxRows === null
+    ? null
+    : Number(options.maxRows || TICKET_SEARCH_LIMIT);
   const assignees = filters.assigneeIds.length ? filters.assigneeIds : [null];
   const byId = new Map();
   let capped = false;
 
   for (const assigneeId of assignees) {
-    const remaining = Math.max(0, maxRows - byId.size + 1);
-    if (remaining <= 0) {
+    const remaining = maxRows === null ? null : Math.max(0, maxRows - byId.size + 1);
+    if (remaining !== null && remaining <= 0) {
       capped = true;
       break;
     }
@@ -1104,7 +1106,7 @@ export async function listTicketConversations(rawFilters, options = {}) {
     const rows = await listConversationsForAssignee(filters, assigneeId, remaining, options.onProgress);
     for (const row of rows) {
       if (row?.id) byId.set(String(row.id), row);
-      if (byId.size >= maxRows) {
+      if (maxRows !== null && byId.size >= maxRows) {
         capped = true;
         break;
       }
@@ -1116,7 +1118,7 @@ export async function listTicketConversations(rawFilters, options = {}) {
 
   return {
     filters,
-    conversations: conversations.slice(0, maxRows),
+    conversations: maxRows === null ? conversations : conversations.slice(0, maxRows),
     capped,
   };
 }
