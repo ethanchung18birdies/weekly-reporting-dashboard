@@ -10,11 +10,43 @@ let _ticketAssigneeCache = null;
 const _assigneeWeekCache = new Map();
 const _assigneeSubcategoryCache = new Map();
 const REPORT_TAG_CONCURRENCY = 4;
-const TICKET_THREAD_CONCURRENCY = Number(process.env.TICKET_THREAD_CONCURRENCY || 4);
+const TICKET_THREAD_CONCURRENCY = Number(process.env.TICKET_THREAD_CONCURRENCY || 2);
+const TICKET_THREAD_DELAY_MS = Number(process.env.TICKET_THREAD_DELAY_MS || 125);
+const HELPSCOUT_RETRY_ATTEMPTS = Number(process.env.HELPSCOUT_RETRY_ATTEMPTS || 6);
 export const TICKET_SEARCH_LIMIT = Number(process.env.TICKET_SEARCH_LIMIT || 250);
+let _nextTicketThreadRequestAt = 0;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(value) {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const dateMs = Date.parse(value);
+  if (Number.isFinite(dateMs)) return Math.max(0, dateMs - Date.now());
+  return null;
+}
+
+function retryDelayMs(error, attempt) {
+  const retryAfterMs = parseRetryAfterMs(error?.retryAfter);
+  if (retryAfterMs !== null) return Math.min(retryAfterMs, 30_000);
+  const exponential = Math.min(30_000, 500 * (2 ** Math.max(0, attempt - 1)));
+  const jitter = Math.floor(Math.random() * 250);
+  return exponential + jitter;
+}
+
+function shouldRetryHelpScoutError(error) {
+  return [408, 429, 500, 502, 503, 504].includes(Number(error?.status));
+}
+
+async function waitForTicketThreadSlot() {
+  if (TICKET_THREAD_DELAY_MS <= 0) return;
+  const now = Date.now();
+  const waitMs = Math.max(0, _nextTicketThreadRequestAt - now);
+  _nextTicketThreadRequestAt = Math.max(now, _nextTicketThreadRequestAt) + TICKET_THREAD_DELAY_MS;
+  if (waitMs > 0) await sleep(waitMs);
 }
 
 async function getAccessToken() {
@@ -59,14 +91,19 @@ async function hsGet(path, params = {}) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`HelpScout API error ${res.status} for ${path}: ${err}`);
+    const body = await res.text();
+    const error = new Error(`HelpScout API error ${res.status} for ${path}: ${body}`);
+    error.status = res.status;
+    error.path = path;
+    error.retryAfter = res.headers.get('retry-after');
+    error.body = body;
+    throw error;
   }
 
   return res.json();
 }
 
-async function hsGetWithRetry(path, params = {}, attempts = 3) {
+async function hsGetWithRetry(path, params = {}, attempts = HELPSCOUT_RETRY_ATTEMPTS) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -75,10 +112,12 @@ async function hsGetWithRetry(path, params = {}, attempts = 3) {
     } catch (error) {
       lastError = error;
       if (attempt === attempts) break;
-      await sleep(250 * attempt);
+      if (!shouldRetryHelpScoutError(error)) break;
+      await sleep(retryDelayMs(error, attempt));
     }
   }
 
+  if (lastError) lastError.attempts = attempts;
   throw lastError;
 }
 
@@ -961,6 +1000,8 @@ function baseTicketRow(conversation) {
     preview: cleanText(conversation?.preview || ''),
     thread_count: '',
     updated_at: conversation?.modifiedAt || conversation?.updatedAt || '',
+    export_status: 'OK',
+    status_note: '',
   };
 }
 
@@ -1124,8 +1165,19 @@ export async function listTicketConversations(rawFilters, options = {}) {
 }
 
 async function fetchConversationThreads(conversationId) {
+  await waitForTicketThreadSlot();
   const data = await hsGetWithRetry(`/conversations/${conversationId}/threads`, { pageSize: 100 });
   return data?._embedded?.threads || [];
+}
+
+function exportErrorSummary(error) {
+  const status = error?.status ? `HTTP ${error.status}` : 'Error';
+  const attempts = error?.attempts ? ` after ${error.attempts} attempts` : '';
+  const path = error?.path ? ` on ${error.path}` : '';
+  const message = cleanText(error?.body || error?.message || 'Unknown failure')
+    .replace(/\s+/g, ' ')
+    .slice(0, 240);
+  return `${status}${attempts}${path}${message ? `: ${message}` : ''}`;
 }
 
 export async function enrichTicketConversations(conversations, options = {}) {
@@ -1142,9 +1194,12 @@ export async function enrichTicketConversations(conversations, options = {}) {
         const threads = await fetchConversationThreads(conversation.id);
         row.feedback = extractCustomerMessageFromThreads(threads);
         row.thread_count = threads.length;
+        row.export_status = 'OK';
       } catch (error) {
         errors += 1;
-        row.status_note = `Thread fetch failed: ${error.message}`;
+        row.export_status = 'Thread fetch failed';
+        row.feedback = row.preview || '';
+        row.status_note = `Thread fetch failed: ${exportErrorSummary(error)}`;
       } finally {
         processed += 1;
         if (onProgress) {
@@ -1190,6 +1245,8 @@ export const DEFAULT_TICKET_COLUMNS = [
   { key: 'status', label: 'Status' },
   { key: 'assignee', label: 'Assignee' },
   { key: 'tags', label: 'Tags' },
+  { key: 'export_status', label: 'Export Status' },
+  { key: 'status_note', label: 'Status Note' },
 ];
 
 export const ALL_TICKET_COLUMNS = [
@@ -1200,7 +1257,6 @@ export const ALL_TICKET_COLUMNS = [
   { key: 'preview', label: 'Preview' },
   { key: 'thread_count', label: 'Thread Count' },
   { key: 'updated_at', label: 'Updated At' },
-  { key: 'status_note', label: 'Status Note' },
 ].filter((column, index, columns) => columns.findIndex((item) => item.key === column.key) === index);
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────
