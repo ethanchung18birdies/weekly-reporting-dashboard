@@ -16,6 +16,22 @@ function safeFileDate(value) {
     .replace(/[^0-9-]/g, '') || 'tickets';
 }
 
+function sendWorkbookChunks(res, workbook) {
+  const base64 = workbook.toString('base64');
+  const chunkSize = 256 * 1024;
+  const totalChunks = Math.ceil(base64.length / chunkSize);
+
+  for (let index = 0; index < totalChunks; index += 1) {
+    sendEvent(res, {
+      type: 'file_chunk',
+      phase: 'delivering_xlsx',
+      index,
+      totalChunks,
+      chunk: base64.slice(index * chunkSize, (index + 1) * chunkSize),
+    });
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -93,6 +109,17 @@ export default async function handler(req, res) {
     const filename = `helpscout_tickets_${safeFileDate(filters.start)}_${safeFileDate(filters.end)}.xlsx`;
 
     sendEvent(res, {
+      type: 'progress',
+      phase: 'delivering_xlsx',
+      label: 'Delivering XLSX',
+      processed: rows.length,
+      total: rows.length,
+      errors,
+    });
+
+    sendWorkbookChunks(res, workbook);
+
+    sendEvent(res, {
       type: 'complete',
       phase: 'complete',
       filename,
@@ -100,7 +127,6 @@ export default async function handler(req, res) {
       rowCount: rows.length,
       errors,
       capped,
-      fileBase64: workbook.toString('base64'),
     });
 
     res.end();

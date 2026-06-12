@@ -2296,6 +2296,7 @@
       const button = document.getElementById('ticketExportBtn');
       if (button) button.disabled = true;
       ticketExportStartedAt = Date.now();
+      let lastProgressEvent = { phase: 'starting', label: 'Starting export', processed: 0, total: 0 };
       setTicketProgress({ phase: 'starting', label: 'Starting export', processed: 0, total: 0 });
 
       try {
@@ -2317,36 +2318,70 @@
         const decoder = new TextDecoder();
         let buffer = '';
         let completeEvent = null;
+        const fileBase64Parts = [];
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+        const handleExportEvent = (event) => {
+          if (event.type === 'error') throw new Error(event.detail || event.error || 'Export failed');
+          if (event.type === 'file_chunk') {
+            fileBase64Parts[event.index || 0] = event.chunk || '';
+            lastProgressEvent = {
+              phase: 'delivering_xlsx',
+              label: `Delivering XLSX chunk ${(event.index || 0) + 1}/${event.totalChunks || '?'}`,
+              processed: (event.index || 0) + 1,
+              total: event.totalChunks || 0,
+            };
+            setTicketProgress(lastProgressEvent);
+          } else if (event.type === 'complete') {
+            event.fileBase64 = event.fileBase64 || fileBase64Parts.join('');
+            completeEvent = event;
+            lastProgressEvent = { ...event, phase: 'complete', processed: event.rowCount, total: event.rowCount };
+            setTicketProgress({ ...event, label: `Export complete · ${event.rowCount} rows`, processed: event.rowCount, total: event.rowCount });
+          } else {
+            lastProgressEvent = event;
+            setTicketProgress(event);
+          }
+        };
+
+        const processExportLines = (text) => {
+          buffer += text;
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
           for (const line of lines) {
             if (!line.trim()) continue;
-            const event = JSON.parse(line);
-            if (event.type === 'error') throw new Error(event.detail || event.error || 'Export failed');
-            if (event.type === 'complete') {
-              completeEvent = event;
-              setTicketProgress({ ...event, label: `Export complete · ${event.rowCount} rows`, processed: event.rowCount, total: event.rowCount });
-            } else {
-              setTicketProgress(event);
-            }
+            handleExportEvent(JSON.parse(line));
           }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          processExportLines(decoder.decode(value, { stream: true }));
+        }
+
+        processExportLines(decoder.decode());
+        if (buffer.trim()) {
+          handleExportEvent(JSON.parse(buffer));
+          buffer = '';
         }
 
         if (completeEvent) {
+          if (!completeEvent.fileBase64) {
+            throw new Error('Export completed, but the workbook payload was empty.');
+          }
           downloadTicketWorkbook(completeEvent);
           const summary = document.getElementById('ticketResultSummary');
           if (summary) summary.textContent = `Exported ${completeEvent.rowCount} rows${completeEvent.capped ? ` (capped at ${completeEvent.cap})` : ''}.`;
         } else {
-          throw new Error('Export finished without a workbook.');
+          const lastPhase = lastProgressEvent?.phase ? ` Last phase: ${lastProgressEvent.phase}.` : '';
+          throw new Error(`Export connection ended before the workbook was delivered.${lastPhase}`);
         }
       } catch (err) {
         console.error('Ticket export failed:', err);
-        setTicketProgress({ phase: 'error', label: err.message, processed: 0, total: 0 });
+        setTicketProgress({
+          ...lastProgressEvent,
+          phase: 'error',
+          label: err.message,
+        });
       } finally {
         if (button) button.disabled = false;
       }
