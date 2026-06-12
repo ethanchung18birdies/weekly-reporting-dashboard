@@ -1223,14 +1223,34 @@ function exportErrorSummary(error) {
 
 export async function enrichTicketConversations(conversations, options = {}) {
   const onProgress = options.onProgress;
+  const shouldStop = typeof options.shouldStop === 'function' ? options.shouldStop : () => false;
   let processed = 0;
   let errors = 0;
+  let skipped = 0;
 
   const rows = await mapWithConcurrency(
     conversations,
     Math.max(1, TICKET_THREAD_CONCURRENCY),
     async (conversation) => {
       const row = baseTicketRow(conversation);
+      if (shouldStop()) {
+        skipped += 1;
+        row.export_status = 'Not processed';
+        row.feedback = row.preview || '';
+        row.status_note = 'Thread fetch skipped because the export was nearing the server time limit. Narrow filters or rerun this segment for full thread text.';
+        processed += 1;
+        if (onProgress) {
+          onProgress({
+            phase: 'fetching_threads',
+            processed,
+            total: conversations.length,
+            errors,
+            skipped,
+          });
+        }
+        return row;
+      }
+
       try {
         const threads = await fetchConversationThreads(conversation.id);
         row.feedback = extractCustomerMessageFromThreads(threads);
@@ -1249,6 +1269,7 @@ export async function enrichTicketConversations(conversations, options = {}) {
             processed,
             total: conversations.length,
             errors,
+            skipped,
           });
         }
       }
@@ -1261,6 +1282,7 @@ export async function enrichTicketConversations(conversations, options = {}) {
       ? rows.filter((row) => rowMatchesQuery(row, options.query))
       : rows,
     errors,
+    skipped,
   };
 }
 

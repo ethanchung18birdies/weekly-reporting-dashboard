@@ -36,6 +36,7 @@ In Vercel → your project → **Settings → Environment Variables**, add:
 | `HELPSCOUT_429_FALLBACK_MS` | Optional; wait time when Help Scout says minute rate limit but returns `retry_after:0`. Default `65000` |
 | `TICKET_THREAD_CONCURRENCY` | Optional; concurrent ticket thread fetches. Default `2` |
 | `TICKET_THREAD_DELAY_MS` | Optional; minimum delay between thread fetch starts. Default `125` |
+| `TICKET_EXPORT_TIME_BUDGET_MS` | Optional; time budget before exporting remaining rows as not processed. Default `45000` |
 | `BASE_URL` | `https://18birdies-cs-dashboard.vercel.app` |
 
 Then click **Redeploy** to pick up the new env vars.

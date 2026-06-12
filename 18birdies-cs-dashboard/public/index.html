@@ -2268,7 +2268,7 @@
       const waitText = event.phase === 'rate_limit_waiting'
         ? ` · Help Scout rate limit, retry ${event.attempt || 1}/${event.attempts || '?'}`
         : '';
-      foot.textContent = `${event.phase || 'working'}${waitText}${eta}${event.errors ? ` · ${event.errors} errors` : ''}${event.capped ? ` · capped at ${event.cap}` : ''}`;
+      foot.textContent = `${event.phase || 'working'}${waitText}${eta}${event.errors ? ` · ${event.errors} errors` : ''}${event.skipped ? ` · ${event.skipped} not processed` : ''}${event.capped ? ` · capped at ${event.cap}` : ''}`;
     }
 
     function base64ToBlob(base64, mimeType) {
@@ -2370,7 +2370,11 @@
           }
           downloadTicketWorkbook(completeEvent);
           const summary = document.getElementById('ticketResultSummary');
-          if (summary) summary.textContent = `Exported ${completeEvent.rowCount} rows${completeEvent.capped ? ` (capped at ${completeEvent.cap})` : ''}.`;
+          if (summary) {
+            summary.textContent = completeEvent.partial
+              ? `Exported ${completeEvent.rowCount} rows. ${completeEvent.skipped || 0} rows were not fully processed before the time limit.`
+              : `Exported ${completeEvent.rowCount} rows${completeEvent.capped ? ` (capped at ${completeEvent.cap})` : ''}.`;
+          }
         } else {
           const lastPhase = lastProgressEvent?.phase ? ` Last phase: ${lastProgressEvent.phase}.` : '';
           throw new Error(`Export connection ended before the workbook was delivered.${lastPhase}`);

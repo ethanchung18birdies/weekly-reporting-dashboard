@@ -6,6 +6,8 @@ import {
 } from '../lib/helpscout.js';
 import { buildXlsxBuffer } from '../lib/xlsx.js';
 
+const EXPORT_TIME_BUDGET_MS = Number(process.env.TICKET_EXPORT_TIME_BUDGET_MS || 45_000);
+
 function sendEvent(res, event) {
   res.write(`${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
 }
@@ -50,6 +52,8 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   try {
+    const startedAt = Date.now();
+    const shouldStopForTime = () => Date.now() - startedAt >= EXPORT_TIME_BUDGET_MS;
     const body = await readJsonBody(req);
     const filters = body.filters || {};
     const columns = body.columns || [];
@@ -82,8 +86,9 @@ export default async function handler(req, res) {
       capped,
     });
 
-    const { rows, errors } = await enrichTicketConversations(conversations, {
+    const { rows, errors, skipped } = await enrichTicketConversations(conversations, {
       query: filters.query,
+      shouldStop: shouldStopForTime,
       onProgress(progress) {
         sendEvent(res, {
           type: 'progress',
@@ -100,6 +105,7 @@ export default async function handler(req, res) {
       processed: rows.length,
       total: rows.length,
       errors,
+      skipped,
     });
 
     const sheetRows = ticketRowsToSheet(rows, columns);
@@ -115,6 +121,7 @@ export default async function handler(req, res) {
       processed: rows.length,
       total: rows.length,
       errors,
+      skipped,
     });
 
     sendWorkbookChunks(res, workbook);
@@ -126,6 +133,8 @@ export default async function handler(req, res) {
       mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       rowCount: rows.length,
       errors,
+      skipped,
+      partial: skipped > 0,
       capped,
     });
 
