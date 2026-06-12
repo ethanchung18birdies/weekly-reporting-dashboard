@@ -2250,9 +2250,13 @@
         ? 100
         : total > 0
           ? Math.min(100, Math.round((processed / total) * 100))
-          : (event.phase === 'indexing' ? 12 : 0);
+          : (['indexing', 'rate_limit_waiting'].includes(event.phase) ? 12 : 0);
       fill.style.width = `${pct}%`;
-      meta.textContent = total > 0 ? `${pct}% · ${processed}/${total}` : `${processed} indexed`;
+      if (event.phase === 'rate_limit_waiting') {
+        meta.textContent = `Waiting ${Math.ceil(Number(event.waitMs || 0) / 1000)}s`;
+      } else {
+        meta.textContent = total > 0 ? `${pct}% · ${processed}/${total}` : `${processed} indexed`;
+      }
 
       let eta = '';
       if (ticketExportStartedAt && total > 0 && processed > 0 && processed < total) {
@@ -2261,7 +2265,10 @@
         eta = ` · ETA ${Math.ceil(remainingSec)}s`;
       }
 
-      foot.textContent = `${event.phase || 'working'}${eta}${event.errors ? ` · ${event.errors} errors` : ''}${event.capped ? ` · capped at ${event.cap}` : ''}`;
+      const waitText = event.phase === 'rate_limit_waiting'
+        ? ` · Help Scout rate limit, retry ${event.attempt || 1}/${event.attempts || '?'}`
+        : '';
+      foot.textContent = `${event.phase || 'working'}${waitText}${eta}${event.errors ? ` · ${event.errors} errors` : ''}${event.capped ? ` · capped at ${event.cap}` : ''}`;
     }
 
     function base64ToBlob(base64, mimeType) {

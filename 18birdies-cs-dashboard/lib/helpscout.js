@@ -13,6 +13,7 @@ const REPORT_TAG_CONCURRENCY = 4;
 const TICKET_THREAD_CONCURRENCY = Number(process.env.TICKET_THREAD_CONCURRENCY || 2);
 const TICKET_THREAD_DELAY_MS = Number(process.env.TICKET_THREAD_DELAY_MS || 125);
 const HELPSCOUT_RETRY_ATTEMPTS = Number(process.env.HELPSCOUT_RETRY_ATTEMPTS || 6);
+const HELPSCOUT_429_FALLBACK_MS = Number(process.env.HELPSCOUT_429_FALLBACK_MS || 65_000);
 export const TICKET_SEARCH_LIMIT = Number(process.env.TICKET_SEARCH_LIMIT || 250);
 let _nextTicketThreadRequestAt = 0;
 
@@ -29,9 +30,36 @@ function parseRetryAfterMs(value) {
   return null;
 }
 
+function parseHelpScoutErrorBody(body) {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
+}
+
+function bodyRetryAfterMs(error) {
+  const body = error?.bodyJson;
+  if (!body) return null;
+  const retryAfter = Number(body.retry_after);
+  if (Number.isFinite(retryAfter) && retryAfter > 0) return retryAfter * 1000;
+
+  if (Number(error?.status) === 429) {
+    const interval = String(body.interval || '').toLowerCase();
+    if (interval === 'second') return 1_000;
+    if (interval === 'minute') return HELPSCOUT_429_FALLBACK_MS;
+    if (interval === 'hour') return 60 * 60 * 1000;
+    return HELPSCOUT_429_FALLBACK_MS;
+  }
+
+  return null;
+}
+
 function retryDelayMs(error, attempt) {
   const retryAfterMs = parseRetryAfterMs(error?.retryAfter);
   if (retryAfterMs !== null) return Math.min(retryAfterMs, 30_000);
+  const bodyDelayMs = bodyRetryAfterMs(error);
+  if (bodyDelayMs !== null) return bodyDelayMs;
   const exponential = Math.min(30_000, 500 * (2 ** Math.max(0, attempt - 1)));
   const jitter = Math.floor(Math.random() * 250);
   return exponential + jitter;
@@ -97,13 +125,14 @@ async function hsGet(path, params = {}) {
     error.path = path;
     error.retryAfter = res.headers.get('retry-after');
     error.body = body;
+    error.bodyJson = parseHelpScoutErrorBody(body);
     throw error;
   }
 
   return res.json();
 }
 
-async function hsGetWithRetry(path, params = {}, attempts = HELPSCOUT_RETRY_ATTEMPTS) {
+async function hsGetWithRetry(path, params = {}, attempts = HELPSCOUT_RETRY_ATTEMPTS, onRetry = null) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -113,7 +142,19 @@ async function hsGetWithRetry(path, params = {}, attempts = HELPSCOUT_RETRY_ATTE
       lastError = error;
       if (attempt === attempts) break;
       if (!shouldRetryHelpScoutError(error)) break;
-      await sleep(retryDelayMs(error, attempt));
+      const waitMs = retryDelayMs(error, attempt);
+      if (onRetry) {
+        onRetry({
+          phase: 'rate_limit_waiting',
+          path,
+          status: error.status,
+          attempt,
+          attempts,
+          waitMs,
+          message: error?.bodyJson?.message || error.message,
+        });
+      }
+      await sleep(waitMs);
     }
   }
 
@@ -1100,7 +1141,7 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
       sortOrder: 'desc',
     };
 
-    const data = await hsGetWithRetry('/conversations', params);
+    const data = await hsGetWithRetry('/conversations', params, HELPSCOUT_RETRY_ATTEMPTS, onProgress);
     const conversations = data?._embedded?.conversations || [];
     totalPages = data?.page?.totalPages || 1;
 
