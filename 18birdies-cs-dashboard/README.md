@@ -41,14 +41,7 @@ In Vercel → your project → **Settings → Environment Variables**, add:
 
 Then click **Redeploy** to pick up the new env vars.
 
-### 4. Update HelpScout Redirect URL (optional)
-
-If HelpScout prompts you, update your app's redirect URL to:
-```
-https://18birdies-cs-dashboard.vercel.app/api/auth/callback
-```
-
-### 5. Share with Execs
+### 4. Share with Execs
 
 Your dashboard is live at:
 ```
@@ -88,7 +81,9 @@ Open `http://localhost:3000`
 |----------|-------------|
 | `GET /api/metrics` | Returns last 12 weeks of metrics (cached 30 min) |
 | `GET /api/metrics?refresh=true` | Forces fresh pull from HelpScout |
-| `POST /api/refresh` | Same as above (for programmatic use) |
+| `GET /api/buckets` | Returns selected-week category/subcategory buckets |
+| `GET /api/assignees` | Returns selected-week closed volume by assignee |
+| `GET /api/assignee-subcategories` | Returns selected-assignee subcategory drilldown |
 | `GET /api/ticket-assignees` | Returns Help Scout assignees and ticket export filter options |
 | `GET /api/ticket-search` | Returns a paginated ticket preview for selected filters |
 | `POST /api/ticket-export-plan` | Prepares a full ticket export list |
@@ -100,9 +95,10 @@ Open `http://localhost:3000`
 
 ```
 ├── api/
-│   ├── metrics.js          # Main metrics endpoint
-│   ├── refresh.js          # Force refresh endpoint
-│   └── auth/callback.js    # OAuth2 callback handler
+│   ├── metrics.js          # Main weekly metrics endpoint
+│   ├── buckets.js          # Category/subcategory bucket endpoint
+│   ├── assignees.js        # Assignee volume endpoint
+│   └── ticket-*.js         # Ticket search/export endpoints
 ├── lib/
 │   ├── helpscout.js        # HelpScout API client + data fetching
 │   └── store.js            # Data persistence (KV or in-memory)
