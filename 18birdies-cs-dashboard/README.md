@@ -91,7 +91,10 @@ Open `http://localhost:3000`
 | `POST /api/refresh` | Same as above (for programmatic use) |
 | `GET /api/ticket-assignees` | Returns Help Scout assignees and ticket export filter options |
 | `GET /api/ticket-search` | Returns a paginated ticket preview for selected filters |
-| `POST /api/ticket-export-stream` | Streams XLSX export progress and the final workbook |
+| `POST /api/ticket-export-plan` | Prepares a full ticket export list |
+| `POST /api/ticket-export-batch` | Fetches full ticket messages for one export batch |
+| `POST /api/ticket-export-workbook` | Builds the final XLSX workbook |
+| `POST /api/ticket-export-stream` | Legacy single-request XLSX export stream |
 
 ## Files
 

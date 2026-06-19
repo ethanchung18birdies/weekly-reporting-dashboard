@@ -706,16 +706,25 @@ export async function fetchWeekBuckets(startStr, endStr, scope = 'all') {
 async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   try {
-    const activeData = await hsGet('/conversations', {
-      mailbox: mailboxId,
-      status: 'active',
-      pageSize: 1,
-    });
-    const active = activeData?.page?.totalElements || 0;
-    return { total: active, active, pending: 0 };
+    const fetchStatusCount = async (status) => {
+      const data = await hsGetWithRetry('/conversations', {
+        mailbox: mailboxId,
+        status,
+        pageSize: 1,
+      });
+      const total = data?.page?.totalElements;
+      return Number.isFinite(Number(total)) ? Number(total) : 0;
+    };
+
+    const [active, pending] = await Promise.all([
+      fetchStatusCount('active'),
+      fetchStatusCount('pending'),
+    ]);
+
+    return { total: active + pending, active, pending };
   } catch (e) {
     console.error('Error fetching backlog:', e.message);
-    return { total: 0, active: 0, pending: 0 };
+    return { total: null, active: null, pending: null };
   }
 }
 
@@ -1046,6 +1055,10 @@ function baseTicketRow(conversation) {
   };
 }
 
+export function ticketConversationToSeed(conversation) {
+  return baseTicketRow(conversation);
+}
+
 function rowMatchesQuery(row, query) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return true;
@@ -1284,6 +1297,45 @@ export async function enrichTicketConversations(conversations, options = {}) {
     errors,
     skipped,
   };
+}
+
+export async function enrichTicketSeedRows(seedRows, options = {}) {
+  const onProgress = options.onProgress;
+  let processed = 0;
+  let errors = 0;
+
+  const rows = await mapWithConcurrency(
+    seedRows,
+    Math.max(1, TICKET_THREAD_CONCURRENCY),
+    async (seedRow) => {
+      const row = { ...seedRow };
+      try {
+        const threads = await fetchConversationThreads(row.ticket_id);
+        row.feedback = extractCustomerMessageFromThreads(threads);
+        row.thread_count = threads.length;
+        row.export_status = 'OK';
+        row.status_note = '';
+      } catch (error) {
+        errors += 1;
+        row.export_status = 'Thread fetch failed';
+        row.feedback = row.preview || '';
+        row.status_note = `Thread fetch failed: ${exportErrorSummary(error)}`;
+      } finally {
+        processed += 1;
+        if (onProgress) {
+          onProgress({
+            phase: 'fetching_threads',
+            processed,
+            total: seedRows.length,
+            errors,
+          });
+        }
+      }
+      return row;
+    }
+  );
+
+  return { rows, errors };
 }
 
 export function ticketRowsToSheet(rows, columns) {

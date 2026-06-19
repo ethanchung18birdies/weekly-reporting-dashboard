@@ -1,6 +1,15 @@
 {
   "outputDirectory": "public",
   "functions": {
+    "api/ticket-export-plan.js": {
+      "maxDuration": 60
+    },
+    "api/ticket-export-batch.js": {
+      "maxDuration": 60
+    },
+    "api/ticket-export-workbook.js": {
+      "maxDuration": 60
+    },
     "api/ticket-export-stream.js": {
       "maxDuration": 60
     }

@@ -1,0 +1,1913 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/*
+**
+** HOMEPAGE
+**
+*/
+
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+.uneditable-input {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #ffffff;
+}
+
+.navbar .btn-navbar .icon-bar {
+  height: 4px;
+  margin-bottom: 6px;
+  width: 32px;
+}
+
+#docsSearch {
+  margin-bottom: 6em;
+  padding: 8.5em 0 6.5em;
+  /* Upload 2895.jpg to a public 18Birdies/HelpScout-accessible URL and replace this path if needed. */
+  background-image: url(https://v0-18b-helpscout-background.vercel.app/images/golfer.png);
+  background-position: center;
+  background-color: #a5a816;
+  background-repeat: no-repeat;
+  /* Shows more of the source image in the wide banner instead of cropping it tightly. */
+  background-size: 100% 100%;
+}
+
+#docsSearch h1 {
+  color: #ffffff;
+  margin-bottom: 1em;
+}
+
+.navbar .navbar-inner {
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  position: relative;
+}
+
+/* Align the header content to the page edges instead of the centered HelpScout container. */
+.navbar .container,
+.navbar .container-fluid {
+  box-sizing: border-box;
+  max-width: none;
+  padding-left: 24px;
+  padding-right: 24px;
+  width: 100%;
+}
+
+.navbar .brand {
+  float: left;
+  margin-left: 0;
+}
+
+.navbar .nav {
+  float: right;
+  margin-right: 0;
+}
+
+.navbar .nav li a {
+  color: #000000;
+  font-size: 15px;
+  font-weight: 300;
+  transition: all 0.3s;
+}
+
+.navbar .nav li a:hover {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.navbar .nav > li > a {
+  padding: 14px 20px;
+  text-transform: uppercase;
+}
+
+.navbar .brand {
+  width: 225px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+#searchBar {
+  position: relative;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#searchBar form {
+  box-sizing: border-box;
+  height: 72px;
+  position: relative;
+}
+
+
+#searchBar::before {
+  color: #ffffff;
+  content: "Search for answers or browse by topic.";
+  display: block;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 24px;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+#searchBar .search-query {
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(1, 87, 155, 0.11), 0 2px 4px rgba(0, 0, 0, 0.08);
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+  display: block;
+  height: 72px;
+  padding-left: 52px;
+  padding-right: 190px;
+  width: 100%;
+}
+
+input[type='text'] {
+  color: #455a64;
+}
+
+#searchBar button {
+  background: #073E63;
+  border: none;
+  border-radius: 28px;
+  font-size: 0;
+  font-weight: 700;
+  height: 58px;
+  line-height: 58px;
+  margin: 0;
+  min-width: 154px;
+  padding: 0 28px;
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  transform: none;
+  transition: all 0.3s;
+}
+
+#searchBar button::after {
+  content: "Swing Away";
+  font-size: 18px;
+}
+
+#searchBar button:hover {
+  background: #455a64;
+}
+
+.birdy-contact-text {
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.birdy-contact-button {
+  background-color: #2ab5ff;
+  border-radius: 4px;
+  color: #ffffff;
+  display: inline-block;
+  font-size: 18px;
+  line-height: 44px;
+  margin: 24px 0;
+  padding: 0 32px;
+  transition: all 0.3s;
+}
+
+.birdy-contact-button:hover {
+  background-color: #4381b5;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+footer {
+  text-align: center;
+}
+
+/* Autosuggest Dropdown */
+
+#serp-dd {
+  border: none;
+  top: 76px;
+}
+
+#serp-dd .result a {
+  color: #0288d1;
+}
+
+.collection-category h2 {
+  margin: 0 0 40px;
+  text-align: center;
+}
+
+.collection-category h2 a {
+  color: #37474f;
+  font-weight: bold;
+}
+
+.category-list {
+  padding-bottom: 40px;
+  text-align: center;
+}
+
+.category-list .category {
+  background: #ffffff;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 6px 24px rgba(1, 87, 155, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  margin-bottom: 2em;
+  padding: 1.5em;
+  transition: all 0.3s;
+}
+
+.category-list .category:hover {
+  background: #ffffff;
+  box-shadow: 0 6px 24px rgba(1, 87, 155, 0.11), 0 8px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.category-list .category h3 {
+  color: #37474f;
+}
+
+.category-list .category p {
+  color: #90a4ae;
+}
+
+@media screen and (max-width: 768px) {
+  body {
+    background: #ffffff;
+  }
+
+  .navbar .btn-navbar {
+    right: 0;
+    height: auto;
+    margin: 14px 0;
+    top: 5px;
+    width: auto;
+  }
+
+  .navbar .nav {
+    padding: 8px 0;
+  }
+
+  .navbar .nav > li > a {
+    padding: 8px 12px;
+  }
+
+  .navbar .btn-navbar .icon-bar {
+    background: #ffffff;
+  }
+
+  #docsSearch {
+    padding: 6em 0 3em;
+  }
+
+  #docsSearch h1 {
+    margin-top: 0;
+  }
+
+  #searchBar::before {
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+
+  #searchBar form {
+    height: 60px;
+  }
+
+  #searchBar .search-query {
+    height: 60px;
+    padding-left: 28px;
+    padding-right: 140px;
+  }
+
+  #searchBar button {
+    border-radius: 18px;
+    height: 48px;
+    line-height: 48px;
+    min-width: 118px;
+    padding: 0 18px;
+    right: 6px;
+    top: 6px;
+  }
+
+  #searchBar button::after {
+    font-size: 15px;
+  }
+
+  .navbar .nav {
+    background: #eceff1;
+    border-radius: 4px;
+  }
+
+  .navbar .nav .active a {
+    color: #000000;
+  }
+
+  #sidebar form .search-query {
+    box-shadow: 0 4px 6px rgba(1, 87, 155, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  #serp-dd {
+    top: 71px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  #serp-dd {
+    width: 100%;
+  }
+}
+
+/*
+**
+** CATEGORY PAGES
+**
+*/
+
+#main-content {
+  background: none;
+}
+
+.contentWrapper {
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 15px 35px rgba(1, 87, 155, 0.06), 0 5px 15px rgba(0, 0, 0, 0.06);
+  color: #37474f;
+}
+
+.contentWrapper p.descrip {
+  margin-top: 16px;
+}
+
+#sidebar h3 {
+  font-size: 18px;
+}
+
+#sidebar .nav-list li {
+  margin: 4px 0;
+}
+
+#sidebar .nav-list a {
+  background-color: rgba(1, 80, 125, 0.05);
+  border-left: 4px solid transparent;
+  border-radius: 2px;
+  display: block;
+  font-size: 1.4em;
+  line-height: 40px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  transition: all 0.3s;
+}
+
+#sidebar .nav-list a:hover {
+  background-color: rgba(1, 80, 125, 0.05);
+}
+
+#sidebar .nav-list .active a {
+  background: rgba(0, 154, 218, 0.18);
+  border-left: 4px solid #2ab5ff;
+  color: #2ab5ff;
+}
+
+#sidebar .nav-list .active a:hover {
+  background: rgba(0, 154, 218, 0.2);
+  color: #2ab5ff;
+}
+
+#sidebar form .search-query {
+  border: none;
+  box-shadow: 0 4px 6px rgba(1, 87, 155, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+#sidebar form .search-query:hover,
+#sidebar form .search-query:focus {
+  box-shadow: 0 4px 6px rgba(1, 87, 155, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+#categoryHead .sort {
+  top: 0;
+}
+
+#categoryHead .sort select {
+  background: #eceff1;
+  border: none;
+  font-size: 12px;
+  height: 40px;
+  outline: none;
+}
+
+.articleFoot p,
+.articleFoot time {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+}
+
+/*
+**
+** CATEGORY PAGES
+**
+*/
+
+label {
+  font-size: 16px;
+}
+
+select,
+textarea,
+input[type='text'],
+input[type='password'],
+input[type='datetime'],
+input[type='datetime-local'],
+input[type='date'],
+input[type='month'],
+input[type='time'],
+input[type='week'],
+input[type='number'],
+input[type='email'],
+input[type='url'],
+input[type='search'],
+input[type='tel'],
+input[type='color'],
+.uneditable-input {
+  border: 1px solid rgba(1, 80, 125, 0.2);
+  color: #263238;
+  font-size: 14px;
+  height: 32px;
+}
+
+textarea:hover,
+input:hover,
+input[type='text']:hover,
+input[type='password']:hover,
+input[type='datetime']:hover,
+input[type='datetime-local']:hover,
+input[type='date']:hover,
+input[type='month']:hover,
+input[type='time']:hover,
+input[type='week']:hover,
+input[type='number']:hover,
+input[type='email']:hover,
+input[type='url']:hover,
+input[type='search']:hover,
+input[type='tel']:hover,
+input[type='color']:hover,
+.uneditable-input:hover {
+  /*background-color: rgba(1,80,125,.01);*/
+  border: 1px solid rgba(0, 154, 218, 0.6);
+  box-shadow: inset 0 2px 3px rgba(1, 80, 125, 0.16);
+}
+
+textarea:focus,
+input:focus,
+input[type='text']:focus,
+input[type='password']:focus,
+input[type='datetime']:focus,
+input[type='datetime-local']:focus,
+input[type='date']:focus,
+input[type='month']:focus,
+input[type='time']:focus,
+input[type='week']:focus,
+input[type='number']:focus,
+input[type='email']:focus,
+input[type='url']:focus,
+input[type='search']:focus,
+input[type='tel']:focus,
+input[type='color']:focus,
+.uneditable-input:focus {
+  /*background-color: rgba(1,80,125,.01);*/
+  border: 1px solid rgba(0, 154, 218, 0.6);
+  box-shadow: inset 0 2px 3px rgba(1, 80, 125, 0.16);
+}
+
+.btn {
+  background-color: #2ab5ff;
+  background-image: none;
+  border: none;
+  border-radius: 4px;
+  box-shadow: none;
+  color: #ffffff;
+  display: inline-block;
+  font-size: 18px;
+  line-height: 44px;
+  margin: 24px 0;
+  padding: 0 32px;
+  text-shadow: none;
+  transition: all 0.3s;
+}
+
+button.btn,
+input[type='submit'].btn {
+  transition: all 0.3s;
+}
+
+.btn:hover {
+  background-color: #4381b5;
+  border: none;
+  box-shadow: none;
+  color: #ffffff;
+}
+
+/*
+**
+** ARTICLE ACCORDIONS
+**
+*/
+
+.faq-accordion {
+  max-width: 760px;
+}
+
+.faq-accordion details {
+  border-bottom: 1px solid #e5e5e5;
+  padding: 0;
+}
+
+.faq-accordion summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 18px 36px 18px 0;
+  position: relative;
+}
+
+.faq-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-accordion summary::after {
+  content: "⌄";
+  font-size: 18px;
+  line-height: 1;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.2s ease;
+}
+
+.faq-accordion details[open] summary::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.faq-accordion details p,
+.faq-accordion details ul {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.faq-accordion details p:first-of-type,
+.faq-accordion details ul:first-of-type {
+  margin-top: 0;
+}
+
+.faq-accordion details > :not(summary) {
+  padding-bottom: 16px;
+}
+
+/* Browse by Topic intro above category cards */
+.category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 44px 40px;
+  justify-content: center;
+  text-align: left;
+}
+
+.category-list::before,
+.category-list::after {
+  box-sizing: border-box;
+  flex: 0 0 100%;
+  max-width: 1170px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.category-list::before {
+  color: #171b24;
+  content: "Browse by Topic";
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 auto 6px;
+}
+
+.category-list::after {
+  color: #545d6f;
+  content: "Find exactly what you're looking for by browsing through our help categories.";
+  display: block;
+  font-size: 16px;
+  line-height: 1.35;
+  margin: 0 auto 22px;
+  order: 1;
+}
+
+.category-list .category {
+  margin: 0 0 2.5em;
+  order: 2;
+  text-align: center;
+}
+
+@media screen and (max-width: 768px) {
+  .category-list {
+    gap: 28px;
+  }
+
+  .category-list::before,
+  .category-list::after {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .category-list::before {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .category-list::after {
+    font-size: 15px;
+    margin-bottom: 22px;
+  }
+}
+
+/* Latest banner/search alignment refinements */
+#docsSearch {
+  padding: 10em 0 7.5em;
+}
+
+#searchBar {
+  max-width: 760px;
+}
+
+#searchBar::before {
+  margin-bottom: 26px;
+}
+
+#searchBar .search-query {
+  padding-left: 40px;
+  padding-right: 190px;
+}
+
+/* HelpScout's search button is positioned relative to #searchBar, so offset it below the intro text. */
+#searchBar button {
+  top: 72px;
+  right: 7px;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    padding: 8em 0 5em;
+  }
+
+  #searchBar .search-query {
+    padding-left: 28px;
+    padding-right: 150px;
+  }
+
+  #searchBar button {
+    top: 63px;
+    right: 7px;
+  }
+}
+
+/* Update Browse by Topic heading: remove description and center title */
+.category-list::before {
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 28px;
+}
+
+.category-list::after {
+  content: none;
+  display: none;
+}
+
+/* Tighten vertical spacing between category card rows */
+.category-list {
+  gap: 24px 40px;
+}
+
+.category-list .category {
+  margin-bottom: 0;
+}
+
+@media screen and (max-width: 768px) {
+  .category-list {
+    gap: 20px;
+  }
+}
+
+/* Header and search alignment adjustments */
+.navbar .navbar-inner {
+  min-height: 72px;
+}
+
+.navbar .brand {
+  width: 190px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.navbar .nav > li > a {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+#searchBar button {
+  top: 88px;
+}
+
+@media screen and (max-width: 768px) {
+  .navbar .navbar-inner {
+    min-height: 64px;
+  }
+
+  .navbar .brand {
+    width: 170px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .navbar .nav > li > a {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  #searchBar button {
+    top: 78px;
+  }
+}
+
+/* Logo-in-banner, wider search, and larger category cards */
+.navbar {
+  margin-bottom: -72px;
+  position: relative;
+  z-index: 20;
+}
+
+.navbar .navbar-inner {
+  background: transparent;
+  box-shadow: none;
+  min-height: 72px;
+}
+
+.navbar .brand {
+  width: 170px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.navbar .nav > li > a {
+  color: #ffffff;
+  font-weight: 600;
+  padding-top: 26px;
+  padding-bottom: 22px;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+}
+
+.navbar .nav li a:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#docsSearch {
+  padding: 12.25em 0 7.75em;
+}
+
+#searchBar {
+  max-width: 1170px;
+  width: calc(100% - 48px);
+}
+
+#searchBar form {
+  height: 76px;
+}
+
+#searchBar .search-query {
+  height: 76px;
+  padding-left: 44px;
+  padding-right: 210px;
+}
+
+#searchBar button {
+  bottom: 9px;
+  height: 58px;
+  line-height: 58px;
+  min-width: 166px;
+  right: 9px;
+  top: auto !important;
+  transform: none;
+}
+
+.category-list {
+  box-sizing: border-box;
+  gap: 28px 36px;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1170px;
+  padding-left: 0;
+  padding-right: 0;
+  width: calc(100% - 48px);
+}
+
+.category-list::before,
+.category-list::after {
+  max-width: 1170px;
+  width: 100%;
+}
+
+.category-list::before {
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.category-list .category {
+  align-items: center;
+  display: flex;
+  flex: 0 0 calc((100% - 72px) / 3);
+  flex-direction: column;
+  justify-content: center;
+  min-height: 158px;
+  padding: 32px 28px;
+}
+
+.category-list .category h3 {
+  font-size: 24px;
+  line-height: 1.25;
+  margin-bottom: 14px;
+}
+
+.category-list .category p {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+@media screen and (max-width: 768px) {
+  .navbar {
+    margin-bottom: -64px;
+  }
+
+  .navbar .navbar-inner {
+    min-height: 64px;
+  }
+
+  .navbar .brand {
+    width: 150px;
+  }
+
+  .navbar .nav > li > a {
+    color: #000000;
+    text-shadow: none;
+  }
+
+  #docsSearch {
+    padding: 9em 0 5.5em;
+  }
+
+  #searchBar {
+    width: calc(100% - 32px);
+  }
+
+  #searchBar form {
+    height: 64px;
+  }
+
+  #searchBar .search-query {
+    height: 64px;
+    padding-left: 28px;
+    padding-right: 150px;
+  }
+
+  #searchBar button {
+    bottom: 7px;
+    height: 50px;
+    line-height: 50px;
+    min-width: 120px;
+    right: 7px;
+  }
+
+  .category-list {
+    gap: 22px;
+    width: calc(100% - 32px);
+  }
+
+  .category-list .category {
+    flex: 0 0 100%;
+    min-height: 140px;
+  }
+}
+
+/* Move hero text/search lower and reduce category card title size */
+#docsSearch {
+  padding-top: 14.75em;
+  padding-bottom: 8.5em;
+}
+
+#searchBar::before {
+  margin-bottom: 34px;
+}
+
+.category-list .category h3 {
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    padding-top: 10.5em;
+    padding-bottom: 6em;
+  }
+
+  #searchBar::before {
+    margin-bottom: 24px;
+  }
+
+  .category-list .category h3 {
+    font-size: 19px;
+  }
+}
+
+/* Preserve banner image aspect ratio */
+#docsSearch {
+  background-size: cover !important;
+  background-position: center center !important;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    background-size: cover !important;
+    background-position: center center !important;
+  }
+}
+
+/* Latest adjustments: button position and category-page hero cleanup */
+#searchBar button {
+  bottom: 14px !important;
+}
+
+/* The hero headline is intended only for the homepage. Hide the injected
+   pseudo-heading on category/article pages where HelpScout renders main content. */
+body:has(#main-content) #searchBar::before,
+body:has(.contentWrapper) #searchBar::before,
+#main-content #searchBar::before,
+#sidebar #searchBar::before {
+  content: none !important;
+  display: none !important;
+}
+
+@media screen and (max-width: 768px) {
+  #searchBar button {
+    bottom: 12px !important;
+  }
+}
+
+/* Banner image crop: show a higher section of the image without stretching */
+#docsSearch {
+  background-size: cover !important;
+  background-position: center 34% !important;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    background-size: cover !important;
+    background-position: center 34% !important;
+  }
+}
+
+/* Final tune: show a slightly lower crop of the banner image */
+#docsSearch {
+  background-size: cover !important;
+  background-position: center 42% !important;
+}
+
+/* Center the Swing Away button vertically with the search input */
+#searchBar button {
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    background-size: cover !important;
+    background-position: center 42% !important;
+  }
+
+  #searchBar button {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+  }
+}
+
+/* Final polish: button, logo, nav font, and popular article title */
+#searchBar button {
+  transform: translateY(calc(-50% + 10px)) !important;
+}
+
+.navbar .brand {
+  width: 190px;
+}
+
+.navbar .nav li a,
+.navbar .nav > li > a {
+  font-family: 'Inter', sans-serif;
+}
+
+.most-popular h2,
+.popularArticles h2,
+#popularArticles h2,
+.collection-category > h2 {
+  font-weight: 700;
+}
+
+@media screen and (max-width: 768px) {
+  #searchBar button {
+    transform: translateY(calc(-50% + 10px)) !important;
+  }
+
+  .navbar .brand {
+    width: 165px;
+  }
+}
+
+/* Banner crop: anchor the image to the top so the bottom portion is cropped out */
+#docsSearch {
+  background-size: cover !important;
+  background-position: center top !important;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    background-size: cover !important;
+    background-position: center top !important;
+  }
+}
+
+/* Latest update: new landscape banner, narrower search bar, and button offset */
+#docsSearch {
+  background-image: url(https://v0-18b-helpscout-background.vercel.app/images/golfer.png) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+}
+
+#searchBar {
+  max-width: 980px !important;
+  width: calc(100% - 64px) !important;
+}
+
+#searchBar button {
+  transform: translateY(calc(-50% + 30px)) !important;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    background-image: url(https://v0-18b-helpscout-background.vercel.app/images/golfer.png) !important;
+    background-size: cover !important;
+    background-position: center center !important;
+  }
+
+  #searchBar {
+    max-width: none !important;
+    width: calc(100% - 32px) !important;
+  }
+
+  #searchBar button {
+    transform: translateY(calc(-50% + 30px)) !important;
+  }
+}
+
+/* Latest adjustment: show lower part of golfer banner and lower Swing Away button */
+#docsSearch {
+  background-position: center 58% !important;
+}
+
+#searchBar button {
+  transform: translateY(calc(-50% + 35px)) !important;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    background-position: center 58% !important;
+  }
+
+  #searchBar button {
+    transform: translateY(calc(-50% + 35px)) !important;
+  }
+}
+
+/* Keep the Swing Away button homepage-only.
+   Hide the injected search button on category/article secondary pages. */
+body:has(#main-content) #searchBar button,
+body:has(.contentWrapper) #searchBar button,
+#main-content #searchBar button,
+#sidebar #searchBar button {
+  display: none !important;
+}
+
+/* Latest update: aerial sunset banner using full image width.
+   Shows the vertical crop centered around the 2nd and 3rd fifths of the image. */
+#docsSearch {
+  background-image: url(https://v0-18b-helpscout-background.vercel.app/images/aerial-sunset.jpg) !important;
+  background-size: 100% auto !important;
+  background-position: center 40% !important;
+  background-repeat: no-repeat !important;
+}
+
+@media screen and (max-width: 768px) {
+  #docsSearch {
+    background-image: url(https://v0-18b-helpscout-background.vercel.app/images/aerial-sunset.jpg) !important;
+    background-size: 100% auto !important;
+    background-position: center 40% !important;
+    background-repeat: no-repeat !important;
+  }
+}
+
+/* Mobile responsive scaling pass
+   Keeps the desktop layout intact while making the hero, nav, search bar,
+   and category cards fit cleanly on tablet and phone screens. */
+@media screen and (max-width: 768px) {
+  body {
+    background: #ffffff !important;
+    overflow-x: hidden;
+  }
+
+  .navbar {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 5 !important;
+  }
+
+  .navbar .navbar-inner {
+    min-height: 76px !important;
+    padding: 14px 18px !important;
+    box-sizing: border-box !important;
+  }
+
+  .navbar .container,
+  .navbar .container-fluid {
+    width: 100% !important;
+    max-width: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+  }
+
+  .navbar .brand {
+    width: 150px !important;
+    max-width: 46vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .navbar .brand img {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+  }
+
+  .navbar .nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 14px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .navbar .nav > li > a,
+  .navbar .nav li a {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    padding: 8px 0 !important;
+  }
+
+  #docsSearch {
+    min-height: 430px !important;
+    padding: 132px 0 68px !important;
+    margin-bottom: 44px !important;
+    box-sizing: border-box !important;
+    background-image: url(https://v0-18b-helpscout-background.vercel.app/images/aerial-sunset.jpg) !important;
+    background-size: auto 100% !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+  }
+
+  #docsSearch h1 {
+    margin: 0 20px 26px !important;
+    font-size: 28px !important;
+    line-height: 1.18 !important;
+  }
+
+  #searchBar {
+    width: calc(100% - 36px) !important;
+    max-width: 620px !important;
+    margin: 0 auto !important;
+  }
+
+  #searchBar::before {
+    display: block !important;
+    margin: 0 0 22px !important;
+    font-size: 27px !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+  }
+
+  #searchBar form {
+    position: relative !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  #searchBar .search-query {
+    width: 100% !important;
+    height: 58px !important;
+    padding: 0 150px 0 22px !important;
+    border-radius: 999px !important;
+    box-sizing: border-box !important;
+    font-size: 15px !important;
+    line-height: 58px !important;
+  }
+
+  #searchBar button {
+    position: absolute !important;
+    top: 50% !important;
+    right: 6px !important;
+    bottom: auto !important;
+    width: 132px !important;
+    height: 46px !important;
+    margin: 0 !important;
+    border-radius: 999px !important;
+    transform: translateY(calc(-50% + 35px)) !important;
+  }
+
+  .collection-category h2,
+  .category-list::before {
+    text-align: center !important;
+    font-size: 24px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 20px !important;
+  }
+
+  .category-list::after {
+    display: none !important;
+  }
+
+  .category-list {
+    width: calc(100% - 36px) !important;
+    max-width: 620px !important;
+    margin: 0 auto !important;
+    padding-bottom: 28px !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+
+  .category-list .category {
+    width: 100% !important;
+    min-height: 130px !important;
+    margin: 0 !important;
+    padding: 24px 22px !important;
+    border-radius: 18px !important;
+    box-sizing: border-box !important;
+  }
+
+  .category-list .category h3 {
+    font-size: 18px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 8px !important;
+  }
+
+  .category-list .category p {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .navbar .navbar-inner {
+    min-height: 68px !important;
+    padding: 12px 16px !important;
+  }
+
+  .navbar .brand {
+    width: 132px !important;
+    max-width: 44vw !important;
+  }
+
+  .navbar .nav {
+    gap: 10px !important;
+  }
+
+  .navbar .nav > li > a,
+  .navbar .nav li a {
+    font-size: 12px !important;
+  }
+
+  #docsSearch {
+    min-height: 390px !important;
+    padding: 116px 0 54px !important;
+    margin-bottom: 34px !important;
+    background-size: auto 100% !important;
+    background-position: center center !important;
+  }
+
+  #searchBar {
+    width: calc(100% - 28px) !important;
+  }
+
+  #searchBar::before {
+    font-size: 23px !important;
+    line-height: 1.22 !important;
+    margin-bottom: 18px !important;
+  }
+
+  #searchBar .search-query {
+    height: 54px !important;
+    padding: 0 20px !important;
+    font-size: 14px !important;
+    line-height: 54px !important;
+  }
+
+  #searchBar button {
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    display: block !important;
+    width: 100% !important;
+    height: 48px !important;
+    margin: 14px 0 0 !important;
+    transform: translateY(5px) !important;
+  }
+
+  .category-list {
+    width: calc(100% - 28px) !important;
+    gap: 14px !important;
+  }
+
+  .category-list .category {
+    min-height: 118px !important;
+    padding: 22px 18px !important;
+    border-radius: 16px !important;
+  }
+
+  .category-list .category h3 {
+    font-size: 17px !important;
+  }
+}
+
+@media screen and (max-width: 360px) {
+  #docsSearch {
+    min-height: 370px !important;
+  }
+
+  #searchBar::before {
+    font-size: 21px !important;
+  }
+
+  .navbar .brand {
+    width: 118px !important;
+  }
+}
+
+/* Hide category card descriptions, but keep article counts visible */
+.category-list .category p {
+  display: none !important;
+}
+
+.category-list .category p:last-child,
+.category-list .category .article-count,
+.category-list .category .articleCount,
+.category-list .category .articles-count,
+.category-list .category .category-count,
+.category-list .category .count {
+  display: block !important;
+}
+
+/* Mobile fix: keep logo visible on the hero banner and keep Swing Away inside the search bar */
+@media screen and (max-width: 768px) {
+  .navbar {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 20 !important;
+  }
+
+  .navbar .brand {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    left: 18px !important;
+    top: 16px !important;
+    width: 148px !important;
+    max-width: 44vw !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 22 !important;
+  }
+
+  .navbar .brand img {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  #searchBar form {
+    position: relative !important;
+    margin: 0 !important;
+  }
+
+  #searchBar .search-query {
+    padding-left: 26px !important;
+    padding-right: 152px !important;
+  }
+
+  #searchBar button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: absolute !important;
+    top: auto !important;
+    right: 6px !important;
+    bottom: 6px !important;
+    width: 128px !important;
+    min-width: 128px !important;
+    height: 46px !important;
+    margin: 0 !important;
+    padding: 0 18px !important;
+    border-radius: 999px !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    color: transparent !important;
+    overflow: hidden !important;
+    transform: none !important;
+  }
+
+  #searchBar button::before,
+  #searchBar button i,
+  #searchBar button svg,
+  #searchBar button .icon-search,
+  #searchBar button .search-icon {
+    display: none !important;
+    content: none !important;
+  }
+
+  #searchBar button::after {
+    display: block !important;
+    content: "Swing Away" !important;
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .navbar .brand {
+    left: 14px !important;
+    top: 14px !important;
+    width: 132px !important;
+    max-width: 42vw !important;
+  }
+
+  #searchBar .search-query {
+    height: 58px !important;
+    line-height: 58px !important;
+    padding-left: 22px !important;
+    padding-right: 136px !important;
+  }
+
+  #searchBar button {
+    position: absolute !important;
+    top: auto !important;
+    right: 6px !important;
+    bottom: 6px !important;
+    width: 116px !important;
+    min-width: 116px !important;
+    height: 46px !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  #searchBar button::after {
+    font-size: 14px !important;
+    line-height: 1 !important;
+  }
+}
+
+/* Place Google Translate language selector on the same header line as Home / Download */
+#google_translate_element {
+  position: absolute !important;
+  top: 22px !important;
+  right: 265px !important;
+  z-index: 30 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+#google_translate_element .goog-te-gadget {
+  color: transparent !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+}
+
+#google_translate_element .goog-te-combo {
+  width: 210px !important;
+  max-width: 210px !important;
+  height: 34px !important;
+  margin: 0 !important;
+  padding: 0 28px 0 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  border-radius: 999px !important;
+  background-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 34px !important;
+  text-transform: uppercase !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#google_translate_element .goog-te-combo option {
+  color: #111827 !important;
+  background: #ffffff !important;
+}
+
+/* Keep the translator from creating extra vertical space above the hero */
+body > #google_translate_element,
+body > .skiptranslate {
+  margin-top: 0 !important;
+}
+
+body {
+  top: 0 !important;
+}
+
+@media screen and (max-width: 768px) {
+  #google_translate_element {
+    top: 16px !important;
+    right: 156px !important;
+    z-index: 35 !important;
+  }
+
+  #google_translate_element .goog-te-combo {
+    width: 150px !important;
+    max-width: 150px !important;
+    height: 30px !important;
+    padding: 0 22px 0 10px !important;
+    font-size: 11px !important;
+    line-height: 30px !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  #google_translate_element {
+    top: 16px !important;
+    right: 118px !important;
+  }
+
+  #google_translate_element .goog-te-combo {
+    width: 132px !important;
+    max-width: 132px !important;
+    height: 28px !important;
+    padding-left: 8px !important;
+    padding-right: 18px !important;
+    font-size: 10px !important;
+    line-height: 28px !important;
+  }
+}
+
+/* Final responsive layout stabilization for homepage header, hero, and category cards */
+#searchBar {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+#searchBar form {
+  position: relative !important;
+}
+
+#searchBar button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  color: transparent !important;
+  overflow: hidden !important;
+}
+
+#searchBar button::after {
+  color: #ffffff !important;
+  line-height: 1 !important;
+}
+
+.category-list {
+  box-sizing: border-box !important;
+}
+
+.category-list .category {
+  box-sizing: border-box !important;
+}
+
+@media screen and (min-width: 769px) {
+  .navbar .navbar-inner {
+    position: relative !important;
+    min-height: 76px !important;
+  }
+
+  .navbar .container,
+  .navbar .container-fluid {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    position: relative !important;
+  }
+
+  .navbar .brand {
+    position: absolute !important;
+    left: 24px !important;
+    top: 16px !important;
+    width: 170px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+  }
+
+  .navbar .nav {
+    display: flex !important;
+    align-items: center !important;
+    gap: 20px !important;
+    float: none !important;
+    margin: 0 !important;
+    position: absolute !important;
+    top: 0 !important;
+    right: 24px !important;
+    height: 76px !important;
+  }
+
+  .navbar .nav > li {
+    float: none !important;
+  }
+
+  .navbar .nav > li > a,
+  .navbar .nav li a {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  #docsSearch {
+    padding: 13.5em 0 7.75em !important;
+    background-position: center center !important;
+  }
+
+  #searchBar {
+    width: calc(100% - 48px) !important;
+    max-width: 1100px !important;
+    margin: 0 auto !important;
+  }
+
+  #searchBar form {
+    height: 76px !important;
+    margin: 0 auto !important;
+  }
+
+  #searchBar .search-query {
+    height: 76px !important;
+    padding-left: 44px !important;
+    padding-right: 210px !important;
+    line-height: 76px !important;
+  }
+
+  #searchBar button {
+    position: absolute !important;
+    top: calc(100% - 92px) !important;
+    right: 9px !important;
+    bottom: auto !important;
+    width: 166px !important;
+    min-width: 166px !important;
+    height: 58px !important;
+    margin: 0 !important;
+    padding: 0 24px !important;
+    transform: none !important;
+  }
+
+  #searchBar button::after {
+    font-size: 18px !important;
+    font-weight: 700 !important;
+  }
+
+  .category-list {
+    width: calc(100% - 48px) !important;
+    max-width: 1170px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    gap: 28px 36px !important;
+  }
+
+  .category-list .category {
+    min-height: 158px !important;
+    padding: 32px 28px !important;
+  }
+
+  #google_translate_element {
+    top: 28px !important;
+    right: 340px !important;
+    z-index: 35 !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  body {
+    overflow-x: hidden !important;
+  }
+
+  .navbar .container,
+  .navbar .container-fluid {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+
+  .navbar .nav {
+    float: none !important;
+    margin: 0 !important;
+  }
+
+  #docsSearch {
+    min-height: 430px !important;
+    padding: 132px 0 68px !important;
+    margin-bottom: 44px !important;
+    background-position: center center !important;
+  }
+
+  #searchBar {
+    width: calc(100% - 36px) !important;
+    max-width: 620px !important;
+    margin: 0 auto !important;
+  }
+
+  #searchBar::before {
+    margin: 0 0 22px !important;
+  }
+
+  #searchBar form {
+    width: 100% !important;
+    height: 58px !important;
+    min-height: 58px !important;
+  }
+
+  #searchBar .search-query {
+    width: 100% !important;
+    height: 58px !important;
+    padding-left: 26px !important;
+    padding-right: 152px !important;
+    line-height: 58px !important;
+  }
+
+  #searchBar button {
+    top: calc(100% - 64px) !important;
+    right: 6px !important;
+    bottom: auto !important;
+    width: 128px !important;
+    min-width: 128px !important;
+    height: 46px !important;
+    margin: 0 !important;
+    padding: 0 18px !important;
+    transform: none !important;
+  }
+
+  #searchBar button::after {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+  }
+
+  .collection-category h2,
+  .category-list::before {
+    margin-bottom: 20px !important;
+  }
+
+  .category-list {
+    width: calc(100% - 36px) !important;
+    max-width: 620px !important;
+    margin: 0 auto !important;
+    gap: 18px !important;
+  }
+
+  .category-list .category {
+    min-height: 130px !important;
+    margin: 0 !important;
+    padding: 24px 22px !important;
+  }
+
+  #google_translate_element {
+    top: 15px !important;
+    right: 156px !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .navbar .container,
+  .navbar .container-fluid {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  #docsSearch {
+    min-height: 390px !important;
+    padding: 116px 0 54px !important;
+    margin-bottom: 34px !important;
+  }
+
+  #searchBar {
+    width: calc(100% - 28px) !important;
+  }
+
+  #searchBar::before {
+    margin-bottom: 18px !important;
+  }
+
+  #searchBar .search-query {
+    height: 58px !important;
+    padding-left: 22px !important;
+    padding-right: 136px !important;
+    line-height: 58px !important;
+  }
+
+  #searchBar button {
+    top: calc(100% - 70px) !important;
+    right: 6px !important;
+    bottom: auto !important;
+    width: 116px !important;
+    min-width: 116px !important;
+    height: 46px !important;
+  }
+
+  #searchBar button::after {
+    font-size: 14px !important;
+  }
+
+  .category-list {
+    width: calc(100% - 28px) !important;
+    gap: 14px !important;
+  }
+
+  .category-list .category {
+    min-height: 118px !important;
+    padding: 22px 18px !important;
+  }
+
+  #google_translate_element {
+    right: 118px !important;
+  }
+}
+
+/* Hide the Browse by Topic heading above the homepage category cards */
+.collection-category > h2,
+.category-list::before {
+  display: none !important;
+  content: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Hide the header logo on non-home mobile pages so it does not overlap page titles */
+@media screen and (max-width: 768px) {
+  body:has(#main-content) .navbar .brand,
+  body:has(.contentWrapper) .navbar .brand,
+  body:has(#main-content) .navbar .brand img,
+  body:has(.contentWrapper) .navbar .brand img {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+}

@@ -1601,7 +1601,6 @@
 
   <script>
     const TARGET_DAILY = 650;
-    const ESTIMATED_BACKLOG_ANCHOR = 8306;
 
     let allData = null;
     let selWeek = null;
@@ -1816,9 +1815,15 @@
       return indices;
     }
 
+    function getCurrentBacklogAnchor() {
+      const value = Number(allData?.currentBacklog);
+      return Number.isFinite(value) && value >= 0 ? value : null;
+    }
+
     function getEstimatedBacklogSeries() {
       const series = Array(allData?.weeks?.length || 0).fill(0);
-      let runningBacklog = ESTIMATED_BACKLOG_ANCHOR;
+      let runningBacklog = getCurrentBacklogAnchor();
+      if (runningBacklog === null) return series;
 
       for (let i = series.length - 1; i >= 0; i--) {
         series[i] = Math.max(0, runningBacklog);
@@ -2290,7 +2295,106 @@
       URL.revokeObjectURL(url);
     }
 
+    async function postTicketExportJson(url, body) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || data.error || `Export failed with HTTP ${res.status}`);
+      return data;
+    }
+
     async function exportTickets() {
+      await initializeTicketExplorer();
+      if (!ticketExplorerLoaded) return;
+      const button = document.getElementById('ticketExportBtn');
+      if (button) button.disabled = true;
+      ticketExportStartedAt = Date.now();
+      setTicketProgress({ phase: 'starting', label: 'Starting export', processed: 0, total: 0 });
+
+      try {
+        const filters = getTicketFilters();
+        const columns = getSelectedTicketColumns();
+        const batchSize = 40;
+
+        setTicketProgress({ phase: 'indexing', label: 'Finding matching conversations', processed: 0, total: 0 });
+        const plan = await postTicketExportJson('/api/ticket-export-plan', { filters });
+        const seeds = plan.seeds || [];
+        const rows = [];
+        let errors = 0;
+
+        setTicketProgress({
+          phase: 'fetching_threads',
+          label: 'Fetching full customer messages',
+          processed: 0,
+          total: seeds.length,
+        });
+
+        for (let offset = 0; offset < seeds.length; offset += batchSize) {
+          const batchSeeds = seeds.slice(offset, offset + batchSize);
+          const batch = await postTicketExportJson('/api/ticket-export-batch', { seeds: batchSeeds });
+          rows.push(...(batch.rows || []));
+          errors += batch.errors || 0;
+          setTicketProgress({
+            phase: 'fetching_threads',
+            label: 'Fetching full customer messages',
+            processed: Math.min(rows.length, seeds.length),
+            total: seeds.length,
+            errors,
+          });
+        }
+
+        setTicketProgress({
+          phase: 'building_xlsx',
+          label: 'Building XLSX',
+          processed: rows.length,
+          total: rows.length,
+          errors,
+        });
+
+        const workbook = await postTicketExportJson('/api/ticket-export-workbook', { rows, columns });
+        const completeEvent = {
+          filename: plan.filename || 'helpscout_tickets.xlsx',
+          mimeType: workbook.mimeType,
+          fileBase64: workbook.fileBase64,
+          rowCount: workbook.rowCount,
+          errors,
+          capped: plan.capped,
+        };
+
+        if (!completeEvent.fileBase64) {
+          throw new Error('Export completed, but the workbook payload was empty.');
+        }
+
+        setTicketProgress({
+          phase: 'complete',
+          label: `Export complete · ${completeEvent.rowCount} rows`,
+          processed: completeEvent.rowCount,
+          total: completeEvent.rowCount,
+          errors,
+        });
+
+        downloadTicketWorkbook(completeEvent);
+        const summary = document.getElementById('ticketResultSummary');
+        if (summary) {
+          summary.textContent = `Exported ${completeEvent.rowCount} rows${errors ? ` · ${errors} thread errors` : ''}${completeEvent.capped ? ` (capped at ${completeEvent.cap})` : ''}.`;
+        }
+      } catch (err) {
+        console.error('Ticket export failed:', err);
+        setTicketProgress({
+          phase: 'error',
+          label: err.message,
+          processed: 0,
+          total: 0,
+        });
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function exportTicketsLegacyStream() {
       await initializeTicketExplorer();
       if (!ticketExplorerLoaded) return;
       const button = document.getElementById('ticketExportBtn');
@@ -2747,8 +2851,8 @@
 
       const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
       const avgBurn = recentWeeks.reduce((a, x) => a + ((x.totalClosed ?? x.closed) - x.opened), 0) / recentWeeks.length;
-      const currentBacklog = ESTIMATED_BACKLOG_ANCHOR;
-      const weeksToZero = avgBurn > 0 ? Math.ceil(currentBacklog / avgBurn) : null;
+      const currentBacklog = getCurrentBacklogAnchor();
+      const weeksToZero = currentBacklog !== null && avgBurn > 0 ? Math.ceil(currentBacklog / avgBurn) : null;
       document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
 
       const pctTarget = TARGET_DAILY > 0 ? Math.round((dailyPace / TARGET_DAILY) * 100) : 0;
@@ -2761,12 +2865,12 @@
       renderCallout(w, weeksToZero, onTrack, elapsed, dailyPace);
 
       const estimatedBacklogSeries = getEstimatedBacklogSeries();
-      const firstEstimatedBacklog = estimatedBacklogSeries[0] ?? currentBacklog;
-      const estimatedChange = firstEstimatedBacklog - currentBacklog;
+      const firstEstimatedBacklog = currentBacklog === null ? null : estimatedBacklogSeries[0];
+      const estimatedChange = firstEstimatedBacklog === null ? null : firstEstimatedBacklog - currentBacklog;
 
       document.getElementById('burnStats').innerHTML = `
-        <div class="bstat"><div class="bstat-val">${currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Most recent backlog anchor</div></div>
-        <div class="bstat"><div class="bstat-val" style="color:${estimatedChange >= 0 ? 'var(--green)' : 'var(--red)'}">${estimatedChange >= 0 ? '−' : '+'}${Math.abs(estimatedChange).toLocaleString()}</div><div class="bstat-lbl">Estimated change since first visible week</div></div>
+        <div class="bstat"><div class="bstat-val">${currentBacklog === null ? '—' : currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Live Help Scout active tickets</div></div>
+        <div class="bstat"><div class="bstat-val" style="color:${estimatedChange === null || estimatedChange >= 0 ? 'var(--green)' : 'var(--red)'}">${estimatedChange === null ? '—' : `${estimatedChange >= 0 ? '−' : '+'}${Math.abs(estimatedChange).toLocaleString()}`}</div><div class="bstat-lbl">Estimated change since first visible week</div></div>
         <div class="bstat"><div class="bstat-val" style="color:${avgBurn >= 0 ? 'var(--green)' : 'var(--red)'}">${avgBurn >= 0 ? '+' : '−'}${Math.abs(Math.round(avgBurn)).toLocaleString()}</div><div class="bstat-lbl">Avg weekly net burn</div></div>
         <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
       `;
@@ -3179,10 +3283,11 @@
       }
 
       const burnRate = (w.totalClosed ?? w.closed) - w.opened;
+      const currentBacklog = getCurrentBacklogAnchor();
       const backlogCard = `
         <div class="kpi" style="--kc:#92400e">
           <div class="kpi-label">Current backlog</div>
-          <div class="kpi-value">${ESTIMATED_BACKLOG_ANCHOR.toLocaleString()}</div>
+          <div class="kpi-value">${currentBacklog === null ? '—' : currentBacklog.toLocaleString()}</div>
           <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
             <span class="kpi-delta neutral" style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:3px">Live HelpScout snapshot</span>
             <span class="kpi-delta ${burnRate >= 0 ? 'up' : 'down'}" style="font-size:10px;background:${burnRate >= 0 ? 'var(--green-bg)' : 'var(--red-bg)'};padding:2px 7px;border-radius:3px">${burnRate >= 0 ? '+' : '−'}${Math.abs(burnRate)} net this week</span>
