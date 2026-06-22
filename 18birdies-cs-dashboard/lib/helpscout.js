@@ -716,12 +716,9 @@ async function getCurrentBacklog() {
       return Number.isFinite(Number(total)) ? Number(total) : 0;
     };
 
-    const [active, pending] = await Promise.all([
-      fetchStatusCount('active'),
-      fetchStatusCount('pending'),
-    ]);
+    const active = await fetchStatusCount('active');
 
-    return { total: active + pending, active, pending };
+    return { total: active, active, pending: null };
   } catch (e) {
     console.error('Error fetching backlog:', e.message);
     return { total: null, active: null, pending: null };
