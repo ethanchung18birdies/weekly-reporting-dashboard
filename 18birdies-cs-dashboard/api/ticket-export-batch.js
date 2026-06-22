@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     return res.status(err.statusCode || 500).json({
       error: 'Failed to fetch ticket batch',
       detail: err.message,
+      retryAfterMs: err.retryAfterMs || null,
     });
   }
 }

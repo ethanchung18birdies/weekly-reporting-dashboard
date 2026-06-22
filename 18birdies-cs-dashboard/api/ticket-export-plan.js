@@ -33,6 +33,7 @@ export default async function handler(req, res) {
     return res.status(err.statusCode || 500).json({
       error: 'Failed to prepare ticket export',
       detail: err.message,
+      retryAfterMs: err.retryAfterMs || null,
     });
   }
 }

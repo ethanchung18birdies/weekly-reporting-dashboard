@@ -14,6 +14,7 @@ const TICKET_THREAD_CONCURRENCY = Number(process.env.TICKET_THREAD_CONCURRENCY |
 const TICKET_THREAD_DELAY_MS = Number(process.env.TICKET_THREAD_DELAY_MS || 125);
 const HELPSCOUT_RETRY_ATTEMPTS = Number(process.env.HELPSCOUT_RETRY_ATTEMPTS || 6);
 const HELPSCOUT_429_FALLBACK_MS = Number(process.env.HELPSCOUT_429_FALLBACK_MS || 65_000);
+const HELPSCOUT_SERVER_WAIT_LIMIT_MS = Number(process.env.HELPSCOUT_SERVER_WAIT_LIMIT_MS || 25_000);
 export const TICKET_SEARCH_LIMIT = Number(process.env.TICKET_SEARCH_LIMIT || 250);
 let _nextTicketThreadRequestAt = 0;
 
@@ -143,6 +144,12 @@ async function hsGetWithRetry(path, params = {}, attempts = HELPSCOUT_RETRY_ATTE
       if (attempt === attempts) break;
       if (!shouldRetryHelpScoutError(error)) break;
       const waitMs = retryDelayMs(error, attempt);
+      if (waitMs > HELPSCOUT_SERVER_WAIT_LIMIT_MS) {
+        error.statusCode = 429;
+        error.retryAfterMs = waitMs;
+        error.attempts = attempt;
+        throw error;
+      }
       if (onRetry) {
         onRetry({
           phase: 'rate_limit_waiting',

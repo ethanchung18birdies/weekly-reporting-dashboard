@@ -2295,15 +2295,38 @@
       URL.revokeObjectURL(url);
     }
 
-    async function postTicketExportJson(url, body) {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || data.error || `Export failed with HTTP ${res.status}`);
-      return data;
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function postTicketExportJson(url, body, progress = {}) {
+      const maxAttempts = 12;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        const retryAfterMs = Number(data.retryAfterMs || 0);
+        if (res.status === 429 && retryAfterMs > 0 && attempt < maxAttempts) {
+          setTicketProgress({
+            phase: 'rate_limit_waiting',
+            label: 'Waiting for Help Scout rate limit',
+            waitMs: retryAfterMs,
+            attempt,
+            attempts: maxAttempts,
+            processed: progress.processed || 0,
+            total: progress.total || 0,
+            errors: progress.errors || 0,
+          });
+          await wait(retryAfterMs);
+          continue;
+        }
+        if (!res.ok) throw new Error(data.detail || data.error || `Export failed with HTTP ${res.status}`);
+        return data;
+      }
+      throw new Error('Export is still rate limited after several retries.');
     }
 
     async function exportTickets() {
@@ -2329,6 +2352,9 @@
             filters,
             cursor: planCursor,
             pageSize: 100,
+          }, {
+            processed: seeds.length,
+            total: seeds.length,
           });
           for (const seed of plan.seeds || []) {
             const id = String(seed.ticket_id || '');
@@ -2357,7 +2383,11 @@
 
         for (let offset = 0; offset < seeds.length; offset += batchSize) {
           const batchSeeds = seeds.slice(offset, offset + batchSize);
-          const batch = await postTicketExportJson('/api/ticket-export-batch', { seeds: batchSeeds });
+          const batch = await postTicketExportJson('/api/ticket-export-batch', { seeds: batchSeeds }, {
+            processed: rows.length,
+            total: seeds.length,
+            errors,
+          });
           rows.push(...(batch.rows || []));
           errors += batch.errors || 0;
           setTicketProgress({
@@ -2377,7 +2407,11 @@
           errors,
         });
 
-        const workbook = await postTicketExportJson('/api/ticket-export-workbook', { rows, columns });
+        const workbook = await postTicketExportJson('/api/ticket-export-workbook', { rows, columns }, {
+          processed: rows.length,
+          total: rows.length,
+          errors,
+        });
         const completeEvent = {
           filename: plan.filename || 'helpscout_tickets.xlsx',
           mimeType: workbook.mimeType,

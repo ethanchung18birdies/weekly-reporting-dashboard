@@ -34,6 +34,7 @@ In Vercel → your project → **Settings → Environment Variables**, add:
 | `EXPORT_ACCESS_TOKEN` | Optional extra token for ticket export routes |
 | `HELPSCOUT_RETRY_ATTEMPTS` | Optional; Help Scout retry attempts for 429/5xx responses. Default `6` |
 | `HELPSCOUT_429_FALLBACK_MS` | Optional; wait time when Help Scout says minute rate limit but returns `retry_after:0`. Default `65000` |
+| `HELPSCOUT_SERVER_WAIT_LIMIT_MS` | Optional; max time a serverless request will sleep before asking the browser to retry. Default `25000` |
 | `TICKET_THREAD_CONCURRENCY` | Optional; concurrent ticket thread fetches. Default `2` |
 | `TICKET_THREAD_DELAY_MS` | Optional; minimum delay between thread fetch starts. Default `125` |
 | `TICKET_EXPORT_TIME_BUDGET_MS` | Optional; time budget before exporting remaining rows as not processed. Default `45000` |
