@@ -1,8 +1,5 @@
 import { assertExportAccess, readJsonBody } from '../lib/apiSecurity.js';
-import {
-  listTicketConversations,
-  ticketConversationToSeed,
-} from '../lib/helpscout.js';
+import { listTicketConversationSeedPage } from '../lib/helpscout.js';
 
 function safeFileDate(value) {
   return String(value || '')
@@ -19,15 +16,16 @@ export default async function handler(req, res) {
     assertExportAccess(req);
     const body = await readJsonBody(req);
     const filters = body.filters || {};
+    const cursor = body.cursor || null;
+    const pageSize = body.pageSize || 100;
 
-    const { conversations, capped } = await listTicketConversations(filters, {
-      maxRows: null,
+    const page = await listTicketConversationSeedPage(filters, {
+      cursor,
+      pageSize,
     });
 
     return res.status(200).json({
-      seeds: conversations.map(ticketConversationToSeed),
-      total: conversations.length,
-      capped,
+      ...page,
       filename: `helpscout_tickets_${safeFileDate(filters.start)}_${safeFileDate(filters.end)}.xlsx`,
     });
   } catch (err) {

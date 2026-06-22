@@ -2320,8 +2320,31 @@
         const batchSize = 40;
 
         setTicketProgress({ phase: 'indexing', label: 'Finding matching conversations', processed: 0, total: 0 });
-        const plan = await postTicketExportJson('/api/ticket-export-plan', { filters });
-        const seeds = plan.seeds || [];
+        const seeds = [];
+        const seedIds = new Set();
+        let planCursor = null;
+        let plan = null;
+        do {
+          plan = await postTicketExportJson('/api/ticket-export-plan', {
+            filters,
+            cursor: planCursor,
+            pageSize: 100,
+          });
+          for (const seed of plan.seeds || []) {
+            const id = String(seed.ticket_id || '');
+            if (!id || seedIds.has(id)) continue;
+            seedIds.add(id);
+            seeds.push(seed);
+          }
+          planCursor = plan.nextCursor || null;
+          setTicketProgress({
+            phase: 'indexing',
+            label: 'Finding matching conversations',
+            processed: seeds.length,
+            total: plan.totalEstimate || 0,
+          });
+        } while (planCursor);
+
         const rows = [];
         let errors = 0;
 
@@ -2361,7 +2384,7 @@
           fileBase64: workbook.fileBase64,
           rowCount: workbook.rowCount,
           errors,
-          capped: plan.capped,
+          capped: false,
         };
 
         if (!completeEvent.fileBase64) {

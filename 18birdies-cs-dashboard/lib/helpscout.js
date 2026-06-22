@@ -1179,6 +1179,64 @@ async function listConversationsForAssignee(filters, assigneeId, maxRows, onProg
   return rows;
 }
 
+async function listConversationPageForAssignee(filters, assigneeId, page, pageSize, onProgress) {
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  const advancedQuery = buildTicketAdvancedQuery(filters);
+  const params = {
+    mailbox: mailboxId,
+    status: filters.status,
+    assigned_to: assigneeId || undefined,
+    query: advancedQuery || undefined,
+    page,
+    pageSize,
+    sortField: 'createdAt',
+    sortOrder: 'desc',
+  };
+
+  const data = await hsGetWithRetry('/conversations', params, HELPSCOUT_RETRY_ATTEMPTS, onProgress);
+  return {
+    conversations: data?._embedded?.conversations || [],
+    page: data?.page || {},
+  };
+}
+
+export async function listTicketConversationSeedPage(rawFilters, options = {}) {
+  const filters = normalizeTicketFilters(rawFilters);
+  const assignees = filters.assigneeIds.length ? filters.assigneeIds : [null];
+  const cursor = options.cursor || {};
+  const assigneeIndex = Math.min(
+    Math.max(0, Number(cursor.assigneeIndex || 0)),
+    Math.max(0, assignees.length - 1)
+  );
+  const page = Math.max(1, Number(cursor.page || 1));
+  const pageSize = Math.min(100, Math.max(10, Number(options.pageSize || 100)));
+  const assigneeId = assignees[assigneeIndex];
+
+  const data = await listConversationPageForAssignee(
+    filters,
+    assigneeId,
+    page,
+    pageSize,
+    options.onProgress
+  );
+  const totalPages = data.page.totalPages || 1;
+  const nextCursor = page < totalPages
+    ? { assigneeIndex, page: page + 1 }
+    : assigneeIndex + 1 < assignees.length
+      ? { assigneeIndex: assigneeIndex + 1, page: 1 }
+      : null;
+
+  return {
+    seeds: data.conversations.map(ticketConversationToSeed),
+    cursor: { assigneeIndex, page },
+    nextCursor,
+    done: nextCursor === null,
+    totalEstimate: data.page.totalElements || null,
+    totalPages,
+    assigneeId: assigneeId || null,
+  };
+}
+
 export async function listTicketConversations(rawFilters, options = {}) {
   const filters = normalizeTicketFilters(rawFilters);
   const maxRows = options.maxRows === null
