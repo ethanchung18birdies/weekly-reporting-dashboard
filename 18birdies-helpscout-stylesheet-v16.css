@@ -1,0 +1,1152 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* --- GLOBAL RESET --- */
+html, body, button, input, select, textarea, .uneditable-input {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background: #ffffff;
+  font-family: 'Inter', sans-serif;
+  top: 0 !important;
+}
+
+/* --- NAVBAR (homepage) --- */
+.navbar {
+  margin-bottom: -76px;
+  position: relative;
+  z-index: 20;
+}
+
+.navbar .navbar-inner {
+  background: transparent;
+  box-shadow: none;
+  min-height: 76px;
+}
+
+.navbar .container,
+.navbar .container-fluid {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: none;
+  padding-left: 24px;
+  padding-right: 24px;
+  width: 100%;
+}
+
+.navbar .brand {
+  float: none;
+  margin: 0;
+  padding: 0;
+  width: 190px;
+}
+
+.navbar .nav {
+  display: flex;
+  align-items: center;
+  float: none;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar .nav > li > a,
+.navbar .nav li a {
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 26px 0 22px;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+
+.navbar .nav li a:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.navbar .btn-navbar .icon-bar {
+  height: 4px;
+  margin-bottom: 6px;
+  width: 32px;
+}
+
+/* --- HOMEPAGE HERO --- */
+#docsSearch {
+  background-color: #a5a816;
+  background-image: url(https://v0-18b-helpscout-background.vercel.app/images/aerial-sunset.jpg);
+  background-position: center 42%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  margin-bottom: 6em;
+  overflow: visible;
+  padding: 14.75em 0 8.5em;
+}
+
+/* --- HOMEPAGE SEARCH BAR --- */
+#docsSearch,
+#searchBar,
+#searchBar form {
+  overflow: visible;
+}
+
+#searchBar {
+  margin: 0 auto;
+  max-width: 980px;
+  position: relative;
+  width: calc(100% - 48px);
+  z-index: 2;
+}
+
+#searchBar::before {
+  color: #ffffff;
+  content: "Search for answers or browse by topic.";
+  display: block;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 34px;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+#searchBar form {
+  box-sizing: border-box;
+  height: 76px;
+  position: relative;
+}
+
+#searchBar .search-query {
+  background: #ffffff;
+  border: 2px solid rgba(7, 62, 99, 0.18);
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(1, 87, 155, 0.11), 0 2px 4px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  color: #263640;
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 17px;
+  height: 76px;
+  line-height: 76px;
+  padding-left: 52px;
+  padding-right: 210px;
+  width: 100%;
+}
+
+#searchBar .search-query::placeholder {
+  color: #8fa3ad;
+  font-style: italic;
+}
+
+#searchBar button {
+  align-items: center;
+  background: #073E63;
+  border: none;
+  border-radius: 28px;
+  bottom: 9px;
+  color: transparent;
+  display: flex;
+  font-size: 0;
+  height: 58px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 166px;
+  overflow: hidden;
+  padding: 0 28px;
+  position: absolute;
+  right: 9px;
+  top: auto;
+  transition: all 0.3s;
+}
+
+#searchBar button::after {
+  color: #ffffff;
+  content: "Swing Away";
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#searchBar button:hover {
+  background: #455a64;
+}
+
+#serp-dd {
+  border: none;
+  box-sizing: border-box;
+  left: 0;
+  right: 0;
+  top: calc(100% - 22px);
+  width: 100%;
+  z-index: 60;
+}
+
+#serp-dd .result a {
+  color: #0288d1;
+}
+
+/* --- HOMEPAGE CATEGORY CARDS --- */
+.collection-category > h2,
+.category-list::before {
+  display: none !important;
+  content: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.category-list {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 36px;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 1170px;
+  padding-bottom: 40px;
+  text-align: left;
+  width: calc(100% - 48px);
+}
+
+.category-list::after {
+  content: none;
+  display: none;
+}
+
+.category-list .category {
+  align-items: center;
+  background: #ffffff;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 6px 24px rgba(1, 87, 155, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 calc((100% - 72px) / 3);
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  min-height: 158px;
+  order: 2;
+  padding: 32px 28px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.category-list .category:hover {
+  box-shadow: 0 6px 24px rgba(1, 87, 155, 0.11), 0 8px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.category-list .category h3 {
+  color: #37474f;
+  font-size: 20px;
+  line-height: 1.3;
+  margin-bottom: 14px;
+}
+
+.category-list .category p {
+  display: none !important;
+}
+
+/* --- GOOGLE TRANSLATE (homepage) --- */
+#google_translate_element {
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  right: 265px;
+  top: 22px;
+  z-index: 30;
+}
+
+#google_translate_element .goog-te-gadget {
+  color: transparent;
+  font-size: 0;
+  line-height: 1;
+}
+
+#google_translate_element .goog-te-combo {
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  height: 34px;
+  line-height: 34px;
+  max-width: 210px;
+  padding: 0 28px 0 12px;
+  text-transform: uppercase;
+  width: 210px;
+}
+
+#google_translate_element .goog-te-combo option {
+  background: #ffffff;
+  color: #111827;
+}
+
+body > #google_translate_element,
+body > .skiptranslate {
+  margin-top: 0 !important;
+}
+
+/* --- FORMS / INPUTS (global) --- */
+label { font-size: 16px; }
+
+select, textarea, input[type='text'], input[type='password'],
+input[type='datetime'], input[type='datetime-local'],
+input[type='date'], input[type='month'], input[type='time'],
+input[type='week'], input[type='number'], input[type='email'],
+input[type='url'], input[type='search'], input[type='tel'],
+input[type='color'], .uneditable-input {
+  border: 1px solid rgba(1, 80, 125, 0.2);
+  color: #263238;
+  font-size: 14px;
+  height: 32px;
+}
+
+.btn {
+  background-color: #2ab5ff;
+  background-image: none;
+  border: none;
+  border-radius: 4px;
+  box-shadow: none;
+  color: #ffffff;
+  display: inline-block;
+  font-size: 18px;
+  line-height: 44px;
+  margin: 24px 0;
+  padding: 0 32px;
+  text-shadow: none;
+  transition: all 0.3s;
+}
+
+.btn:hover {
+  background-color: #4381b5;
+  border: none;
+  box-shadow: none;
+  color: #ffffff;
+}
+
+/* --- FAQ ACCORDION --- */
+.faq-accordion { max-width: 760px; }
+.faq-accordion details { border-bottom: 1px solid #e5e5e5; padding: 0; }
+.faq-accordion summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  list-style: none;
+  padding: 18px 36px 18px 0;
+  position: relative;
+}
+.faq-accordion summary::-webkit-details-marker { display: none; }
+.faq-accordion summary::after {
+  content: "⌄";
+  font-size: 18px;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.2s ease;
+}
+.faq-accordion details[open] summary::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+.faq-accordion details > :not(summary) { padding-bottom: 16px; }
+
+/* --- CONTACT --- */
+.birdy-contact-text { font-size: 18px; line-height: 26px; }
+.birdy-contact-button {
+  background-color: #2ab5ff;
+  border-radius: 4px;
+  color: #ffffff;
+  display: inline-block;
+  font-size: 18px;
+  line-height: 44px;
+  margin: 24px 0;
+  padding: 0 32px;
+  transition: all 0.3s;
+}
+.birdy-contact-button:hover { background-color: #4381b5; color: #ffffff; text-decoration: none; }
+footer { text-align: center; }
+
+/* --- ARTICLE FOOT --- */
+.articleFoot p, .articleFoot time { font-family: 'Inter', sans-serif; font-size: 14px; }
+
+/* --- MOST POPULAR HEADING --- */
+.most-popular h2, .popularArticles h2, #popularArticles h2, .collection-category > h2 { font-weight: 700; }
+
+/* --- HOMEPAGE MOBILE --- */
+@media screen and (max-width: 768px) {
+  body { background: #ffffff; overflow-x: hidden; }
+
+  .navbar {
+    margin-bottom: -64px;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 20;
+  }
+
+  .navbar .navbar-inner {
+    box-sizing: border-box;
+    min-height: 76px;
+    padding: 14px 18px;
+  }
+
+  .navbar .brand {
+    display: block;
+    margin: 0;
+    max-width: 46vw;
+    padding: 0;
+    position: absolute;
+    left: 18px;
+    top: 16px;
+    width: 148px;
+    z-index: 22;
+  }
+
+  .navbar .nav {
+    background: transparent;
+    display: flex;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .navbar .nav > li > a,
+  .navbar .nav li a {
+    color: #ffffff;
+    font-size: 13px;
+    padding: 8px 0;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+  }
+
+  #docsSearch {
+    box-sizing: border-box;
+    margin-bottom: 44px;
+    min-height: 430px;
+    padding: 132px 0 68px;
+  }
+
+  #searchBar {
+    margin: 0 auto;
+    max-width: 620px;
+    width: calc(100% - 36px);
+  }
+
+  #searchBar::before {
+    font-size: 27px;
+    margin-bottom: 22px;
+  }
+
+  #searchBar form { height: 58px; min-height: 58px; width: 100%; }
+
+  #searchBar .search-query {
+    height: 58px;
+    line-height: 58px;
+    padding: 0 152px 0 32px;
+  }
+
+  #searchBar button {
+    bottom: 6px;
+    height: 46px;
+    min-width: 128px;
+    padding: 0 18px;
+    right: 6px;
+    top: auto;
+    transform: none;
+    width: 128px;
+  }
+
+  #searchBar button::after { font-size: 15px; }
+
+  #serp-dd { top: calc(100% - 18px); }
+
+  .category-list {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1fr;
+    margin: 0 auto;
+    max-width: 620px;
+    padding-bottom: 28px;
+    width: calc(100% - 36px);
+  }
+
+  .category-list .category {
+    flex: none;
+    min-height: 130px;
+    padding: 24px 22px;
+    width: 100%;
+  }
+
+  #google_translate_element {
+    right: 156px;
+    top: 16px;
+    z-index: 35;
+  }
+
+  #google_translate_element .goog-te-combo {
+    font-size: 11px;
+    height: 30px;
+    line-height: 30px;
+    max-width: 150px;
+    padding: 0 22px 0 10px;
+    width: 150px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .navbar .navbar-inner { min-height: 68px; padding: 12px 16px; }
+  .navbar .brand { left: 14px; top: 14px; width: 132px; max-width: 42vw; }
+  .navbar .nav { gap: 10px; }
+  .navbar .nav > li > a, .navbar .nav li a { font-size: 12px; }
+
+  #docsSearch { margin-bottom: 34px; min-height: 390px; padding: 116px 0 54px; }
+  #searchBar { width: calc(100% - 28px); }
+  #searchBar::before { font-size: 23px; margin-bottom: 18px; }
+  #searchBar .search-query { height: 54px; line-height: 54px; padding: 0 136px 0 22px; }
+  #searchBar button { bottom: 6px; height: 46px; min-width: 116px; right: 6px; top: auto; width: 116px; }
+  #searchBar button::after { font-size: 14px; }
+
+  .category-list { gap: 14px; width: calc(100% - 28px); }
+  .category-list .category { min-height: 118px; padding: 22px 18px; }
+
+  #google_translate_element { right: 118px; top: 16px; }
+  #google_translate_element .goog-te-combo { font-size: 10px; height: 28px; line-height: 28px; max-width: 132px; padding: 0 18px 0 8px; width: 132px; }
+}
+
+@media screen and (max-width: 360px) {
+  #docsSearch { min-height: 370px; }
+  #searchBar::before { font-size: 21px; }
+  .navbar .brand { width: 118px; }
+}
+
+:root {
+  --birdies-navy: #073E63;
+  --birdies-blue: #0288d1;
+  --birdies-bg: #E6F5FD;
+  --birdies-text: #263640;
+  --birdies-muted: #60717b;
+  --birdies-border: rgba(7, 62, 99, 0.12);
+  --birdies-shadow: 0 6px 18px rgba(7, 62, 99, 0.07), 0 1px 4px rgba(7, 62, 99, 0.05);
+  --birdies-radius: 12px;
+}
+
+body:has(#main-content),
+body:has(.contentWrapper) {
+  background: var(--birdies-bg) !important;
+  color: var(--birdies-text) !important;
+  overflow-x: hidden !important;
+}
+
+body:has(#main-content) .navbar,
+body:has(.contentWrapper) .navbar {
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--birdies-border) !important;
+  box-shadow: 0 4px 18px rgba(7, 62, 99, 0.08) !important;
+  margin: 0 !important;
+  min-height: 76px !important;
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: 50 !important;
+}
+
+body:has(#main-content) .navbar .navbar-inner,
+body:has(.contentWrapper) .navbar .navbar-inner {
+  background: #ffffff !important;
+  box-shadow: none !important;
+  min-height: 76px !important;
+  padding: 0 24px !important;
+}
+
+body:has(#main-content) .navbar .container,
+body:has(#main-content) .navbar .container-fluid,
+body:has(.contentWrapper) .navbar .container,
+body:has(.contentWrapper) .navbar .container-fluid {
+  align-items: center !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  max-width: none !important;
+  min-height: 76px !important;
+  padding: 0 !important;
+  position: relative !important;
+  width: 100% !important;
+}
+
+body:has(#main-content) .navbar .brand,
+body:has(.contentWrapper) .navbar .brand {
+  display: block !important;
+  float: none !important;
+  height: auto !important;
+  margin: 0 !important;
+  opacity: 1 !important;
+  padding: 0 !important;
+  left: 24px !important;
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  visibility: visible !important;
+  width: 154px !important;
+  z-index: 55 !important;
+}
+
+body:has(#main-content) .navbar .brand img,
+body:has(.contentWrapper) .navbar .brand img {
+  display: block !important;
+  filter: brightness(0) !important;
+  height: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  width: 100% !important;
+}
+
+body:has(#main-content) .navbar .nav,
+body:has(.contentWrapper) .navbar .nav {
+  align-items: center !important;
+  background: transparent !important;
+  display: flex !important;
+  float: none !important;
+  gap: 22px !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: absolute !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+}
+
+body:has(#main-content) .navbar .nav > li,
+body:has(.contentWrapper) .navbar .nav > li {
+  float: none !important;
+}
+
+body:has(#main-content) .navbar .nav > li > a,
+body:has(#main-content) .navbar .nav li a,
+body:has(.contentWrapper) .navbar .nav > li > a,
+body:has(.contentWrapper) .navbar .nav li a {
+  color: var(--birdies-navy) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  padding: 8px 0 !important;
+  text-shadow: none !important;
+}
+
+body:has(#main-content) .navbar .nav li a:hover,
+body:has(.contentWrapper) .navbar .nav li a:hover {
+  color: var(--birdies-blue) !important;
+}
+
+body:has(#main-content) #google_translate_element,
+body:has(.contentWrapper) #google_translate_element {
+  left: auto !important;
+  margin: 0 !important;
+  position: absolute !important;
+  right: 188px !important;
+  top: 21px !important;
+  z-index: 60 !important;
+}
+
+body:has(#main-content) #google_translate_element .goog-te-combo,
+body:has(.contentWrapper) #google_translate_element .goog-te-combo {
+  background-color: #ffffff !important;
+  border: 1px solid var(--birdies-border) !important;
+  color: var(--birdies-navy) !important;
+  height: 34px !important;
+  line-height: 34px !important;
+}
+
+body:has(#main-content) #docsSearch,
+body:has(.contentWrapper) #docsSearch {
+  align-items: flex-end !important;
+  background: var(--birdies-navy) !important;
+  background-image: none !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  min-height: 128px !important;
+  padding: 44px 24px 32px !important;
+  width: 100% !important;
+}
+
+body:has(#main-content) #searchBar,
+body:has(.contentWrapper) #searchBar {
+  box-sizing: border-box !important;
+  display: block !important;
+  margin: 0 auto !important;
+  max-width: 860px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  width: calc(100% - 48px) !important;
+}
+
+body:has(#main-content) #searchBar::before,
+body:has(.contentWrapper) #searchBar::before {
+  content: none !important;
+  display: none !important;
+}
+
+body:has(#main-content) #searchBar form,
+body:has(.contentWrapper) #searchBar form {
+  display: block !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  opacity: 1 !important;
+  position: relative !important;
+  visibility: visible !important;
+  width: 100% !important;
+}
+
+body:has(#main-content) #searchBar .search-query,
+body:has(.contentWrapper) #searchBar .search-query {
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  box-sizing: border-box !important;
+  color: var(--birdies-text) !important;
+  display: block !important;
+  font-size: 15px !important;
+  height: 52px !important;
+  line-height: 52px !important;
+  padding: 0 170px 0 28px !important;
+  width: 100% !important;
+}
+
+body:has(#main-content) #searchBar .search-query::placeholder,
+body:has(.contentWrapper) #searchBar .search-query::placeholder {
+  color: #8fa3ad !important;
+  font-style: italic !important;
+}
+
+body:has(#main-content) #searchBar button,
+body:has(.contentWrapper) #searchBar button {
+  align-items: center !important;
+  background: var(--birdies-navy) !important;
+  border: none !important;
+  border-radius: 999px !important;
+  bottom: auto !important;
+  color: transparent !important;
+  display: flex !important;
+  font-size: 0 !important;
+  height: 40px !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  min-width: 136px !important;
+  overflow: hidden !important;
+  padding: 0 20px !important;
+  position: absolute !important;
+  right: 6px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+}
+
+body:has(#main-content) #searchBar button::after,
+body:has(.contentWrapper) #searchBar button::after {
+  color: #ffffff !important;
+  content: "Swing Away" !important;
+  display: block !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+#sidebar #searchBar button {
+  display: none !important;
+}
+
+body:has(#main-content) #serp-dd,
+body:has(.contentWrapper) #serp-dd {
+  border: 1px solid var(--birdies-border) !important;
+  border-radius: var(--birdies-radius) !important;
+  box-shadow: var(--birdies-shadow) !important;
+  margin-top: 8px !important;
+  top: 100% !important;
+}
+
+body:has(#main-content) #main-content,
+body:has(.contentWrapper) #main-content {
+  background: var(--birdies-bg) !important;
+  box-sizing: border-box !important;
+  margin-top: 0 !important;
+  padding: 28px 24px 56px !important;
+}
+
+body:has(#main-content) .contentWrapper,
+body:has(.contentWrapper) .contentWrapper {
+  background: #ffffff !important;
+  border: 1px solid var(--birdies-border) !important;
+  border-radius: var(--birdies-radius) !important;
+  box-shadow: var(--birdies-shadow) !important;
+  box-sizing: border-box !important;
+  color: var(--birdies-text) !important;
+  padding: 30px 34px !important;
+}
+
+body:has(#main-content) .contentWrapper h1,
+body:has(#main-content) .contentWrapper h2,
+body:has(.contentWrapper) .contentWrapper h1,
+body:has(.contentWrapper) .contentWrapper h2,
+body:has(#main-content) #categoryHead h1,
+body:has(.contentWrapper) #categoryHead h1 {
+  color: var(--birdies-text) !important;
+  line-height: 1.18 !important;
+  margin-top: 0 !important;
+}
+
+body:has(#main-content) .contentWrapper p,
+body:has(.contentWrapper) .contentWrapper p,
+body:has(#main-content) .contentWrapper li,
+body:has(.contentWrapper) .contentWrapper li {
+  color: var(--birdies-muted) !important;
+  font-size: 16px !important;
+  line-height: 1.68 !important;
+}
+
+body:has(#main-content) #sidebar,
+body:has(.contentWrapper) #sidebar {
+  background: #ffffff !important;
+  border: 1px solid var(--birdies-border) !important;
+  border-radius: var(--birdies-radius) !important;
+  box-shadow: 0 2px 10px rgba(7, 62, 99, 0.04) !important;
+  box-sizing: border-box !important;
+  margin-top: 30px !important;
+  padding: 0 0 8px !important;
+  padding-right: 0 !important;
+}
+
+body:has(#main-content) #sidebar form,
+body:has(.contentWrapper) #sidebar form {
+  display: none !important;
+}
+
+body:has(#main-content) #sidebar h3,
+body:has(.contentWrapper) #sidebar h3 {
+  color: var(--birdies-navy) !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  margin: 0 !important;
+  padding: 18px 18px 12px !important;
+  text-transform: uppercase !important;
+}
+
+body:has(#main-content) #sidebar .nav-list,
+body:has(.contentWrapper) #sidebar .nav-list {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin-top: 0 !important;
+  padding: 0 8px 8px !important;
+}
+
+body:has(#main-content) #sidebar .nav-list li,
+body:has(.contentWrapper) #sidebar .nav-list li {
+  margin: 2px 0 !important;
+}
+
+body:has(#main-content) #sidebar .nav-list a,
+body:has(.contentWrapper) #sidebar .nav-list a {
+  background: transparent !important;
+  border-left: 0 !important;
+  border-radius: 9px !important;
+  color: var(--birdies-muted) !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  padding: 10px 12px !important;
+}
+
+body:has(#main-content) #sidebar .nav-list a:hover,
+body:has(.contentWrapper) #sidebar .nav-list a:hover,
+body:has(#main-content) #sidebar .nav-list .active a,
+body:has(.contentWrapper) #sidebar .nav-list .active a {
+  background: rgba(2, 136, 209, 0.09) !important;
+  background-image: none !important;
+  color: var(--birdies-navy) !important;
+}
+
+body:has(#main-content) #sidebar .nav-list .active::before,
+body:has(#main-content) #sidebar .nav-list .active::after,
+body:has(#main-content) #sidebar .nav-list .active a::before,
+body:has(#main-content) #sidebar .nav-list .active a::after,
+body:has(.contentWrapper) #sidebar .nav-list .active::before,
+body:has(.contentWrapper) #sidebar .nav-list .active::after,
+body:has(.contentWrapper) #sidebar .nav-list .active a::before,
+body:has(.contentWrapper) #sidebar .nav-list .active a::after {
+  border: 0 !important;
+  content: none !important;
+  display: none !important;
+}
+
+body:has(#main-content) #sidebar .nav-list .active a i,
+body:has(#main-content) #sidebar .nav-list .active a svg,
+body:has(#main-content) #sidebar .nav-list .active a .icon,
+body:has(#main-content) #sidebar .nav-list .active a .caret,
+body:has(#main-content) #sidebar .nav-list .active a .arrow,
+body:has(#main-content) #sidebar .nav-list .active a .toggle,
+body:has(#main-content) #sidebar .nav-list .active a [class*="caret"],
+body:has(#main-content) #sidebar .nav-list .active a [class*="arrow"],
+body:has(.contentWrapper) #sidebar .nav-list .active a i,
+body:has(.contentWrapper) #sidebar .nav-list .active a svg,
+body:has(.contentWrapper) #sidebar .nav-list .active a .icon,
+body:has(.contentWrapper) #sidebar .nav-list .active a .caret,
+body:has(.contentWrapper) #sidebar .nav-list .active a .arrow,
+body:has(.contentWrapper) #sidebar .nav-list .active a .toggle,
+body:has(.contentWrapper) #sidebar .nav-list .active a [class*="caret"],
+body:has(.contentWrapper) #sidebar .nav-list .active a [class*="arrow"] {
+  display: none !important;
+}
+
+body:has(#main-content) #sidebar form .search-query,
+body:has(.contentWrapper) #sidebar form .search-query {
+  background: #ffffff !important;
+  border: 1px solid var(--birdies-border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(7, 62, 99, 0.05) !important;
+  box-sizing: border-box !important;
+  color: var(--birdies-text) !important;
+  font-size: 15px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  padding: 0 16px !important;
+  width: 100% !important;
+}
+
+body:has(#main-content) .articleList,
+body:has(.contentWrapper) .articleList,
+body:has(#main-content) .article-list,
+body:has(.contentWrapper) .article-list {
+  background: #ffffff !important;
+  border: 1px solid var(--birdies-border) !important;
+  border-radius: var(--birdies-radius) !important;
+  box-shadow: var(--birdies-shadow) !important;
+  padding: 4px 0 !important;
+}
+
+body:has(#main-content) .articleList li,
+body:has(.contentWrapper) .articleList li,
+body:has(#main-content) .article-list li,
+body:has(.contentWrapper) .article-list li {
+  border-bottom: 1px solid rgba(7, 62, 99, 0.12) !important;
+  margin: 0 !important;
+  padding: 20px 24px 20px 46px !important;
+}
+
+body:has(#main-content) .articleList li:last-child,
+body:has(.contentWrapper) .articleList li:last-child,
+body:has(#main-content) .article-list li:last-child,
+body:has(.contentWrapper) .article-list li:last-child {
+  border-bottom: 0 !important;
+}
+
+body:has(#main-content) .articleList a,
+body:has(.contentWrapper) .articleList a,
+body:has(#main-content) .article-list a,
+body:has(.contentWrapper) .article-list a {
+  color: var(--birdies-navy) !important;
+  display: block !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+}
+
+body:has(#main-content) .articleList li:hover,
+body:has(.contentWrapper) .articleList li:hover,
+body:has(#main-content) .article-list li:hover,
+body:has(.contentWrapper) .article-list li:hover {
+  background: rgba(255, 255, 255, 0.68) !important;
+}
+
+body:has(#main-content) .articleList a:hover,
+body:has(.contentWrapper) .articleList a:hover,
+body:has(#main-content) .article-list a:hover,
+body:has(.contentWrapper) .article-list a:hover {
+  color: var(--birdies-blue) !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+}
+
+@media screen and (max-width: 768px) {
+  body:has(#main-content) .navbar,
+  body:has(.contentWrapper) .navbar {
+    min-height: 112px !important;
+  }
+
+  body:has(#main-content) .navbar .navbar-inner,
+  body:has(.contentWrapper) .navbar .navbar-inner {
+    min-height: 112px !important;
+    padding: 14px 16px !important;
+  }
+
+  body:has(#main-content) .navbar .container,
+  body:has(#main-content) .navbar .container-fluid,
+  body:has(.contentWrapper) .navbar .container,
+  body:has(.contentWrapper) .navbar .container-fluid {
+    min-height: 84px !important;
+    padding: 0 !important;
+  }
+
+  body:has(#main-content) .navbar .brand,
+  body:has(.contentWrapper) .navbar .brand {
+    left: 16px !important;
+    max-width: 44vw !important;
+    top: 50% !important;
+    width: 138px !important;
+  }
+
+  body:has(#main-content) .navbar .nav,
+  body:has(.contentWrapper) .navbar .nav {
+    gap: 14px !important;
+    right: 0 !important;
+    top: 18px !important;
+    transform: none !important;
+  }
+
+  body:has(#main-content) .navbar .nav > li > a,
+  body:has(#main-content) .navbar .nav li a,
+  body:has(.contentWrapper) .navbar .nav > li > a,
+  body:has(.contentWrapper) .navbar .nav li a {
+    font-size: 12px !important;
+  }
+
+  body:has(#main-content) #google_translate_element,
+  body:has(.contentWrapper) #google_translate_element {
+    left: 16px !important;
+    right: auto !important;
+    top: 68px !important;
+  }
+
+  body:has(#main-content) #google_translate_element .goog-te-combo,
+  body:has(.contentWrapper) #google_translate_element .goog-te-combo {
+    height: 30px !important;
+    line-height: 30px !important;
+    max-width: 180px !important;
+    width: 180px !important;
+  }
+
+  body:has(#main-content) #docsSearch,
+  body:has(.contentWrapper) #docsSearch {
+    min-height: 112px !important;
+    padding: 34px 16px 24px !important;
+  }
+
+  body:has(#main-content) #searchBar,
+  body:has(.contentWrapper) #searchBar {
+    max-width: none !important;
+    width: calc(100% - 32px) !important;
+  }
+
+  body:has(#main-content) #searchBar .search-query,
+  body:has(.contentWrapper) #searchBar .search-query {
+    padding: 0 142px 0 22px !important;
+  }
+
+  body:has(#main-content) #searchBar button,
+  body:has(.contentWrapper) #searchBar button {
+    height: 40px !important;
+    min-width: 116px !important;
+    padding: 0 16px !important;
+    right: 6px !important;
+  }
+
+  body:has(#main-content) #searchBar button::after,
+  body:has(.contentWrapper) #searchBar button::after {
+    font-size: 14px !important;
+  }
+
+  body:has(#main-content) #main-content,
+  body:has(.contentWrapper) #main-content {
+    padding: 24px 14px 42px !important;
+  }
+
+  body:has(#main-content) #sidebar,
+  body:has(.contentWrapper) #sidebar {
+    margin-bottom: 20px !important;
+    margin-top: 0 !important;
+    padding: 0 0 8px !important;
+    padding-right: 0 !important;
+  }
+
+  body:has(#main-content) .contentWrapper,
+  body:has(.contentWrapper) .contentWrapper {
+    padding: 24px 18px !important;
+  }
+
+  body:has(#main-content) .articleList li,
+  body:has(.contentWrapper) .articleList li,
+  body:has(#main-content) .article-list li,
+  body:has(.contentWrapper) .article-list li {
+    padding: 18px 18px 18px 30px !important;
+  }
+
+  body:has(#main-content) .articleList a,
+  body:has(.contentWrapper) .articleList a,
+  body:has(#main-content) .article-list a,
+  body:has(.contentWrapper) .article-list a {
+    font-size: 15px !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  body:has(#main-content) .navbar,
+  body:has(.contentWrapper) .navbar {
+    min-height: 128px !important;
+  }
+
+  body:has(#main-content) .navbar .navbar-inner,
+  body:has(.contentWrapper) .navbar .navbar-inner {
+    min-height: 128px !important;
+    padding: 14px !important;
+  }
+
+  body:has(#main-content) .navbar .brand,
+  body:has(.contentWrapper) .navbar .brand {
+    left: 14px !important;
+    width: 126px !important;
+  }
+
+  body:has(#main-content) .navbar .nav,
+  body:has(.contentWrapper) .navbar .nav {
+    gap: 10px !important;
+  }
+
+  body:has(#main-content) #google_translate_element,
+  body:has(.contentWrapper) #google_translate_element {
+    left: 14px !important;
+    top: 74px !important;
+  }
+
+  body:has(#main-content) #google_translate_element .goog-te-combo,
+  body:has(.contentWrapper) #google_translate_element .goog-te-combo {
+    max-width: 160px !important;
+    width: 160px !important;
+  }
+
+  body:has(#main-content) #searchBar .search-query,
+  body:has(.contentWrapper) #searchBar .search-query {
+    font-size: 14px !important;
+    padding: 0 126px 0 18px !important;
+  }
+
+  body:has(#main-content) #searchBar button,
+  body:has(.contentWrapper) #searchBar button {
+    min-width: 104px !important;
+    padding: 0 12px !important;
+  }
+
+  body:has(#main-content) #searchBar button::after,
+  body:has(.contentWrapper) #searchBar button::after {
+    font-size: 13px !important;
+  }
+}
