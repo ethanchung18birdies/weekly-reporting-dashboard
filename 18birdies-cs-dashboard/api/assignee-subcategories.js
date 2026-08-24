@@ -21,9 +21,11 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('Assignee subcategories error:', err);
-    return res.status(500).json({
+    const status = err.statusCode || 500;
+    return res.status(status).json({
       error: 'Failed to load assignee subcategory data',
       detail: err.message,
+      retryAfterMs: err.retryAfterMs || null,
     });
   }
 }

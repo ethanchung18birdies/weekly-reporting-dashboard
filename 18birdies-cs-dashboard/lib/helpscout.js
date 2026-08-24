@@ -10,6 +10,7 @@ let _ticketAssigneeCache = null;
 const _assigneeWeekCache = new Map();
 const _assigneeSubcategoryCache = new Map();
 const REPORT_TAG_CONCURRENCY = 4;
+const REPORT_ASSIGNEE_CONCURRENCY = Number(process.env.REPORT_ASSIGNEE_CONCURRENCY || 2);
 const TICKET_THREAD_CONCURRENCY = Number(process.env.TICKET_THREAD_CONCURRENCY || 2);
 const TICKET_THREAD_DELAY_MS = Number(process.env.TICKET_THREAD_DELAY_MS || 125);
 const HELPSCOUT_RETRY_ATTEMPTS = Number(process.env.HELPSCOUT_RETRY_ATTEMPTS || 6);
@@ -198,6 +199,20 @@ function buildEmailReportParams(startStr, endStr) {
     // Keep both keys for compatibility across HelpScout report endpoints.
     mailbox: mailboxId,
     mailboxes: mailboxId,
+  };
+}
+
+function buildUserReportParams(startStr, endStr, userId, extra = {}) {
+  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
+  return {
+    user: userId,
+    start: `${startStr}T00:00:00Z`,
+    end: `${endStr}T23:59:59Z`,
+    // User reports have varied between these names; send both like email reports.
+    mailbox: mailboxId,
+    mailboxes: mailboxId,
+    types: 'email',
+    ...extra,
   };
 }
 
@@ -1475,8 +1490,6 @@ export async function fetchWeekAssignees(startStr, endStr) {
     return cached.data;
   }
 
-  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-
   const ASSIGNEES = [
     { id: 905541, name: 'Jane Matienzo' },
     { id: 905525, name: 'Jhird Verano' },
@@ -1501,22 +1514,18 @@ export async function fetchWeekAssignees(startStr, endStr) {
   ];
 
   try {
-    const results = await Promise.all(
-      ASSIGNEES.map(async ({ id, name }) => {
-        const report = await hsGet('/reports/user', {
-          user: id,
-          start: `${startStr}T00:00:00Z`,
-          end: `${endStr}T23:59:59Z`,
-          mailboxes: mailboxId,
-          types: 'email',
-        }).catch(() => null);
+    const results = await mapWithConcurrency(
+      ASSIGNEES,
+      Math.max(1, REPORT_ASSIGNEE_CONCURRENCY),
+      async ({ id, name }) => {
+        const report = await hsGetWithRetry('/reports/user', buildUserReportParams(startStr, endStr, id));
 
         return {
           id,
           name,
           count: report?.current?.closed ?? 0,
         };
-      })
+      }
     );
 
     const result = results.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
@@ -1540,31 +1549,23 @@ export async function fetchAssigneeSubcategories(startStr, endStr, assignee = 'a
     return cached.data;
   }
 
-  const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const baseStart = `${startStr}T00:00:00Z`;
-  const baseEnd = `${endStr}T23:59:59Z`;
-
   const resolvedConfig = await resolveTagConfig(SUBCATEGORY_TAGS);
 
   const assigneeId =
     assignee && assignee !== 'all' ? Number(assignee) : null;
 
   const totalClosedReport = assigneeId
-    ? await hsGet('/reports/user', {
-        user: assigneeId,
-        start: baseStart,
-        end: baseEnd,
-        mailboxes: mailboxId,
-        types: 'email',
-      }).catch(() => null)
-    : await hsGet('/reports/email', buildEmailReportParams(startStr, endStr)).catch(() => null);
+    ? await hsGetWithRetry('/reports/user', buildUserReportParams(startStr, endStr, assigneeId))
+    : await hsGetWithRetry('/reports/email', buildEmailReportParams(startStr, endStr));
 
   const totalClosed = assigneeId
     ? totalClosedReport?.current?.closed ?? 0
     : totalClosedReport?.current?.resolutions?.closed ?? 0;
 
-  const items = await Promise.all(
-    resolvedConfig.map(async (item) => {
+  const items = await mapWithConcurrency(
+    resolvedConfig,
+    Math.max(1, REPORT_TAG_CONCURRENCY),
+    async (item) => {
       if (!item.tagId) {
         return {
           name: item.name,
@@ -1575,18 +1576,13 @@ export async function fetchAssigneeSubcategories(startStr, endStr, assignee = 'a
       }
 
       const report = assigneeId
-        ? await hsGet('/reports/user', {
-            user: assigneeId,
-            start: baseStart,
-            end: baseEnd,
-            mailboxes: mailboxId,
-            types: 'email',
+        ? await hsGetWithRetry('/reports/user', buildUserReportParams(startStr, endStr, assigneeId, {
             tags: String(item.tagId),
-          }).catch(() => null)
-        : await hsGet('/reports/email', {
+          }))
+        : await hsGetWithRetry('/reports/email', {
             ...buildEmailReportParams(startStr, endStr),
             tags: String(item.tagId),
-          }).catch(() => null);
+          });
 
       const count = assigneeId
         ? report?.current?.closed ?? 0
@@ -1598,7 +1594,7 @@ export async function fetchAssigneeSubcategories(startStr, endStr, assignee = 'a
         hsName: item.hsName,
         tagId: item.tagId,
       };
-    })
+    }
   );
 
   const taggedTotal = items.reduce((sum, item) => sum + (item.count || 0), 0);

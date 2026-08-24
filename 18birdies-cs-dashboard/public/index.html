@@ -3160,15 +3160,40 @@
       `;
     }
 
-    function renderAssigneeLoading() {
+    function renderAssigneeLoading(message = 'Loading data...') {
       const el = document.getElementById('assigneeBars');
       if (!el) return;
       el.innerHTML = `
         <div class="bucket-loading">
           <div class="bucket-spinner"></div>
-          <span>Loading data...</span>
+          <span>${escapeHtml(message)}</span>
         </div>
       `;
+    }
+
+    async function fetchJsonWithRateLimitRetry(url, options = {}) {
+      const maxAttempts = options.maxAttempts || 6;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const res = await fetch(url);
+        const data = await res.json().catch(() => ({}));
+        const retryAfterMs = Number(data.retryAfterMs || 0);
+
+        if (res.status === 429 && retryAfterMs > 0 && attempt < maxAttempts) {
+          if (typeof options.onRetry === 'function') {
+            options.onRetry({ attempt, maxAttempts, retryAfterMs });
+          }
+          await wait(retryAfterMs);
+          continue;
+        }
+
+        if (!res.ok) {
+          throw new Error(data.detail || data.error || `Request failed with HTTP ${res.status}`);
+        }
+
+        return data;
+      }
+
+      throw new Error('Help Scout is still rate limited after several retries.');
     }
 
     async function loadBuckets(weekIdx) {
@@ -3208,9 +3233,11 @@
       renderAssigneeLoading();
 
       try {
-        const res = await fetch(`/api/assignees?start=${w.startStr}&end=${w.endStr}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || data.error || 'Failed to load assignees');
+        const data = await fetchJsonWithRateLimitRetry(`/api/assignees?start=${w.startStr}&end=${w.endStr}`, {
+          onRetry: ({ retryAfterMs }) => {
+            renderAssigneeLoading(`Help Scout is catching up. Retrying in ${formatDuration(Math.ceil(retryAfterMs / 1000))}...`);
+          },
+        });
 
         assigneeCache[w.startStr] = data.assignees || [];
 
@@ -3240,9 +3267,11 @@
       updateAssigneeCardTitle();
 
       try {
-        const res = await fetch(`/api/assignee-subcategories?start=${w.startStr}&end=${w.endStr}&assignee=${assignee}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || data.error || 'Failed to load assignee subcategories');
+        const data = await fetchJsonWithRateLimitRetry(`/api/assignee-subcategories?start=${w.startStr}&end=${w.endStr}&assignee=${assignee}`, {
+          onRetry: ({ retryAfterMs }) => {
+            renderAssigneeLoading(`Help Scout is catching up. Retrying in ${formatDuration(Math.ceil(retryAfterMs / 1000))}...`);
+          },
+        });
 
         assigneeSubcategoryCache[cacheKey] = data.subcategories || [];
 

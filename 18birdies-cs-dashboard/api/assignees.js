@@ -15,9 +15,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ start, end, assignees });
   } catch (err) {
     console.error('Assignees error:', err);
-    return res.status(500).json({
+    const status = err.statusCode || 500;
+    return res.status(status).json({
       error: 'Failed to load assignee data',
       detail: err.message,
+      retryAfterMs: err.retryAfterMs || null,
     });
   }
 }
