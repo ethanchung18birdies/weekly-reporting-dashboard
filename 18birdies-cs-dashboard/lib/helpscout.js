@@ -1495,7 +1495,6 @@ export async function fetchWeekAssignees(startStr, endStr) {
     { id: 905525, name: 'Jhird Verano' },
     { id: 905514, name: 'Baetiong John' },
     { id: 905526, name: 'John Espuerta' },
-    { id: 905521, name: 'Marianne Figueroa' },
     { id: 938176, name: 'Jerlene Geliang' },
     { id: 905515, name: 'Nico Delos Reyes' },
     { id: 905523, name: 'Rendell Severino' },
