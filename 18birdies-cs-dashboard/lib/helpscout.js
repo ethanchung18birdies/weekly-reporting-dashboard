@@ -1510,22 +1510,13 @@ export async function fetchWeekAssignees(startStr, endStr) {
     { id: 935563, name: 'Juan Caluma' },
     { id: 929233, name: 'Vincent Joel Santos' },
     { id: 929234, name: 'Margie Ativo' },
-    { id: 'test', name: 'test', reportable: false },
   ];
 
   try {
     const results = await mapWithConcurrency(
       ASSIGNEES,
       Math.max(1, REPORT_ASSIGNEE_CONCURRENCY),
-      async ({ id, name, reportable = true }) => {
-        if (!reportable) {
-          return {
-            id,
-            name,
-            count: 0,
-          };
-        }
-
+      async ({ id, name }) => {
         const report = await hsGetWithRetry('/reports/user', buildUserReportParams(startStr, endStr, id));
 
         return {
@@ -1560,15 +1551,7 @@ export async function fetchAssigneeSubcategories(startStr, endStr, assignee = 'a
   const resolvedConfig = await resolveTagConfig(SUBCATEGORY_TAGS);
 
   const assigneeId =
-    assignee && assignee !== 'all' && Number.isFinite(Number(assignee)) ? Number(assignee) : null;
-  const isUnknownAssignee = Boolean(assignee && assignee !== 'all' && assigneeId === null);
-
-  if (isUnknownAssignee) {
-    return {
-      totalClosed: 0,
-      subcategories: [{ name: 'Not tagged', count: 0, pct: 0 }],
-    };
-  }
+    assignee && assignee !== 'all' ? Number(assignee) : null;
 
   const totalClosedReport = assigneeId
     ? await hsGetWithRetry('/reports/user', buildUserReportParams(startStr, endStr, assigneeId))
