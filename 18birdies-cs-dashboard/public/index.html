@@ -1815,6 +1815,7 @@
     }
 
     function getCurrentBacklogAnchor() {
+      if (allData?.currentBacklog == null) return null;
       const value = Number(allData?.currentBacklog);
       return Number.isFinite(value) && value >= 0 ? value : null;
     }

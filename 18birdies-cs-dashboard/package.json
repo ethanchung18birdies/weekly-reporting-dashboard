@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test",
     "dev": "vercel dev",
     "build": "echo 'No build step required'"
   },

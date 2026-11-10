@@ -725,20 +725,40 @@ export async function fetchWeekBuckets(startStr, endStr, scope = 'all') {
 }
 
 
-async function getCurrentBacklog() {
+export async function getCurrentBacklog() {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   try {
-    const fetchStatusCount = async (status) => {
+    const statuses = new Map();
+    let page = 1;
+    let totalPages;
+    do {
       const data = await hsGetWithRetry('/conversations', {
         mailbox: mailboxId,
-        status,
-        pageSize: 1,
+        status: 'active',
+        page,
+        pageSize: 25,
+        sortField: 'createdAt',
+        sortOrder: 'desc',
       });
-      const total = data?.page?.totalElements;
-      return Number.isFinite(Number(total)) ? Number(total) : 0;
-    };
+      totalPages = data?.page?.totalPages;
+      const conversations = data?._embedded?.conversations
+        ?? (data?.page?.totalElements === 0 ? [] : null);
+      if (!Number.isInteger(totalPages) || totalPages < 0 || !Array.isArray(conversations)
+          || (conversations.length === 0 && data?.page?.totalElements !== 0)) {
+        throw new Error('Incomplete Help Scout backlog page');
+      }
+      for (const conversation of conversations) {
+        if (!conversation?.id || typeof conversation.status !== 'string') {
+          throw new Error('Invalid Help Scout backlog conversation');
+        }
+        // Help Scout can include closed records in status=active results.
+        // Deduplicate by ID and use the latest returned status, not totalElements.
+        statuses.set(String(conversation.id), conversation.status);
+      }
+      page += 1;
+    } while (page <= totalPages);
 
-    const active = await fetchStatusCount('active');
+    const active = [...statuses.values()].filter(status => status === 'active').length;
 
     return { total: active, active, pending: null };
   } catch (e) {
