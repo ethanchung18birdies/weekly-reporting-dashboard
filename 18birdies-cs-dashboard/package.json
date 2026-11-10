@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
+    "test": "node --test",
     "build": "echo 'No build step required'"
   },
   "dependencies": {

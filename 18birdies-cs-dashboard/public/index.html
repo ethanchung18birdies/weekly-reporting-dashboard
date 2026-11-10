@@ -1297,9 +1297,9 @@
     <div class="goal-sep"></div>
     <div class="goal-item"><span class="goal-label">Ultimate goal</span><span class="goal-val">Backlog → 0</span></div>
     <div class="goal-sep"></div>
-    <div class="goal-item"><span class="goal-label">Current pace</span><span class="goal-val" id="paceVal">—</span></div>
+    <div class="goal-item"><span class="goal-label">Selected-week pace</span><span class="goal-val" id="paceVal">—</span></div>
     <div class="goal-sep"></div>
-    <div class="goal-item"><span class="goal-label">Est. weeks to zero</span><span class="goal-val" id="weeksToZero">—</span></div>
+    <div class="goal-item"><span class="goal-label">Live backlog change</span><span class="goal-val" id="backlogChange">—</span></div>
     <span class="pace-pill" id="pacePill">Loading...</span>
   </div>
 
@@ -1329,14 +1329,15 @@
       </div>
 
       <div>
-        <div class="section-label">This week at a glance</div>
+        <div class="section-label">Selected week at a glance · backlog is live</div>
         <div class="kpi-grid" id="kpiGrid"></div>
       </div>
 
       <div class="two-col">
         <div class="card burndown-card">
-          <div class="card-title">Estimated backlog volume</div>
+          <div class="card-title">Recorded backlog by week</div>
           <div class="burn-stats" id="burnStats"></div>
+          <div class="kpi-note" id="backlogHistoryNote" style="margin-bottom:12px"></div>
           <div class="chart-wrap fill"><canvas id="burnChart"></canvas></div>
         </div>
 
@@ -1414,7 +1415,8 @@
 
         <div class="two-col" style="margin-top:12px">
           <div class="card">
-            <div class="card-title">Weekly burn rate (closed total − opened)</div>
+            <div class="card-title">Weekly ticket flow (closed total − opened)</div>
+            <div class="kpi-note" style="margin-bottom:8px">Email activity balance; does not measure the change in active backlog.</div>
             <div class="chart-wrap" style="height:160px"><canvas id="burnRateChart"></canvas></div>
           </div>
           <div class="card">
@@ -1594,15 +1596,18 @@
       <div class="legend">
         <div class="legend-item"><div class="legend-sq" style="background:#1a3a1a"></div>Closed w/ reply</div>
         <div class="legend-item"><div class="legend-sq" style="background:#d1d5db"></div>Opened</div>
-        <div class="legend-item"><div class="legend-sq" style="background:#92400e"></div>Estimated backlog</div>
+        <div class="legend-item"><div class="legend-sq" style="background:#92400e"></div>Recorded backlog</div>
       </div>
     </div>
   </div>
 
+  <script src="/backlog-metrics.js"></script>
   <script>
     const TARGET_DAILY = 650;
 
     let allData = null;
+    let backlogModel = null;
+    let backlogHistorySaved = false;
     let selWeek = null;
     let bucketView = 'category';
     let incomingBucketView = 'category';
@@ -1814,24 +1819,34 @@
       return indices;
     }
 
-    function getCurrentBacklogAnchor() {
-      const value = Number(allData?.currentBacklog);
-      return Number.isFinite(value) && value >= 0 ? value : null;
+    function updateBacklogModel() {
+      const key = `cs-backlog:v1:${allData.backlogScope || 'default:active'}`;
+      let saved = [];
+      try { saved = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+      backlogModel = BacklogMetrics.model(allData, allData.backlogHistoryStorage === 'shared' ? [] : saved);
+      backlogHistorySaved = false;
+      try {
+        localStorage.setItem(key, JSON.stringify(backlogModel.snapshots.filter(Boolean)));
+        backlogHistorySaved = true;
+      } catch {}
     }
 
-    function getEstimatedBacklogSeries() {
-      const series = Array(allData?.weeks?.length || 0).fill(0);
-      let runningBacklog = getCurrentBacklogAnchor();
-      if (runningBacklog === null) return series;
+    function getSelectedBacklogComparison() {
+      if (selWeek === allData.weeks.length - 1) return backlogModel.liveComparison;
+      return BacklogMetrics.comparison(backlogModel.snapshots[selWeek], backlogModel.snapshots[selWeek - 1]);
+    }
 
-      for (let i = series.length - 1; i >= 0; i--) {
-        series[i] = Math.max(0, runningBacklog);
-        const week = allData.weeks[i];
-        runningBacklog += ((week.totalClosed ?? week.closed ?? 0) - (week.opened ?? 0));
-        if (runningBacklog < 0) runningBacklog = 0;
-      }
+    function backlogChangeText(comparison) {
+      if (!comparison) return 'No prior-week snapshot';
+      if (comparison.change === 0) return '→ Unchanged since prior-week snapshot';
+      const percent = comparison.percent === null ? '' : ` (${Math.abs(comparison.percent).toFixed(1)}%)`;
+      return `${comparison.change < 0 ? '↓' : '↑'} ${Math.abs(comparison.change).toLocaleString()}${percent} since prior-week snapshot`;
+    }
 
-      return series;
+    function snapshotDate(snapshot) {
+      return snapshot ? new Date(snapshot.observedAt).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+      }) : 'Unavailable';
     }
 
     async function ensureBucketWeekLoaded(weekIdx, showLoading = false, forceRefresh = false) {
@@ -2774,6 +2789,7 @@
         }
 
         allData = await res.json();
+        updateBacklogModel();
         clearObject(bucketCache);
         clearObject(bucketLoadPromises);
         clearObject(incomingTrendWeekCache);
@@ -2905,11 +2921,10 @@
       const cpdNote = elapsed < 5 ? ` (${elapsed} day${elapsed > 1 ? 's' : ''} elapsed)` : '';
       document.getElementById('paceVal').textContent = `${cpd}/day${cpdNote}`;
 
-      const recentWeeks = allData.weeks.slice(Math.max(0, selWeek - 3), selWeek + 1);
-      const avgBurn = recentWeeks.reduce((a, x) => a + ((x.totalClosed ?? x.closed) - x.opened), 0) / recentWeeks.length;
-      const currentBacklog = getCurrentBacklogAnchor();
-      const weeksToZero = currentBacklog !== null && avgBurn > 0 ? Math.ceil(currentBacklog / avgBurn) : null;
-      document.getElementById('weeksToZero').textContent = weeksToZero ? `~${weeksToZero} weeks` : 'N/A';
+      const currentBacklog = backlogModel.current;
+      const liveComparison = backlogModel.liveComparison;
+      document.getElementById('backlogChange').textContent = liveComparison
+        ? `${liveComparison.change > 0 ? '+' : ''}${liveComparison.change.toLocaleString()}` : '—';
 
       const pctTarget = TARGET_DAILY > 0 ? Math.round((dailyPace / TARGET_DAILY) * 100) : 0;
       const onTrack = dailyPace >= TARGET_DAILY;
@@ -2918,21 +2933,21 @@
       pill.textContent = onTrack ? `${pctTarget}% of pace ✓` : `${pctTarget}% of pace`;
       pill.className = `pace-pill ${onTrack ? 'on-track' : 'off-track'}`;
 
-      renderCallout(w, weeksToZero, onTrack, elapsed, dailyPace);
-
-      const estimatedBacklogSeries = getEstimatedBacklogSeries();
-      const firstEstimatedBacklog = currentBacklog === null ? null : estimatedBacklogSeries[0];
-      const estimatedChange = firstEstimatedBacklog === null ? null : firstEstimatedBacklog - currentBacklog;
+      renderCallout(w, onTrack, elapsed, dailyPace);
 
       document.getElementById('burnStats').innerHTML = `
-        <div class="bstat"><div class="bstat-val">${currentBacklog === null ? '—' : currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Live Help Scout active tickets</div></div>
-        <div class="bstat"><div class="bstat-val" style="color:${estimatedChange === null || estimatedChange >= 0 ? 'var(--green)' : 'var(--red)'}">${estimatedChange === null ? '—' : `${estimatedChange >= 0 ? '−' : '+'}${Math.abs(estimatedChange).toLocaleString()}`}</div><div class="bstat-lbl">Estimated change since first visible week</div></div>
-        <div class="bstat"><div class="bstat-val" style="color:${avgBurn >= 0 ? 'var(--green)' : 'var(--red)'}">${avgBurn >= 0 ? '+' : '−'}${Math.abs(Math.round(avgBurn)).toLocaleString()}</div><div class="bstat-lbl">Avg weekly net burn</div></div>
-        <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
+        <div class="bstat"><div class="bstat-val">${currentBacklog === null ? '—' : currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Live active tickets</div></div>
+        <div class="bstat"><div class="bstat-val" style="color:${!liveComparison || liveComparison.change === 0 ? 'var(--muted)' : liveComparison.change < 0 ? 'var(--green)' : 'var(--red)'}">${liveComparison ? `${liveComparison.change > 0 ? '+' : ''}${liveComparison.change.toLocaleString()}` : '—'}</div><div class="bstat-lbl">Change vs prior-week snapshot</div></div>
+        <div class="bstat"><div class="bstat-val">${backlogModel.snapshots.filter(Boolean).length}</div><div class="bstat-lbl">Weeks with recorded counts</div></div>
       `;
+      const storageNote = allData.backlogHistoryStorage === 'shared'
+        ? 'History shared across browsers.'
+        : backlogHistorySaved ? 'History saved in this browser only.' : 'History could not be saved in this browser.';
+      document.getElementById('backlogHistoryNote').textContent =
+        `Latest observed active count in each UTC reporting week; missing weeks are left blank. ${storageNote} Counts are recorded when the dashboard refreshes.`;
 
       renderWeekNav();
-      renderKPIs(w, prev, weeksToZero, cpd, cpdNote);
+      renderKPIs(w, prev, cpd, cpdNote);
       if (bucketCache[w.startStr]) {
         renderIncomingBucketBars(w);
         renderBucketBars(w);
@@ -2964,9 +2979,9 @@
         `Live data · 18Birdies HelpScout · Updated ${fetchedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     }
 
-    function renderCallout(w, weeksToZero, onTrack, elapsed, dailyPace) {
+    function renderCallout(w, onTrack, elapsed, dailyPace) {
       const callout = document.getElementById('paceCallout');
-      const burnRate = (w.totalClosed ?? w.closed) - w.opened;
+      const comparison = getSelectedBacklogComparison();
       const paceClosed = w.totalClosed ?? w.closed;
       const gap = Math.max(0, TARGET_DAILY - Math.round(dailyPace));
       const pctTarget = TARGET_DAILY > 0 ? Math.round((dailyPace / TARGET_DAILY) * 100) : 0;
@@ -2977,9 +2992,12 @@
       document.getElementById('paceTitle').textContent =
         `${statusLabel} — ${Math.round(dailyPace)}/${TARGET_DAILY} daily tickets closed (${pctTarget}% of target)`;
 
-      document.getElementById('paceText').textContent = onTrack
-        ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). Backlog is ${burnRate >= 0 ? 'shrinking' : 'growing'} at ${Math.abs(burnRate)} net this week.${weeksToZero ? ` At this pace, backlog reaches zero in ~${weeksToZero} weeks.` : ''}`
-        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). Need ${gap} more tickets/day to hit the target. ${weeksToZero ? `Estimated ${weeksToZero} weeks to zero at current burn rate.` : 'Increase throughput to start burning the backlog.'}`;
+      const trendText = comparison
+        ? `Active backlog ${comparison.change < 0 ? 'fell' : comparison.change > 0 ? 'rose' : 'was unchanged'}${comparison.change === 0 ? '' : ` by ${Math.abs(comparison.change).toLocaleString()} tickets`} between the selected and prior week's recorded snapshots.`
+        : 'Backlog direction is unavailable without both weekly snapshots.';
+      document.getElementById('paceText').textContent =
+        `Team closed ${paceClosed.toLocaleString()} tickets in the selected week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). ${onTrack ? '' : `Need ${gap} more tickets/day to hit the target. `}${trendText}`;
+
     }
 
     function renderWeekNav() {
@@ -3357,7 +3375,7 @@
       }
     }
 
-    function renderKPIs(w, prev, weeksToZero, cpd, cpdNote) {
+    function renderKPIs(w, prev, cpd, cpdNote) {
       function delta(cur, p, invertGood = false) {
         if (p == null) return { txt: 'First week on record', cls: 'neutral' };
         const diff = cur - p;
@@ -3367,17 +3385,18 @@
         return { txt: `${up ? '↑' : '↓'} ${pct}% vs prior week`, cls: good ? 'up' : 'down' };
       }
 
-      const burnRate = (w.totalClosed ?? w.closed) - w.opened;
-      const currentBacklog = getCurrentBacklogAnchor();
+      const netFlow = BacklogMetrics.flow(w);
+      const periodNote = selWeek === allData.weeks.length - 1 ? 'Week to date' : 'Selected week';
+      const currentBacklog = backlogModel.current;
       const backlogCard = `
         <div class="kpi" style="--kc:#92400e">
           <div class="kpi-label">Current backlog</div>
           <div class="kpi-value">${currentBacklog === null ? '—' : currentBacklog.toLocaleString()}</div>
           <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
-            <span class="kpi-delta neutral" style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:3px">Live HelpScout snapshot</span>
-            <span class="kpi-delta ${burnRate >= 0 ? 'up' : 'down'}" style="font-size:10px;background:${burnRate >= 0 ? 'var(--green-bg)' : 'var(--red-bg)'};padding:2px 7px;border-radius:3px">${burnRate >= 0 ? '+' : '−'}${Math.abs(burnRate)} net this week</span>
+            <span class="kpi-delta neutral" style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:3px">${currentBacklog === null ? 'Live count unavailable' : 'Live active tickets · all channels'}</span>
+            <span class="kpi-delta ${!backlogModel.liveComparison || backlogModel.liveComparison.change === 0 ? 'neutral' : backlogModel.liveComparison.change < 0 ? 'up' : 'down'}">${currentBacklog === null ? 'Refresh to retry' : backlogChangeText(backlogModel.liveComparison)}</span>
           </div>
-          <div class="kpi-note" style="margin-top:4px">${weeksToZero ? `~${weeksToZero} weeks to zero at current pace` : 'No burn trend yet'}</div>
+          <div class="kpi-note" style="margin-top:4px">Current count, independent of selected week. Pending excluded.</div>
         </div>`;
 
       const rfrPct = w.resolvedOnFirstReplyPct != null ? Math.round(w.resolvedOnFirstReplyPct) + '%' : '—';
@@ -3395,7 +3414,7 @@
           value: (w.totalClosed ?? 0).toLocaleString(),
           color: '#14532d',
           ...delta(w.totalClosed ?? 0, prev?.totalClosed ?? null),
-          note: 'HelpScout "closed" metric · all closes this week'
+          note: `${periodNote} · all email closes, with or without reply`
         },
         {
           label: 'Closed w/ reply',
@@ -3405,19 +3424,19 @@
           note: `HelpScout "resolved" metric · ${cpd}/day${cpdNote}`
         },
         {
-          label: 'Opened this week',
+          label: 'Opened',
           value: w.opened.toLocaleString(),
           color: '#1e40af',
           ...delta(w.opened, prev?.opened, true),
-          note: 'New inbound volume'
+          note: 'New email conversations · customers and staff'
         },
         {
-          label: 'Net burn rate',
-          value: (burnRate >= 0 ? '+' : '') + burnRate,
-          color: burnRate >= 0 ? '#1a6b3a' : '#991b1b',
-          txt: burnRate > 0 ? '↓ Backlog shrinking' : burnRate < 0 ? '↑ Backlog growing' : '→ Flat this week',
-          cls: burnRate > 0 ? 'up' : burnRate < 0 ? 'down' : 'neutral',
-          note: 'Closed total minus opened'
+          label: 'Net ticket flow',
+          value: netFlow === null ? '—' : `${netFlow > 0 ? '+' : ''}${netFlow.toLocaleString()}`,
+          color: netFlow === null || netFlow === 0 ? '#92400e' : netFlow > 0 ? '#1a6b3a' : '#991b1b',
+          txt: netFlow === null ? 'Report unavailable' : netFlow > 0 ? `${netFlow.toLocaleString()} more closed than opened` : netFlow < 0 ? `${Math.abs(netFlow).toLocaleString()} more opened than closed` : 'Opened and closed balanced',
+          cls: netFlow === null || netFlow === 0 ? 'neutral' : netFlow > 0 ? 'up' : 'down',
+          note: `${periodNote} · closed total − opened; not observed backlog change`
         },
         {
           label: 'Resolved on first reply',
@@ -3943,7 +3962,7 @@
     function renderBurnChart() {
       destroyChart('burn');
       const labels = allData.weeks.map(w => w.label);
-      const estimatedBacklogData = getEstimatedBacklogSeries();
+      const recordedBacklogData = backlogModel.snapshots.map(snapshot => snapshot?.backlog ?? null);
 
       charts.burn = new Chart(document.getElementById('burnChart'), {
         type: 'line',
@@ -3951,12 +3970,13 @@
           labels,
           datasets: [
             {
-              label: 'Estimated backlog',
-              data: estimatedBacklogData,
+              label: 'Recorded active backlog',
+              data: recordedBacklogData,
+              spanGaps: false,
               borderColor: '#92400e',
               backgroundColor: 'rgba(146,64,14,0.08)',
               fill: true,
-              tension: 0.3,
+              tension: 0,
               pointRadius: 3,
               pointBackgroundColor: '#92400e',
               borderWidth: 2,
@@ -3972,10 +3992,10 @@
               ...tooltipStyle,
               callbacks: {
                 label(context) {
-                  return `Estimated backlog: ${formatAxisNumber(context.raw)}`;
+                  return `Recorded active backlog: ${formatAxisNumber(context.raw)}`;
                 },
-                afterBody() {
-                  return ['Estimated from current backlog plus weekly opened/closed flow'];
+                afterBody(context) {
+                  return [`Observed ${snapshotDate(backlogModel.snapshots[context[0]?.dataIndex])}`];
                 },
               },
             },
@@ -4105,7 +4125,7 @@
 
     function renderBurnRateChart() {
       destroyChart('br');
-      const rates = allData.weeks.map(w => (w.totalClosed ?? w.closed) - w.opened);
+      const rates = allData.weeks.map(w => BacklogMetrics.flow(w));
       const burnDisplay = createTruncatedDisplay(rates, { symmetric: true });
 
       charts.br = new Chart(document.getElementById('burnRateChart'), {
@@ -4113,7 +4133,7 @@
         data: {
           labels: allData.weeks.map(w => w.label),
           datasets: [{
-            label: 'Burn rate',
+            label: 'Net email ticket flow',
             data: burnDisplay.values,
             rawData: rates,
             backgroundColor: rates.map((r, i) =>
