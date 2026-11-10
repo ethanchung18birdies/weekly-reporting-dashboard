@@ -57,22 +57,13 @@ Anyone with the link can view and refresh it. No login required.
 
 To restrict access, go to Vercel → your project → **Settings → Password Protection** and enable it. Anyone visiting will need to enter a password you set.
 
-## Backlog and ticket-flow definitions
+## Optional: Persist Historical Data (Vercel KV)
 
-- **Current backlog** is the live Conversations API count for `status=active` in the configured mailbox, across channels. Pending conversations are excluded. It remains live when selecting an older report week. Missing counts display as unavailable, never zero.
-- **Net ticket flow** is the selected week's email `resolutions.closed − volume.emailConversations`. Use all closes, including closes without a reply; `resolutions.resolved` is the separate closed-with-reply metric. Positive means more closed than opened. This balance does not measure changes in the active backlog: channel scope and status transitions can differ.
-- **Recorded backlog by week** plots only observed API counts, with the latest observation in each Monday–Sunday UTC report week. Tooltips show observation times. It is not a week-end census. Missing weeks remain blank; historical counts are never reconstructed from email activity. Comparisons require observations in both adjacent weeks.
-- Backlog forecasts based on email activity have been removed. Failed weekly report requests return an API error instead of fabricated zero activity.
+By default, weekly snapshots are stored in memory (lost on redeploy). To persist history:
 
-Definitions: [Help Scout Email Report](https://developer.helpscout.com/mailbox-api/endpoints/reports/email/) and [List Conversations](https://developer.helpscout.com/mailbox-api/endpoints/conversations/list/).
-
-## Backlog history storage
-
-Every metrics fetch records a valid live count. With `KV_REST_API_URL` and `KV_REST_API_TOKEN` configured for a Redis REST store, the API saves shared history, scoped by mailbox and active status, using timestamp-ordered observations. Weekly keys expire after one year. This uses the REST API directly and needs no optional SDK.
-
-Without shared storage, or if it fails, the dashboard explicitly saves history in browser local storage. That history is device/browser-specific and can be cleared. The UI states which storage is in use. Blocked local storage does not prevent displaying live metrics.
-
-Only dashboard refreshes capture observations; there is no scheduled collection or historical backfill. No manually supplied backlog counts are seeded.
+1. In Vercel → your project → **Storage → Create KV Database**
+2. Connect it to your project — Vercel auto-adds the env vars
+3. Redeploy — history now survives across deploys
 
 ## Local Development
 
@@ -83,16 +74,14 @@ vercel dev
 
 Open `http://localhost:3000`
 
-Run regression checks with `npm test` (Node.js 20+). Tests cover API field mapping, failed reports and missing counts, history gaps, persistence fallback, and the displayed KPI/chart calculations.
-
 ---
 
 ## API Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/metrics` | Fetches last 12 weeks of metrics, live active backlog, and recorded backlog history |
-| `GET /api/metrics?refresh=true` | Same fresh pull; retained for the dashboard Refresh button |
+| `GET /api/metrics` | Returns last 12 weeks of metrics (cached 30 min) |
+| `GET /api/metrics?refresh=true` | Forces fresh pull from HelpScout |
 | `GET /api/buckets` | Returns selected-week category/subcategory buckets |
 | `GET /api/assignees` | Returns selected-week closed volume by assignee |
 | `GET /api/assignee-subcategories` | Returns selected-assignee subcategory drilldown |
@@ -113,11 +102,9 @@ Run regression checks with `npm test` (Node.js 20+). Tests cover API field mappi
 │   └── ticket-*.js         # Ticket search/export endpoints
 ├── lib/
 │   ├── helpscout.js        # HelpScout API client + data fetching
-│   ├── backlog-history.js  # Optional shared recorded backlog history
 │   └── store.js            # Data persistence (KV or in-memory)
 ├── public/
 │   └── index.html          # Full dashboard UI
-│   └── backlog-metrics.js  # Backlog observations and ticket-flow calculations
 ├── .env.local              # Local credentials (never commit this)
 ├── .env.example            # Template for env vars
 ├── vercel.json             # Routing config

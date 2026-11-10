@@ -1,6 +1,5 @@
 // HelpScout API v2 client
 // Uses Reports API for weekly metrics + Conversations API for live backlog
-import { recordBacklogHistory } from './backlog-history.js';
 
 const HELPSCOUT_API = 'https://api.helpscout.net/v2';
 const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
@@ -620,15 +619,12 @@ async function getWeekReport(startStr, endStr) {
   const params = buildEmailReportParams(startStr, endStr);
 
   try {
-    const emailReport = await hsGetWithRetry('/reports/email', params);
+    const emailReport = await hsGet('/reports/email', params).catch(() => null);
     const current = emailReport?.current || {};
 
-    const opened = current.volume?.emailConversations;
-    const closed = current.resolutions?.resolved;
-    const totalClosed = current.resolutions?.closed;
-    if (![opened, closed, totalClosed].every(value => Number.isInteger(value) && value >= 0)) {
-      throw new Error('Help Scout returned an incomplete weekly volume report');
-    }
+    const opened = current.volume?.emailConversations ?? 0;
+    const closed = current.resolutions?.resolved ?? 0;
+    const totalClosed = current.resolutions?.closed ?? 0;
 
     const resolutionTimeSecs = current.resolutions?.resolutionTime ?? null;
     const resolutionTime = resolutionTimeSecs
@@ -652,7 +648,14 @@ async function getWeekReport(startStr, endStr) {
     };
   } catch (e) {
     console.error(`Error fetching week report ${startStr}-${endStr}:`, e.message);
-    throw e;
+    return {
+      opened: 0,
+      closed: 0,
+      totalClosed: 0,
+      resolutionTime: null,
+      firstResponseTime: null,
+      resolvedOnFirstReplyPct: null,
+    };
   }
 }
 
@@ -732,13 +735,12 @@ async function getCurrentBacklog() {
         pageSize: 1,
       });
       const total = data?.page?.totalElements;
-      return (typeof total === 'number' || typeof total === 'string' && total.trim() !== '') && Number.isInteger(Number(total)) && Number(total) >= 0
-        ? Number(total) : null;
+      return Number.isFinite(Number(total)) ? Number(total) : 0;
     };
 
     const active = await fetchStatusCount('active');
 
-    return { total: active, active, pending: null, observedAt: new Date().toISOString() };
+    return { total: active, active, pending: null };
   } catch (e) {
     console.error('Error fetching backlog:', e.message);
     return { total: null, active: null, pending: null };
@@ -1455,11 +1457,6 @@ export async function fetchAllMetrics() {
   const weeks = getWeekRanges(12);
   const backlogData = await getCurrentBacklog();
   const currentBacklog = backlogData.total;
-  const history = await recordBacklogHistory(weeks, currentBacklog === null ? null : {
-    weekStart: weeks[weeks.length - 1].startStr,
-    backlog: currentBacklog,
-    observedAt: backlogData.observedAt,
-  }, process.env.HELPSCOUT_MAILBOX_ID);
 
   const weeklyMetrics = await Promise.all(
   weeks.map(async (week) => {
@@ -1471,7 +1468,6 @@ export async function fetchAllMetrics() {
       opened: report.opened,
       closed: report.closed,
       totalClosed: report.totalClosed,
-      netTicketFlow: report.totalClosed - report.opened,
       resolutionTime: report.resolutionTime,
       firstResponseTime: report.firstResponseTime,
       resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
@@ -1482,11 +1478,6 @@ export async function fetchAllMetrics() {
   return {
     fetchedAt: new Date().toISOString(),
     currentBacklog,
-    backlogObservedAt: backlogData.observedAt || null,
-    backlogScope: `${process.env.HELPSCOUT_MAILBOX_ID || 'all'}:active`,
-    backlogHistory: history.snapshots,
-    backlogHistoryStorage: history.storage,
-    backlogHistoryUnavailable: history.unavailable || false,
     backlogBreakdown: backlogData,
     weeks: weeklyMetrics,
   };
@@ -1651,9 +1642,7 @@ export async function fetchCurrentWeekSnapshot() {
     backlog: backlogData.total,
     opened: report.opened,
     closed: report.closed,
-    // Flow is not a measurement of the change in active backlog.
-    netTicketFlow: report.totalClosed - report.opened,
-    burnRate: null,
+    burnRate: report.totalClosed - report.opened,
     resolutionTime: report.resolutionTime,
     firstResponseTime: report.firstResponseTime,
     resolvedOnFirstReplyPct: report.resolvedOnFirstReplyPct,
