@@ -1,5 +1,6 @@
 // HelpScout API v2 client
 // Uses Reports API for weekly metrics + Conversations API for live backlog
+import { pacificDate, reportBounds } from './reporting-time.js';
 
 const HELPSCOUT_API = 'https://api.helpscout.net/v2';
 const TOKEN_URL = 'https://api.helpscout.net/v2/oauth2/token';
@@ -134,7 +135,7 @@ async function hsGet(path, params = {}) {
   return res.json();
 }
 
-async function hsGetWithRetry(path, params = {}, attempts = HELPSCOUT_RETRY_ATTEMPTS, onRetry = null) {
+export async function hsGetWithRetry(path, params = {}, attempts = HELPSCOUT_RETRY_ATTEMPTS, onRetry = null) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -194,8 +195,7 @@ async function mapWithConcurrency(items, limit, mapper) {
 function buildEmailReportParams(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   return {
-    start: `${startStr}T00:00:00Z`,
-    end: `${endStr}T23:59:59Z`,
+    ...reportBounds(startStr, endStr),
     // Keep both keys for compatibility across HelpScout report endpoints.
     mailbox: mailboxId,
     mailboxes: mailboxId,
@@ -206,8 +206,7 @@ function buildUserReportParams(startStr, endStr, userId, extra = {}) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
   return {
     user: userId,
-    start: `${startStr}T00:00:00Z`,
-    end: `${endStr}T23:59:59Z`,
+    ...reportBounds(startStr, endStr),
     // User reports have varied between these names; send both like email reports.
     mailbox: mailboxId,
     mailboxes: mailboxId,
@@ -231,9 +230,9 @@ function formatDate(date) {
   return date.toISOString().split('T')[0];
 }
 
-function getWeekRanges(numWeeks = 12) {
+export function getWeekRanges(numWeeks = 12) {
   const weeks = [];
-  const now = new Date();
+  const now = new Date(`${pacificDate()}T00:00:00Z`);
   let weekStart = startOfWeek(now);
 
   for (let i = 0; i < numWeeks; i++) {
@@ -431,8 +430,9 @@ function getTagNames(conversation) {
 
 async function listConversationsCreatedInRange(startStr, endStr) {
   const mailboxId = process.env.HELPSCOUT_MAILBOX_ID;
-  const start = new Date(`${startStr}T00:00:00Z`);
-  const end = new Date(`${endStr}T23:59:59Z`);
+  const bounds = reportBounds(startStr, endStr);
+  const start = new Date(bounds.start);
+  const end = new Date(bounds.end);
   const results = [];
 
   let page = 1;
@@ -615,12 +615,16 @@ function buildIncomingCategoryBreakdown(categoryMetrics, subcategoryMetrics, tot
 }
 
 // Fast report — overall metrics only, no per-tag breakdown
-async function getWeekReport(startStr, endStr) {
+export async function getWeekReport(startStr, endStr) {
   const params = buildEmailReportParams(startStr, endStr);
 
   try {
-    const emailReport = await hsGet('/reports/email', params).catch(() => null);
-    const current = emailReport?.current || {};
+    const emailReport = await hsGetWithRetry('/reports/email', params);
+    const current = emailReport?.current;
+    if (![current?.volume?.emailConversations, current?.resolutions?.resolved,
+          current?.resolutions?.closed].every(value => Number.isFinite(value) && value >= 0)) {
+      throw new Error('Missing or invalid weekly conversation totals');
+    }
 
     const opened = current.volume?.emailConversations ?? 0;
     const closed = current.resolutions?.resolved ?? 0;
@@ -648,14 +652,7 @@ async function getWeekReport(startStr, endStr) {
     };
   } catch (e) {
     console.error(`Error fetching week report ${startStr}-${endStr}:`, e.message);
-    return {
-      opened: 0,
-      closed: 0,
-      totalClosed: 0,
-      resolutionTime: null,
-      firstResponseTime: null,
-      resolvedOnFirstReplyPct: null,
-    };
+    throw new Error(`Help Scout metrics unavailable for ${startStr} through ${endStr}`);
   }
 }
 

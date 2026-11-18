@@ -1,6 +1,9 @@
 {
   "outputDirectory": "public",
   "functions": {
+    "api/backlog-history.js": {
+      "maxDuration": 60
+    },
     "api/ticket-export-plan.js": {
       "maxDuration": 60
     },
