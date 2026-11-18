@@ -1828,86 +1828,115 @@
       });
     }
 
-    function getWeeklyNetFlow(week) {
-      const value = allData.backlogHistory?.weeks?.find(w => w.startStr === week.startStr)?.netBurn;
-      return Number.isInteger(value) ? value : null;
+    function getWeeklyHistory(week) {
+      return allData.backlogHistory?.weeks?.find(w => w.startStr === week.startStr);
     }
 
-    function finalizeBacklogHistory(weeks, points, currentBacklog) {
-      const stocks = points.map(p => p.unknownTickets || !Number.isInteger(currentBacklog)
-        || currentBacklog + p.delta < 0 ? null : currentBacklog + p.delta);
+    function getWeeklyNetFlow(week) {
+      const value = getWeeklyHistory(week)?.netBurn;
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function formatHistoryRange(low, high, signed = false) {
+      if (!Number.isFinite(low) || !Number.isFinite(high)) return '—';
+      const format = n => `${signed && n > 0 ? '+' : ''}${Math.round(n).toLocaleString()}`;
+      return low === high ? format(low) : `${format(low)}–${signed && low >= 0 && high >= 0 ? Math.round(high).toLocaleString() : format(high)}`;
+    }
+
+    function finalizeBacklogHistory(weeks, snapshot, currentBacklog) {
       return weeks.map((week, i) => {
-        const start = stocks[i];
-        const end = i === weeks.length - 1 ? currentBacklog : stocks[i + 1];
-        return { startStr: week.startStr, backlog: end,
-          netBurn: start === null || end === null ? null : start - end };
+        const stored = snapshot.weeks.find(w => w.startStr === week.startStr);
+        const start = stored?.startRange;
+        const end = i === weeks.length - 1 && Number.isInteger(currentBacklog)
+          ? { low: currentBacklog, high: currentBacklog } : stored?.endRange;
+        const valid = r => r && Number.isFinite(r.low) && Number.isFinite(r.high) && r.low >= 0 && r.high >= r.low;
+        const backlogLow = valid(end) ? end.low : null, backlogHigh = valid(end) ? end.high : null;
+        const netBurnLow = valid(start) && valid(end) ? start.low - end.high : null;
+        const netBurnHigh = valid(start) && valid(end) ? start.high - end.low : null;
+        return { startStr: week.startStr, startLow: valid(start) ? start.low : null, startHigh: valid(start) ? start.high : null, backlogLow, backlogHigh,
+          backlog: backlogLow === null ? null : Math.round((backlogLow + backlogHigh) / 2),
+          netBurnLow, netBurnHigh, netBurn: netBurnLow === null ? null : Math.round((netBurnLow + netBurnHigh) / 2) };
       });
     }
 
-    function getAverageWeeklyNetFlow() {
+    function getAverageWeeklyNetFlowRange() {
       const asOf = new Date(allData.fetchedAt);
       if (!Number.isFinite(asOf.getTime())) return null;
       const today = asOf.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-      // The live anchor always uses the latest completed weeks, independently
-      // of which historical week the user selects for the other report cards.
-      const weeks = allData.weeks.filter(w => w.endStr < today).slice(-4);
-      if (weeks.length < 4) return null;
-      const flows = weeks.map(getWeeklyNetFlow);
-      if (flows.some(flow => flow === null)) return null;
-      return flows.reduce((sum, flow) => sum + flow, 0) / flows.length;
+      const weeks = allData.weeks.filter(w => w.endStr < today).slice(-4).map(getWeeklyHistory);
+      if (weeks.length < 4 || !Number.isFinite(weeks[0]?.startLow) || !Number.isFinite(weeks[0]?.startHigh)
+          || !Number.isFinite(weeks[3]?.backlogLow) || !Number.isFinite(weeks[3]?.backlogHigh)) return null;
+      // Intermediate stocks cancel in a four-week net change; do not count
+      // the same uncertainty again at each internal weekly boundary.
+      return { low: (weeks[0].startLow - weeks[3].backlogHigh) / 4, high: (weeks[0].startHigh - weeks[3].backlogLow) / 4 };
+    }
+
+    function getAverageWeeklyNetFlow() {
+      const range = getAverageWeeklyNetFlowRange();
+      return range ? (range.low + range.high) / 2 : null;
     }
 
     async function loadBacklogHistory(data) {
-      data.backlogHistory = { status: 'loading', weeks: [] };
+      const cacheKey = 'cs-backlog-history-v2';
+      const apply = snapshot => {
+        if (snapshot?.version !== 2 || !Array.isArray(snapshot.weeks)) return false;
+        data.backlogHistory = { status: 'ready', fetchedAt: snapshot.fetchedAt,
+          weeks: finalizeBacklogHistory(data.weeks, snapshot, data.currentBacklog) };
+        renderAll();
+        return data.backlogHistory.weeks.every(w => w.backlog !== null && w.netBurn !== null);
+      };
       const request = async params => {
         const response = await fetch(`/api/backlog-history?${new URLSearchParams(params)}`);
-        if (!response.ok) throw new Error('Status history could not be verified');
+        if (!response.ok) throw new Error('Status history refresh unavailable');
         return response.json();
       };
+      let cached;
+      try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch {}
+      apply(cached);
       try {
-        let page = 1, marker, points, weeks, lastNumber, total = 0;
+        const seed = await request({ seed: 'true' });
+        if (allData !== data) return;
+        // Historical boundaries do not move when today's active count changes.
+        // Prefer the freshest aggregate snapshot; current week burn is always
+        // recomputed against the current live anchor.
+        const snapshot = cached?.fetchedAt > seed.fetchedAt ? cached : seed;
+        if (apply(snapshot)) return;
+        data.backlogHistory.status = 'loading';
+        let page = 1, marker, weeks, boundaries;
+        const entries = new Map(), records = new Set();
         for (;;) {
           if (allData !== data) return;
           const batch = await request({ page, ...(marker ? { marker } : {}) });
           if (allData !== data) return;
-          if (batch.page !== page || (marker && marker !== batch.marker)
-              || (lastNumber != null && batch.firstNumber >= lastNumber)) throw new Error('History changed');
-          marker = batch.marker;
-          lastNumber = batch.lastNumber;
-          total += batch.count;
-          weeks = batch.weeks;
+          if (batch.page !== page || (marker && marker !== batch.marker)) throw new Error('History changed');
+          marker = batch.marker; weeks = batch.weeks; boundaries = batch.boundaries;
           if (weeks.map(w => w.startStr).join() !== data.weeks.map(w => w.startStr).join()) throw new Error('Reporting week changed');
-          if (!points) points = batch.points.map(p => ({ ...p, reasons: { ...p.reasons } }));
-          else batch.points.forEach((p, i) => {
-            if (points[i].at !== p.at) throw new Error('History boundary changed');
-            points[i].delta += p.delta;
-            points[i].unknownTickets += p.unknownTickets;
-            for (const [reason, count] of Object.entries(p.reasons)) points[i].reasons[reason] = (points[i].reasons[reason] || 0) + count;
-          });
-          // Once every boundary is demonstrably uncertain, more pages cannot
-          // make any total verifiable. Avoid an unnecessary mailbox-wide scan.
-          if (points.every(p => p.unknownTickets > 0)) {
-            data.backlogHistory = { status: 'unverified', weeks: [], points };
-            renderAll();
-            return;
-          }
-          if (!batch.nextPage) {
-            if (total !== batch.totalElements) throw new Error('Incomplete history population');
-            break;
-          }
+          batch.records.forEach(key => records.add(key));
+          for (const entry of batch.entries) if (!entries.has(entry.key) || entries.get(entry.key).priority < entry.priority) entries.set(entry.key, entry);
+          document.querySelector('.burndown-card .card-title').textContent = `Estimated backlog volume · updating ${Math.min(100, Math.round((batch.nextPage || batch.totalPages) / Math.max(1,batch.totalPages) * 100))}%`;
+          if (!batch.nextPage) break;
           page = batch.nextPage;
         }
-        const verified = await request({ verify: 'true', marker });
+        const verified = await request({ verify: 'true', marker, count: records.size });
         if (allData !== data) return;
+        const points = boundaries.map(() => ({ low: 0, high: 0 }));
+        for (const entry of entries.values()) entry.points.forEach((p,i) => { points[i].low += p.low; points[i].high += p.high; });
+        const starts = points.map(p => {
+          const low = verified.currentBacklog + verified.adjustment + p.low - verified.uncertainty;
+          const high = verified.currentBacklog + verified.adjustment + p.high + verified.uncertainty;
+          return high < 0 ? null : { low: Math.max(0,low), high };
+        });
+        const updated = { version: 2, fetchedAt: verified.fetchedAt, weeks: weeks.map((w,i) =>
+          ({ ...w, startRange: starts[i], endRange: i === weeks.length - 1 ? null : starts[i+1] })) };
         data.currentBacklog = verified.currentBacklog;
         data.backlogAsOf = verified.fetchedAt;
         data.backlogBreakdown = { ...data.backlogBreakdown, total: verified.currentBacklog, active: verified.currentBacklog };
-        data.backlogHistory = { status: 'ready', points,
-          weeks: finalizeBacklogHistory(weeks, points, data.currentBacklog) };
-        renderAll();
+        apply(updated);
+        try { localStorage.setItem(cacheKey, JSON.stringify(updated)); } catch {}
       } catch (error) {
         if (allData !== data) return;
-        data.backlogHistory = { status: 'unavailable', weeks: [] };
+        // A failed refresh must not erase an already computed historical graph.
+        data.backlogHistory = { ...data.backlogHistory, status: data.backlogHistory?.weeks?.some(w => w.backlog !== null) ? 'cached' : 'unavailable' };
         renderAll();
       }
     }
@@ -2986,10 +3015,11 @@
       document.getElementById('paceVal').textContent = `${cpd}/day${cpdNote}`;
 
       const avgBurn = getAverageWeeklyNetFlow();
+      const avgBurnRange = getAverageWeeklyNetFlowRange();
       const currentBacklog = getCurrentBacklogAnchor();
       const weeksToZero = currentBacklog === 0 ? 0
-        : currentBacklog !== null && avgBurn > 0 ? Math.ceil(currentBacklog / avgBurn) : null;
-      document.getElementById('weeksToZero').textContent = weeksToZero === null ? 'N/A' : `~${weeksToZero} weeks`;
+        : currentBacklog !== null && avgBurnRange?.low > 0 ? formatHistoryRange(Math.ceil(currentBacklog / avgBurnRange.high), Math.ceil(currentBacklog / avgBurnRange.low)) : null;
+      document.getElementById('weeksToZero').textContent = weeksToZero === null ? 'N/A' : weeksToZero === 0 ? '0 weeks' : `~${weeksToZero} week${String(weeksToZero) === '1' ? '' : 's'}`;
 
       const pctTarget = TARGET_DAILY > 0 ? Math.round((dailyPace / TARGET_DAILY) * 100) : 0;
       const onTrack = dailyPace >= TARGET_DAILY;
@@ -3007,16 +3037,13 @@
       document.getElementById('burnStats').innerHTML = `
         <div class="bstat"><div class="bstat-val">${currentBacklog === null ? '—' : currentBacklog.toLocaleString()}</div><div class="bstat-lbl">Live Help Scout active tickets</div></div>
         <div class="bstat"><div class="bstat-val" style="color:${estimatedChange === null || estimatedChange >= 0 ? 'var(--green)' : 'var(--red)'}">${estimatedChange === null ? '—' : `${estimatedChange >= 0 ? '−' : '+'}${Math.abs(estimatedChange).toLocaleString()}`}</div><div class="bstat-lbl">Estimated change since first visible week</div></div>
-        <div class="bstat"><div class="bstat-val" style="color:${avgBurn === null ? 'var(--text)' : avgBurn >= 0 ? 'var(--green)' : 'var(--red)'}">${avgBurn === null ? '—' : `${avgBurn >= 0 ? '+' : '−'}${Math.abs(Math.round(avgBurn)).toLocaleString()}`}</div><div class="bstat-lbl" title="Net decrease in Active across four completed weeks with verified status history">Avg weekly net burn</div></div>
+        <div class="bstat"><div class="bstat-val" style="color:${avgBurn === null ? 'var(--text)' : avgBurn >= 0 ? 'var(--green)' : 'var(--red)'}">${formatHistoryRange(avgBurnRange?.low, avgBurnRange?.high, true)}</div><div class="bstat-lbl" title="Estimated Active decrease range across four completed weeks">Avg weekly net burn</div></div>
         <div class="bstat"><div class="bstat-val">${weeksToZero ?? '—'}</div><div class="bstat-lbl">Est. weeks to zero</div></div>
       `;
       const historyTitle = document.querySelector('.burndown-card .card-title');
       historyTitle.textContent = `Estimated backlog volume${allData.backlogHistory?.status === 'loading' ? ' · checking history' : ''}`;
-      historyTitle.title = 'Reconstructed from ticket statuses. Blank periods have incomplete or ambiguous history, including merges. Deleted or moved-out conversations that Help Scout no longer exposes cannot be recovered.';
-      document.querySelector('#burnStats .bstat:nth-child(2) .bstat-lbl').textContent =
-        allData.backlogHistory?.status === 'unverified' ? 'History has unresolved status or merge gaps'
-        : allData.backlogHistory?.status === 'unavailable' ? 'Status history unavailable'
-        : 'Estimated change since first visible week';
+      historyTitle.title = `Status-history estimates as of ${allData.backlogHistory?.fetchedAt || 'pending'}. The line shows range midpoints; hover for bounds. Inaccessible deleted or moved-out tickets cannot be recovered.`;
+      document.querySelector('#burnStats .bstat:nth-child(2) .bstat-lbl').textContent = 'Estimated change · range midpoint';
 
       renderWeekNav();
       renderKPIs(w, prev, (w.closed / elapsed).toFixed(0), cpdNote);
@@ -3066,7 +3093,7 @@
 
       document.getElementById('paceText').textContent = onTrack
         ? `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). ${Math.abs(burnRate)} more conversations ${burnRate >= 0 ? 'closed than created' : 'created than closed'}. Active-backlog movement also depends on status changes.`
-        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). Need ${gap} more tickets/day to hit the target. A clearance forecast requires measured active-backlog movement.`;
+        : `Team closed ${paceClosed.toLocaleString()} tickets total this week (${Math.round(dailyPace)}/day vs. ${TARGET_DAILY}/day target). Need ${gap} more tickets/day to hit the target. ${weeksToZero === null ? 'A clearance forecast requires active-backlog history.' : 'The clearance estimate uses the recent net decrease in active tickets.'}`;
     }
 
     function renderWeekNav() {
@@ -3455,6 +3482,7 @@
       }
 
       const burnRate = getWeeklyNetFlow(w);
+      const burnRange = getWeeklyHistory(w);
       const currentBacklog = getCurrentBacklogAnchor();
       const backlogCard = `
         <div class="kpi" style="--kc:#92400e">
@@ -3462,7 +3490,7 @@
           <div class="kpi-value">${currentBacklog === null ? '—' : currentBacklog.toLocaleString()}</div>
           <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
             <span class="kpi-delta neutral" style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:3px">Live HelpScout snapshot</span>
-            <span class="kpi-delta ${burnRate === null ? 'neutral' : burnRate >= 0 ? 'up' : 'down'}" style="font-size:10px;background:${burnRate === null ? 'var(--surface2)' : burnRate >= 0 ? 'var(--green-bg)' : 'var(--red-bg)'};padding:2px 7px;border-radius:3px">${burnRate === null ? 'Historical change unavailable' : `${burnRate >= 0 ? '+' : '−'}${Math.abs(burnRate)} active net burn`}</span>
+            <span class="kpi-delta ${burnRate === null ? 'neutral' : burnRate >= 0 ? 'up' : 'down'}" style="font-size:10px;background:${burnRate === null ? 'var(--surface2)' : burnRate >= 0 ? 'var(--green-bg)' : 'var(--red-bg)'};padding:2px 7px;border-radius:3px">${burnRate === null ? 'Historical change unavailable' : `${formatHistoryRange(burnRange?.netBurnLow, burnRange?.netBurnHigh, true)} active net burn`}</span>
           </div>
           <div class="kpi-note" style="margin-top:4px">Active tickets · includes Mine and Unassigned</div>
         </div>`;
@@ -3500,11 +3528,11 @@
         },
         {
           label: 'Net burn rate',
-          value: burnRate === null ? '—' : (burnRate >= 0 ? '+' : '') + burnRate,
+          value: formatHistoryRange(burnRange?.netBurnLow, burnRange?.netBurnHigh, true),
           color: burnRate >= 0 ? '#1a6b3a' : '#991b1b',
-          txt: burnRate === null ? 'Status history unverified' : burnRate > 0 ? 'Active queue decreased' : burnRate < 0 ? 'Active queue increased' : 'Active queue unchanged',
-          cls: burnRate > 0 ? 'up' : burnRate < 0 ? 'down' : 'neutral',
-          note: 'Active exits minus entries · includes reopenings and Pending changes'
+          txt: burnRate === null ? 'History unavailable' : burnRange.netBurnLow > 0 ? 'Active queue decreased' : burnRange.netBurnHigh < 0 ? 'Active queue increased' : burnRange.netBurnLow === 0 && burnRange.netBurnHigh === 0 ? 'Active queue unchanged' : 'Estimated range · direction uncertain',
+          cls: burnRange?.netBurnLow > 0 ? 'up' : burnRange?.netBurnHigh < 0 ? 'down' : 'neutral',
+          note: 'Estimated Active exits minus entries · includes reopenings and Pending changes'
         },
         {
           label: 'Resolved on first reply',
@@ -4060,15 +4088,16 @@
               ...tooltipStyle,
               callbacks: {
                 label(context) {
-                  return `Estimated backlog: ${formatAxisNumber(context.raw)}`;
+                  const week = getWeeklyHistory(allData.weeks[context.dataIndex]);
+                  return `Estimated backlog: ${formatHistoryRange(week?.backlogLow, week?.backlogHigh)}`;
                 },
                 afterBody(items) {
                   if (items[0]?.dataIndex === allData.weeks.length - 1) {
                     return ['Current verified active tickets, including Mine and Unassigned'];
                   }
-                  return ['Week-end estimate reconstructed from ticket status history',
-                    'Includes reopenings and Active/Pending changes',
-                    'Unverified periods are blank; inaccessible deleted/moved tickets cannot be recovered'];
+                  return ['Line shows the midpoint of the available-history range',
+                    'Includes reopenings, Pending changes and merged sources',
+                    `History checked ${allData.backlogHistory?.fetchedAt || ''}; inaccessible deleted/moved tickets are excluded`];
                 },
               },
             },
@@ -4228,7 +4257,8 @@
               callbacks: {
                 label(context) {
                   const raw = context.dataset.rawData?.[context.dataIndex];
-                  return `${context.dataset.label}: ${raw >= 0 ? '+' : ''}${formatAxisNumber(raw ?? context.raw)}`;
+                  const week = getWeeklyHistory(allData.weeks[context.dataIndex]);
+                  return `Estimated burn: ${formatHistoryRange(week?.netBurnLow, week?.netBurnHigh, true)}`;
                 },
                 afterBody(context) {
                   const raw = context[0]?.dataset?.rawData?.[context[0]?.dataIndex];

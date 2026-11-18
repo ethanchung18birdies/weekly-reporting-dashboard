@@ -1,0 +1,165 @@
+{
+  "version": 2,
+  "fetchedAt": "2026-11-18T19:16:39.670Z",
+  "scope": "Available Help Scout status history; inaccessible deleted or moved-out tickets are not recoverable",
+  "weeks": [
+    {
+      "label": "W08/31",
+      "startStr": "2026-08-31",
+      "endStr": "2026-09-06",
+      "startRange": {
+        "low": 3647,
+        "high": 3921
+      },
+      "endRange": {
+        "low": 3317,
+        "high": 3539
+      }
+    },
+    {
+      "label": "W09/07",
+      "startStr": "2026-09-07",
+      "endStr": "2026-09-13",
+      "startRange": {
+        "low": 3317,
+        "high": 3539
+      },
+      "endRange": {
+        "low": 2818,
+        "high": 3022
+      }
+    },
+    {
+      "label": "W09/14",
+      "startStr": "2026-09-14",
+      "endStr": "2026-09-20",
+      "startRange": {
+        "low": 2818,
+        "high": 3022
+      },
+      "endRange": {
+        "low": 2224,
+        "high": 2415
+      }
+    },
+    {
+      "label": "W09/21",
+      "startStr": "2026-09-21",
+      "endStr": "2026-09-27",
+      "startRange": {
+        "low": 2224,
+        "high": 2415
+      },
+      "endRange": {
+        "low": 1763,
+        "high": 1945
+      }
+    },
+    {
+      "label": "W09/28",
+      "startStr": "2026-09-28",
+      "endStr": "2026-10-04",
+      "startRange": {
+        "low": 1763,
+        "high": 1945
+      },
+      "endRange": {
+        "low": 1285,
+        "high": 1443
+      }
+    },
+    {
+      "label": "W10/05",
+      "startStr": "2026-10-05",
+      "endStr": "2026-10-11",
+      "startRange": {
+        "low": 1285,
+        "high": 1443
+      },
+      "endRange": {
+        "low": 984,
+        "high": 1134
+      }
+    },
+    {
+      "label": "W10/12",
+      "startStr": "2026-10-12",
+      "endStr": "2026-10-18",
+      "startRange": {
+        "low": 984,
+        "high": 1134
+      },
+      "endRange": {
+        "low": 834,
+        "high": 980
+      }
+    },
+    {
+      "label": "W10/19",
+      "startStr": "2026-10-19",
+      "endStr": "2026-10-25",
+      "startRange": {
+        "low": 834,
+        "high": 980
+      },
+      "endRange": {
+        "low": 541,
+        "high": 682
+      }
+    },
+    {
+      "label": "W10/26",
+      "startStr": "2026-10-26",
+      "endStr": "2026-11-01",
+      "startRange": {
+        "low": 541,
+        "high": 682
+      },
+      "endRange": {
+        "low": 388,
+        "high": 529
+      }
+    },
+    {
+      "label": "W11/02",
+      "startStr": "2026-11-02",
+      "endStr": "2026-11-08",
+      "startRange": {
+        "low": 388,
+        "high": 529
+      },
+      "endRange": {
+        "low": 321,
+        "high": 453
+      }
+    },
+    {
+      "label": "W11/09",
+      "startStr": "2026-11-09",
+      "endStr": "2026-11-15",
+      "startRange": {
+        "low": 321,
+        "high": 453
+      },
+      "endRange": {
+        "low": 203,
+        "high": 333
+      }
+    },
+    {
+      "label": "W11/16",
+      "startStr": "2026-11-16",
+      "endStr": "2026-11-22",
+      "startRange": {
+        "low": 203,
+        "high": 333
+      },
+      "endRange": null
+    }
+  ],
+  "audit": {
+    "conversations": 14032,
+    "anchor": 29,
+    "uncertainDuringVerification": 0
+  }
+}

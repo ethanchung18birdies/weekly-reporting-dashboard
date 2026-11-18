@@ -14,7 +14,7 @@ function api(t,changed) {
   assert.equal(url.pathname,'/v2/conversations');
   if(url.searchParams.get('status')==='active')return Response.json(page([{id:1,status:'active'},{id:2,status:'closed'}]));
   const since=Date.parse(url.searchParams.get('modifiedSince'));
-  if(since>Date.now()-60_000)return Response.json(page(changed?[{id:1}]:[]));
+  if(since>Date.now()-60_000)return Response.json(page(changed?[{id:1,status:'active',createdAt:'2026-01-01T00:00:00Z',threads:0,_embedded:{threads:[]}}]:[]));
   return Response.json(page([{id:1,number:1,status:'active',threads:1,createdAt:'2026-01-01T00:00:00Z',
    _embedded:{threads:[{id:2,type:'customer',state:'published',status:'active',createdAt:'2026-01-01T00:00:00Z',body:'private body not returned'}]},subject:'private subject'}]));
  });
@@ -24,16 +24,16 @@ test('history API returns aggregates only and verifies against actual active sta
  const first=await call({});
  assert.equal(first.status,200);
  assert.equal(JSON.stringify(first.body).includes('private'),false);
- assert.equal(first.body.points.length,12);
- assert.equal(first.body.points[0].delta,0);
- const verified=await call({verify:'true',marker:first.body.marker});
+ assert.equal(first.body.boundaries.length,12);
+ assert.equal(first.body.entries[0].points[0].low,0);
+ const verified=await call({verify:'true',marker:first.body.marker,count:'1'});
  assert.equal(verified.status,200);
  assert.equal(verified.body.currentBacklog,1);
 });
-test('concurrent ticket changes prevent publishing a reconstructed history',async t=>{
+test('concurrent activity widens the estimate instead of erasing the graph',async t=>{
  api(t,true);
  const first=await call({});
- const verified=await call({verify:'true',marker:first.body.marker});
- assert.equal(verified.status,409);
- assert.match(verified.body.error,/changed during history/);
+ const verified=await call({verify:'true',marker:first.body.marker,count:'1'});
+ assert.equal(verified.status,200);
+ assert.ok(verified.body.uncertainty>0);
 });
